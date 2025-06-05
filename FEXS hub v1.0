@@ -2,6 +2,7 @@ local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local CoreGui = game:GetService("CoreGui")
 
 -- Create ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
@@ -11,8 +12,8 @@ ScreenGui.ResetOnSpawn = false
 
 -- Main Frame (Draggable)
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 160)
-MainFrame.Position = UDim2.new(0.5, -140, 0.3, -80)
+MainFrame.Size = UDim2.new(0, 320, 0, 320) -- bigger to fit tabs
+MainFrame.Position = UDim2.new(0.5, -160, 0.3, -160)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 MainFrame.Active = true
@@ -62,28 +63,140 @@ OpenBtn.Visible = false
 OpenBtn.Parent = ScreenGui
 
 -- Open/Close functionality
-OpenBtn.MouseButton1Click:Connect(function()
-	MainFrame.Visible = true
-	OpenBtn.Visible = false
-end)
-
 CloseBtn.MouseButton1Click:Connect(function()
 	MainFrame.Visible = false
 	OpenBtn.Visible = true
 end)
 
--- Speed Button
-local SpeedBtn = Instance.new("TextButton")
-SpeedBtn.Size = UDim2.new(0, 240, 0, 45)
-SpeedBtn.Position = UDim2.new(0, 20, 0, 50)
-SpeedBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-SpeedBtn.BorderSizePixel = 0
-SpeedBtn.TextColor3 = Color3.new(1,1,1)
-SpeedBtn.Font = Enum.Font.SourceSans
-SpeedBtn.TextSize = 20
-SpeedBtn.Parent = MainFrame
+OpenBtn.MouseButton1Click:Connect(function()
+	MainFrame.Visible = true
+	OpenBtn.Visible = false
+end)
 
--- Speed settings
+-- Create Tabs container
+local TabsContainer = Instance.new("Frame")
+TabsContainer.Size = UDim2.new(1, 0, 1, -30)
+TabsContainer.Position = UDim2.new(0, 0, 0, 30)
+TabsContainer.BackgroundTransparency = 1
+TabsContainer.Parent = MainFrame
+
+-- Create Tab Buttons
+local TabButtonsFrame = Instance.new("Frame")
+TabButtonsFrame.Size = UDim2.new(1, 0, 0, 30)
+TabButtonsFrame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+TabButtonsFrame.Parent = MainFrame
+
+local function createTabButton(name, position)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 150, 1, 0)
+	btn.Position = position
+	btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.SourceSansBold
+	btn.TextSize = 18
+	btn.Text = name
+	btn.Parent = TabButtonsFrame
+	return btn
+end
+
+local MainTabBtn = createTabButton("Main", UDim2.new(0, 0, 0, 0))
+local SettingsTabBtn = createTabButton("Settings", UDim2.new(0, 150, 0, 0))
+
+-- Create Main Tab Frame
+local MainTab = Instance.new("Frame")
+MainTab.Size = UDim2.new(1, 0, 1, 0)
+MainTab.BackgroundTransparency = 1
+MainTab.Parent = TabsContainer
+
+-- Create Settings Tab Frame
+local SettingsTab = Instance.new("Frame")
+SettingsTab.Size = UDim2.new(1, 0, 1, 0)
+SettingsTab.BackgroundTransparency = 1
+SettingsTab.Visible = false
+SettingsTab.Parent = TabsContainer
+
+-- Switch Tabs function
+local function switchTab(tab)
+	if tab == "Main" then
+		MainTab.Visible = true
+		SettingsTab.Visible = false
+		MainTabBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		SettingsTabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+	else
+		MainTab.Visible = false
+		SettingsTab.Visible = true
+		MainTabBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+		SettingsTabBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+	end
+end
+
+-- Initialize tabs
+switchTab("Main")
+
+MainTabBtn.MouseButton1Click:Connect(function()
+	switchTab("Main")
+end)
+
+SettingsTabBtn.MouseButton1Click:Connect(function()
+	switchTab("Settings")
+end)
+
+-- MAIN TAB ELEMENTS (Speed, ESP, Chams, Crosshair Buttons)
+local function createButton(text, position, parent)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 280, 0, 45)
+	btn.Position = position
+	btn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
+	btn.BorderSizePixel = 0
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.Font = Enum.Font.SourceSans
+	btn.TextSize = 20
+	btn.Text = text
+	btn.Parent = parent
+	return btn
+end
+
+local SpeedBtn = createButton("Speed: Normal", UDim2.new(0, 20, 0, 20), MainTab)
+local ESPBtn = createButton("ESP: OFF", UDim2.new(0, 20, 0, 75), MainTab)
+local CrosshairBtn = createButton("Crosshair: OFF", UDim2.new(0, 20, 0, 130), MainTab)
+local ChamsBtn = createButton("Chams: OFF", UDim2.new(0, 20, 0, 185), MainTab)
+
+-- SETTINGS TAB ELEMENTS
+local function createToggle(name, position, parent)
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 280, 0, 40)
+	frame.Position = position
+	frame.BackgroundTransparency = 1
+	frame.Parent = parent
+	
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(0.7, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = name
+	label.TextColor3 = Color3.new(1,1,1)
+	label.Font = Enum.Font.SourceSans
+	label.TextSize = 20
+	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.Parent = frame
+	
+	local toggleBtn = Instance.new("TextButton")
+	toggleBtn.Size = UDim2.new(0.3, -10, 0.8, 0)
+	toggleBtn.Position = UDim2.new(0.7, 10, 0.1, 0)
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	toggleBtn.TextColor3 = Color3.new(1,1,1)
+	toggleBtn.Font = Enum.Font.SourceSansBold
+	toggleBtn.TextSize = 18
+	toggleBtn.Text = "OFF"
+	toggleBtn.Parent = frame
+	
+	return toggleBtn
+end
+
+local BoxesToggle = createToggle("ESP Boxes", UDim2.new(0, 20, 0, 20), SettingsTab)
+local HealthBarToggle = createToggle("Health Bars", UDim2.new(0, 20, 0, 70), SettingsTab)
+local TracersToggle = createToggle("ESP Tracers", UDim2.new(0, 20, 0, 120), SettingsTab)
+
+-- Speed Button Logic (unchanged)
 local speeds = {"Normal", "Fast", "Very Fast"}
 local speedValues = { Normal = 16, Fast = 40, ["Very Fast"] = 80 }
 local currentSpeedIndex = 1
@@ -107,85 +220,167 @@ end)
 
 updateSpeed()
 
--- ESP Toggle Button
-local ESPBtn = Instance.new("TextButton")
-ESPBtn.Size = UDim2.new(0, 240, 0, 45)
-ESPBtn.Position = UDim2.new(0, 20, 0, 105)
-ESPBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-ESPBtn.BorderSizePixel = 0
-ESPBtn.TextColor3 = Color3.new(1,1,1)
-ESPBtn.Font = Enum.Font.SourceSans
-ESPBtn.TextSize = 20
-ESPBtn.Text = "ESP: OFF"
-ESPBtn.Parent = MainFrame
+-- ESP Feature toggles storage
+local espSettings = {
+	boxes = false,
+	healthBars = false,
+	tracers = false,
+}
 
--- ESP Toggle Logic
-local espEnabled = false
+-- ESP Tables
 local espBoxes = {}
+local espHealthBars = {}
+local espTracers = {}
 
-local function createESP(player)
-	if player == LocalPlayer then return end
-	if espBoxes[player] then return end
-
-	local character = player.Character or player.CharacterAdded:Wait()
-	local root = character:WaitForChild("HumanoidRootPart", 5)
-	if not root then return end
-
-	local box = Instance.new("BoxHandleAdornment")
-	box.Name = "ESPBox"
-	box.Adornee = character
-	box.Size = Vector3.new(4, 6, 2)
-	box.AlwaysOnTop = true
-	box.ZIndex = 5
-	box.Color3 = Color3.new(1, 0, 0)
-	box.Transparency = 0.6
-	box.Parent = game:GetService("CoreGui")
-
-	espBoxes[player] = box
+-- Function to create tracer line
+local function createTracer(player)
+	if espTracers[player] then return end
+	local tracer = Instance.new("Frame")
+	tracer.Name = "Tracer"
+	tracer.BackgroundColor3 = Color3.new(1, 0, 0)
+	tracer.BorderSizePixel = 0
+	tracer.ZIndex = 5
+	tracer.AnchorPoint = Vector2.new(0.5, 0)
+	tracer.Size = UDim2.new(0, 2, 0, 0) -- initial size 0 height
+	tracer.Position = UDim2.new(0.5, 0, 1, 0) -- start from bottom center (screen bottom)
+	tracer.Parent = CoreGui
+	espTracers[player] = tracer
 end
 
-local function removeESP(player)
-	if espBoxes[player] then
-		espBoxes[player]:Destroy()
-		espBoxes[player] = nil
+local function removeTracer(player)
+	if espTracers[player] then
+		espTracers[player]:Destroy()
+		espTracers[player] = nil
 	end
 end
 
-local function enableESP()
-	for _, player in pairs(Players:GetPlayers()) do
-		createESP(player)
+-- Update tracer size and position every frame
+local function updateTracer(player)
+	local tracer = espTracers[player]
+	local char = player.Character
+	if not tracer or not char then
+		removeTracer(player)
+		return
 	end
-end
-
-local function disableESP()
-	for _, box in pairs(espBoxes) do
-		box:Destroy()
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not root then
+		removeTracer(player)
+		return
 	end
-	espBoxes = {}
-end
 
--- Keep ESP updated for new characters
-Players.PlayerAdded:Connect(function(player)
-	player.CharacterAdded:Connect(function()
-		if espEnabled then
-			wait(1)
-			createESP(player)
-		end
-	end)
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-	removeESP(player)
-end)
-
--- Toggle ESP on button click
-ESPBtn.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-	if espEnabled then
-		ESPBtn.Text = "ESP: ON"
-		enableESP()
+	local camera = workspace.CurrentCamera
+	local rootPos, onScreen = camera:WorldToViewportPoint(root.Position)
+	if onScreen then
+		local screenCenterX = camera.ViewportSize.X / 2
+		local screenCenterY = camera.ViewportSize.Y
+		local tracerHeight = (screenCenterY - rootPos.Y)
+		tracer.Size = UDim2.new(0, 2, 0, tracerHeight)
+		tracer.Position = UDim2.new(0, rootPos.X, 0, rootPos.Y)
+		tracer.Visible = true
 	else
-		ESPBtn.Text = "ESP: OFF"
-		disableESP()
+		tracer.Visible = false
+	end
+end
+
+-- Example ESP toggles logic (simplified for demo)
+local function toggleESP(enabled)
+	if enabled then
+		-- Create tracers for players if espSettings.tracers is true
+		for _, player in pairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer and player.Character then
+				if espSettings.tracers then
+					createTracer(player)
+				end
+			end
+		end
+	else
+		-- Remove all ESP visuals
+		for player, _ in pairs(espTracers) do
+			removeTracer(player)
+		end
+	end
+end
+
+-- Update toggle button display and espSettings on click
+local function toggleSetting(settingName, toggleBtn)
+	toggleBtn.MouseButton1Click:Connect(function()
+		espSettings[settingName] = not espSettings[settingName]
+		if espSettings[settingName] then
+			toggleBtn.Text = "ON"
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+		else
+			toggleBtn.Text = "OFF"
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+		end
+
+		-- Update ESP visuals live when toggles change
+		if settingName == "tracers" then
+			if espSettings.tracers then
+				for _, player in pairs(Players:GetPlayers()) do
+					if player ~= LocalPlayer and player.Character then
+						createTracer(player)
+					end
+				end
+			else
+				for player, _ in pairs(espTracers) do
+					removeTracer(player)
+				end
+			end
+		end
+
+		-- Add your logic for boxes and health bars here similarly if needed
+
+		-- Update main ESP button text depending on if any ESP setting is enabled
+		local anyESP = espSettings.boxes or espSettings.healthBars or espSettings.tracers
+		ESPBtn.Text = "ESP: " .. (anyESP and "ON" or "OFF")
+	end)
+end
+
+toggleSetting("boxes", BoxesToggle)
+toggleSetting("healthBars", HealthBarToggle)
+toggleSetting("tracers", TracersToggle)
+
+-- Initial colors for toggles
+BoxesToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+HealthBarToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+TracersToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+
+-- ESP Button toggles all ESP on/off for quick toggle (toggles all settings together)
+ESPBtn.MouseButton1Click:Connect(function()
+	local newState = not (espSettings.boxes or espSettings.healthBars or espSettings.tracers)
+	espSettings.boxes = newState
+	espSettings.healthBars = newState
+	espSettings.tracers = newState
+
+	-- Update toggles UI
+	BoxesToggle.Text = newState and "ON" or "OFF"
+	BoxesToggle.BackgroundColor3 = newState and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(70, 70, 70)
+	HealthBarToggle.Text = newState and "ON" or "OFF"
+	HealthBarToggle.BackgroundColor3 = newState and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(70, 70, 70)
+	TracersToggle.Text = newState and "ON" or "OFF"
+	TracersToggle.BackgroundColor3 = newState and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(70, 70, 70)
+
+	-- Apply tracer toggles live
+	if newState then
+		for _, player in pairs(Players:GetPlayers()) do
+			if player ~= LocalPlayer and player.Character then
+				createTracer(player)
+			end
+		end
+	else
+		for player, _ in pairs(espTracers) do
+			removeTracer(player)
+		end
+	end
+
+	ESPBtn.Text = "ESP: " .. (newState and "ON" or "OFF")
+end)
+
+-- Update tracers on render step if enabled
+RunService.RenderStepped:Connect(function()
+	if espSettings.tracers then
+		for player, tracer in pairs(espTracers) do
+			updateTracer(player)
+		end
 	end
 end)
