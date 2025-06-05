@@ -1,21 +1,19 @@
--- FEXS GUI Hub Script with Drag, Speed Toggle, and Open/Close
+-- FEXS GUI Hub - Draggable Speed Toggle GUI
 
 local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-
--- Main GUI
-local screenGui = script.Parent
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "FEXSGUI"
 screenGui.ResetOnSpawn = false
 
--- Main Frame
+-- Create Frame
 local frame = Instance.new("Frame")
 frame.Size = UDim2.new(0, 220, 0, 160)
 frame.Position = UDim2.new(0.05, 0, 0.1, 0)
 frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 frame.BorderSizePixel = 2
-frame.Active = true
 frame.Draggable = true
-frame.Visible = false -- Start closed
+frame.Active = true
+frame.Selectable = true
 frame.Parent = screenGui
 
 -- Title Label
@@ -39,17 +37,6 @@ speedButton.BackgroundColor3 = Color3.fromRGB(70, 150, 255)
 speedButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 speedButton.Parent = frame
 
--- Open/Close Button
-local toggleButton = Instance.new("TextButton")
-toggleButton.Text = "Open FEXS GUI"
-toggleButton.Font = Enum.Font.SourceSans
-toggleButton.TextSize = 18
-toggleButton.Size = UDim2.new(0, 160, 0, 40)
-toggleButton.Position = UDim2.new(0, 20, 0, 20)
-toggleButton.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.Parent = screenGui
-
 -- Speed Toggle Logic
 local fastSpeed = 50
 local normalSpeed = 16
@@ -68,20 +55,5 @@ speedButton.MouseButton1Click:Connect(function()
 			speedButton.Text = "Toggle Speed (Fast)"
 		end
 		isFast = not isFast
-	end
-end)
-
--- Open/Close Toggle Logic
-local guiOpen = false
-
-toggleButton.MouseButton1Click:Connect(function()
-	guiOpen = not guiOpen
-	frame.Visible = guiOpen
-	if guiOpen then
-		toggleButton.Text = "Close FEXS GUI"
-		toggleButton.BackgroundColor3 = Color3.fromRGB(200, 60, 60)
-	else
-		toggleButton.Text = "Open FEXS GUI"
-		toggleButton.BackgroundColor3 = Color3.fromRGB(60, 200, 60)
 	end
 end)
