@@ -1,205 +1,223 @@
--- Variables
-local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
-local runService = game:GetService("RunService")
-local tweenService = game:GetService("TweenService")
-local camera = workspace.CurrentCamera
+-- FEXS GUI Hub Script
 
--- Speed states
-local speeds = {16, 32, 64} -- Normal, Fast, Very Fast
-local speedNames = {"Normal", "Fast", "Very Fast"}
-local currentSpeedIndex = 1
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Create ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "FEXSGUIHub"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- Create main ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FEXSGUIHub"
+ScreenGui.Parent = PlayerGui
+ScreenGui.ResetOnSpawn = false
 
--- Main Frame (draggable)
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 250, 0, 150)
--- Start off-screen (above)
-local openPosition = UDim2.new(0.5, -125, 0.3, -75)
-local closedPosition = UDim2.new(0.5, -125, 0.3, -250)
-mainFrame.Position = closedPosition
-mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = screenGui
-mainFrame.Active = true
-mainFrame.Draggable = true
+-- Main Frame
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 300, 0, 180)
+MainFrame.Position = UDim2.new(0.5, -150, 0.3, -90)
+MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+MainFrame.Active = true
+MainFrame.Draggable = true
 
--- Title Label
-local titleLabel = Instance.new("TextLabel")
-titleLabel.Size = UDim2.new(1, 0, 0, 30)
-titleLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-titleLabel.BorderSizePixel = 0
-titleLabel.Text = "FEXS GUI hub"
-titleLabel.TextColor3 = Color3.new(1,1,1)
-titleLabel.Font = Enum.Font.SourceSansBold
-titleLabel.TextSize = 20
-titleLabel.Parent = mainFrame
+-- Title
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Title.BorderSizePixel = 0
+Title.Text = "FEXS GUI Hub"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 20
+Title.Parent = MainFrame
+
+-- Close Button
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 40, 0, 30)
+CloseBtn.Position = UDim2.new(1, -40, 0, 0)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(170, 40, 40)
+CloseBtn.Text = "X"
+CloseBtn.TextColor3 = Color3.new(1,1,1)
+CloseBtn.Font = Enum.Font.SourceSansBold
+CloseBtn.TextSize = 20
+CloseBtn.Parent = MainFrame
+
+-- Open Button (hidden by default)
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Size = UDim2.new(0, 100, 0, 30)
+OpenBtn.Position = UDim2.new(0, 20, 0.3, 0)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+OpenBtn.BorderSizePixel = 0
+OpenBtn.Text = "Open FEXS GUI"
+OpenBtn.TextColor3 = Color3.new(1,1,1)
+OpenBtn.Font = Enum.Font.SourceSansBold
+OpenBtn.TextSize = 18
+OpenBtn.Visible = false
+OpenBtn.Parent = ScreenGui
 
 -- Speed Button
-local speedButton = Instance.new("TextButton")
-speedButton.Size = UDim2.new(0.9, 0, 0, 40)
-speedButton.Position = UDim2.new(0.05, 0, 0.25, 0)
-speedButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-speedButton.BorderSizePixel = 0
-speedButton.Text = "Speed: Normal"
-speedButton.TextColor3 = Color3.new(1,1,1)
-speedButton.Font = Enum.Font.SourceSans
-speedButton.TextSize = 18
-speedButton.Parent = mainFrame
+local SpeedBtn = Instance.new("TextButton")
+SpeedBtn.Size = UDim2.new(0, 260, 0, 40)
+SpeedBtn.Position = UDim2.new(0, 20, 0, 50)
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SpeedBtn.BorderSizePixel = 0
+SpeedBtn.Text = "Speed: Normal"
+SpeedBtn.TextColor3 = Color3.new(1,1,1)
+SpeedBtn.Font = Enum.Font.SourceSans
+SpeedBtn.TextSize = 20
+SpeedBtn.Parent = MainFrame
 
 -- ESP Button
-local espButton = Instance.new("TextButton")
-espButton.Size = UDim2.new(0.9, 0, 0, 40)
-espButton.Position = UDim2.new(0.05, 0, 0.55, 0)
-espButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-espButton.BorderSizePixel = 0
-espButton.Text = "Box ESP: OFF"
-espButton.TextColor3 = Color3.new(1,1,1)
-espButton.Font = Enum.Font.SourceSans
-espButton.TextSize = 18
-espButton.Parent = mainFrame
+local ESPBtn = Instance.new("TextButton")
+ESPBtn.Size = UDim2.new(0, 260, 0, 40)
+ESPBtn.Position = UDim2.new(0, 20, 0, 100)
+ESPBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ESPBtn.BorderSizePixel = 0
+ESPBtn.Text = "Box ESP: Off"
+ESPBtn.TextColor3 = Color3.new(1,1,1)
+ESPBtn.Font = Enum.Font.SourceSans
+ESPBtn.TextSize = 20
+ESPBtn.Parent = MainFrame
 
--- Open/Close Button
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 40, 0, 30)
-toggleButton.Position = UDim2.new(0.5, 130, 0.3, -75)
-toggleButton.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-toggleButton.BorderSizePixel = 0
-toggleButton.Text = "Open"
-toggleButton.TextColor3 = Color3.new(1,1,1)
-toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.TextSize = 16
-toggleButton.Parent = screenGui
+-- Speed States
+local speeds = {
+    ["Normal"] = 16,
+    ["Fast"] = 40,
+    ["Very Fast"] = 80
+}
+local currentSpeedState = "Normal"
 
--- Variables for state
-local espEnabled = false
-local guiOpen = false
-
--- Tween info for animation
-local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
-
--- Set default speed
-local function setSpeed(index)
-    currentSpeedIndex = index
-    if player.Character and player.Character:FindFirstChild("Humanoid") then
-        player.Character.Humanoid.WalkSpeed = speeds[index]
+-- Function to update speed button text and set speed
+local function updateSpeed()
+    local speed = speeds[currentSpeedState]
+    SpeedBtn.Text = "Speed: " .. currentSpeedState
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = speed
     end
-    speedButton.Text = "Speed: " .. speedNames[index]
 end
 
--- Start with normal speed
-setSpeed(1)
-
 -- Cycle speed on button click
-speedButton.MouseButton1Click:Connect(function()
-    currentSpeedIndex = currentSpeedIndex + 1
-    if currentSpeedIndex > #speeds then
-        currentSpeedIndex = 1
+SpeedBtn.MouseButton1Click:Connect(function()
+    if currentSpeedState == "Normal" then
+        currentSpeedState = "Fast"
+    elseif currentSpeedState == "Fast" then
+        currentSpeedState = "Very Fast"
+    else
+        currentSpeedState = "Normal"
     end
-    setSpeed(currentSpeedIndex)
+    updateSpeed()
 end)
 
--- ESP box table
-local boxes = {}
+-- Initially set speed
+updateSpeed()
 
--- Function to create box drawing for a player
-local function createBox(player)
+-- ESP variables
+local espEnabled = false
+local espBoxes = {}
+
+-- Function to create box ESP for a player
+local function createESP(player)
     local box = Drawing.new("Square")
     box.Color = Color3.fromRGB(0, 255, 0)
     box.Thickness = 2
-    box.Filled = false
     box.Transparency = 1
+    box.Filled = false
     return box
 end
 
--- Function to update ESP boxes
-local function updateBoxes()
-    for _, plr in pairs(game.Players:GetPlayers()) do
-        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") and plr.Character:FindFirstChild("Humanoid") and plr.Character.Humanoid.Health > 0 then
-            local rootPart = plr.Character.HumanoidRootPart
-            local vector, onScreen = camera:WorldToViewportPoint(rootPart.Position)
-            local box = boxes[plr]
-            if not box then
-                box = createBox(plr)
-                boxes[plr] = box
-            end
-            if onScreen then
-                local size = Vector3.new(4, 6, 0) -- Approximate size of box
-                local topLeft = camera:WorldToViewportPoint(rootPart.Position + Vector3.new(-size.X/2, size.Y/2, 0))
-                local bottomRight = camera:WorldToViewportPoint(rootPart.Position + Vector3.new(size.X/2, -size.Y/2, 0))
+-- Update ESP boxes every frame
+local function updateESP()
+    if not espEnabled then
+        for _, box in pairs(espBoxes) do
+            box.Visible = false
+        end
+        return
+    end
 
-                local boxX = topLeft.X
-                local boxY = topLeft.Y
-                local boxWidth = math.abs(bottomRight.X - topLeft.X)
-                local boxHeight = math.abs(bottomRight.Y - topLeft.Y)
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer then
+            local character = player.Character
+            local box = espBoxes[player]
+            if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Head") then
+                local rootPart = character.HumanoidRootPart
+                local head = character.Head
+                local rootPos, rootOnScreen = workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position)
+                local headPos, headOnScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
 
-                box.Position = Vector2.new(boxX, boxY)
-                box.Size = Vector2.new(boxWidth, boxHeight)
-                box.Visible = true
+                if rootOnScreen or headOnScreen then
+                    local boxHeight = math.abs(headPos.Y - rootPos.Y)
+                    local boxWidth = boxHeight / 2
+                    local boxX = rootPos.X - boxWidth / 2
+                    local boxY = headPos.Y
+
+                    box.Position = Vector2.new(boxX, boxY)
+                    box.Size = Vector2.new(boxWidth, boxHeight)
+                    box.Visible = true
+                else
+                    box.Visible = false
+                end
             else
                 box.Visible = false
-            end
-        else
-            if boxes[plr] then
-                boxes[plr].Visible = false
             end
         end
     end
 end
 
 -- Toggle ESP on button click
-espButton.MouseButton1Click:Connect(function()
+ESPBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
-    espButton.Text = "Box ESP: " .. (espEnabled and "ON" or "OFF")
+    ESPBtn.Text = "Box ESP: " .. (espEnabled and "On" or "Off")
 
-    if not espEnabled then
-        -- Hide and remove all boxes
-        for _, box in pairs(boxes) do
+    if espEnabled then
+        -- Create boxes for players without one
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and not espBoxes[player] then
+                espBoxes[player] = createESP(player)
+            end
+        end
+    else
+        -- Hide and remove boxes
+        for _, box in pairs(espBoxes) do
             box.Visible = false
             box:Remove()
         end
-        boxes = {}
+        espBoxes = {}
     end
 end)
 
--- RunService loop to update ESP boxes
-runService.RenderStepped:Connect(function()
-    if espEnabled then
-        updateBoxes()
+-- Connect player added/removed for ESP boxes
+Players.PlayerAdded:Connect(function(player)
+    if espEnabled and player ~= LocalPlayer then
+        espBoxes[player] = createESP(player)
     end
 end)
 
--- Function to open GUI with animation
-local function openGUI()
-    guiOpen = true
-    toggleButton.Text = "Close"
-    local tween = tweenService:Create(mainFrame, tweenInfo, {Position = openPosition})
-    tween:Play()
-end
-
--- Function to close GUI with animation
-local function closeGUI()
-    guiOpen = false
-    toggleButton.Text = "Open"
-    local tween = tweenService:Create(mainFrame, tweenInfo, {Position = closedPosition})
-    tween:Play()
-end
-
--- Open/Close GUI button click with animation
-toggleButton.MouseButton1Click:Connect(function()
-    if guiOpen then
-        closeGUI()
-    else
-        openGUI()
+Players.PlayerRemoving:Connect(function(player)
+    if espBoxes[player] then
+        espBoxes[player]:Remove()
+        espBoxes[player] = nil
     end
 end)
 
--- Adjust speed if character respawns
-player.CharacterAdded:Connect(function(char)
-    char:WaitForChild("Humanoid").WalkSpeed = speeds[currentSpeedIndex]
+-- Open/Close GUI toggle
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenBtn.Visible = true
+end)
+
+OpenBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenBtn.Visible = false
+end)
+
+-- Update loop
+RunService.RenderStepped:Connect(function()
+    updateESP()
+end)
+
+-- Make sure speed resets when character loads
+LocalPlayer.CharacterAdded:Connect(function(char)
+    wait(1)
+    updateSpeed()
 end)
