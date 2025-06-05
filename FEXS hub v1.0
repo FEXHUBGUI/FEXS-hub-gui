@@ -50,7 +50,6 @@ speedBtn.MouseButton1Click:Connect(function()
 	speedBtn.Text = "Speed: " .. labels[currentSpeedIndex]
 end)
 
--- Fly toggle
 local flying = false
 local flyBtn = Instance.new("TextButton", mainFrame)
 flyBtn.Size = UDim2.new(0, 260, 0, 30)
@@ -62,74 +61,52 @@ flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
 
+local function startFly()
+	local player = game.Players.LocalPlayer
+	local char = player.Character or player.CharacterAdded:Wait()
+	local hrp = char:WaitForChild("HumanoidRootPart")
+
+	local bv = Instance.new("BodyVelocity")
+	local bg = Instance.new("BodyGyro")
+	bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	bg.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+
+	bv.Velocity = Vector3.zero
+	bg.CFrame = hrp.CFrame
+	bv.Parent = hrp
+	bg.Parent = hrp
+
+	local speed = 100
+
+	local conn
+	conn = RS.RenderStepped:Connect(function()
+		if not flying then
+			conn:Disconnect()
+			bv:Destroy()
+			bg:Destroy()
+			return
+		end
+
+		local cam = workspace.CurrentCamera
+		local move = Vector3.zero
+
+		if UIS:IsKeyDown(Enum.KeyCode.W) then move += cam.CFrame.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.S) then move -= cam.CFrame.LookVector end
+		if UIS:IsKeyDown(Enum.KeyCode.A) then move -= cam.CFrame.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.D) then move += cam.CFrame.RightVector end
+		if UIS:IsKeyDown(Enum.KeyCode.Space) then move += cam.CFrame.UpVector end
+		if UIS:IsKeyDown(Enum.KeyCode.LeftShift) then move -= cam.CFrame.UpVector end
+
+		bv.Velocity = move.Unit * speed
+		bg.CFrame = cam.CFrame
+	end)
+end
+
 flyBtn.MouseButton1Click:Connect(function()
 	flying = not flying
 	flyBtn.Text = flying and "Fly: ON" or "Fly: OFF"
-	local player = game.Players.LocalPlayer
-	local char = player.Character
-	local humanoidRoot = char:WaitForChild("HumanoidRootPart")
-
-	local velocity = Instance.new("BodyVelocity")
-	velocity.MaxForce = Vector3.new(100000, 100000, 100000)
-	velocity.Velocity = Vector3.new(0, 0, 0)
-	velocity.Parent = humanoidRoot
-
-	local flySpeed = 100
-
-	local function flyStep()
-		if flying then
-			local moveVec = Vector3.new()
-			if UIS:IsKeyDown(Enum.KeyCode.W) then moveVec = moveVec + workspace.CurrentCamera.CFrame.LookVector end
-			if UIS:IsKeyDown(Enum.KeyCode.S) then moveVec = moveVec - workspace.CurrentCamera.CFrame.LookVector end
-			if UIS:IsKeyDown(Enum.KeyCode.A) then moveVec = moveVec - workspace.CurrentCamera.CFrame.RightVector end
-			if UIS:IsKeyDown(Enum.KeyCode.D) then moveVec = moveVec + workspace.CurrentCamera.CFrame.RightVector end
-			velocity.Velocity = moveVec.Unit * flySpeed
-		else
-			velocity.Velocity = Vector3.new(0, 0, 0)
-			velocity:Destroy()
-			RS:UnbindFromRenderStep("FlyMovement")
-		end
-	end
-
-	if flying then
-		RS:BindToRenderStep("FlyMovement", Enum.RenderPriority.Input.Value, flyStep)
-	else
-		RS:UnbindFromRenderStep("FlyMovement")
-	end
+	if flying then startFly() end
 end)
-
--- Box ESP
-local espEnabled = false
-local espBtn = Instance.new("TextButton", mainFrame)
-espBtn.Size = UDim2.new(0, 260, 0, 30)
-espBtn.Position = UDim2.new(0, 20, 0, 120)
-espBtn.Text = "ESP: OFF"
-espBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-espBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-
-local function toggleESP()
-	espEnabled = not espEnabled
-	espBtn.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
-
-	for _, p in pairs(game.Players:GetPlayers()) do
-		if p ~= game.Players.LocalPlayer and p.Character then
-			local box = p.Character:FindFirstChild("ESPBox")
-			if espEnabled then
-				if not box then
-					local selectionBox = Instance.new("SelectionBox", p.Character)
-					selectionBox.Name = "ESPBox"
-					selectionBox.Adornee = p.Character
-					selectionBox.LineThickness = 0.05
-					selectionBox.Color3 = Color3.new(1, 0, 0)
-				end
-			else
-				if box then box:Destroy() end
-			end
-		end
-	end
-end
-
-espBtn.MouseButton1Click:Connect(toggleESP)
 
 -- Update ESP when players join
 game.Players.PlayerAdded:Connect(function(player)
