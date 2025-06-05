@@ -1,62 +1,110 @@
--- Main GUI Script
+-- Place this script in a LocalScript inside the ScreenGui
+
 local player = game.Players.LocalPlayer
-local speed = 50
-local jumpPower = 50
+local mouse = player:GetMouse()
 local flying = false
-local bodyVelocity = Instance.new("BodyVelocity")
-bodyVelocity.MaxForce = Vector3.new(500000, 500000, 500000)
+local flySpeed = 50  -- Change fly speed if needed
+local screenGuiVisible = true
 
--- Create ESP
-local function createESP(target)
-    if target:IsA("Player") then
-        local box = Instance.new("BoxHandleAdornment")
-        box.Adornee = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
-        box.Size = Vector3.new(2, 5, 2)
-        box.Color3 = Color3.fromRGB(255, 0, 0)
-        box.Transparency = 0.5
-        box.Parent = target.Character
-    end
-end
+-- Create the GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-game.Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function(character)
-        wait(1)
-        createESP(player)
-    end)
-end)
+-- Create the Fly Button
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.new(0, 200, 0, 50)
+flyButton.Position = UDim2.new(0.5, -100, 0.8, -25)
+flyButton.Text = "Fly"
+flyButton.Parent = screenGui
 
--- Speed changer
-local function changeSpeed()
-    player.Character:WaitForChild("Humanoid").WalkSpeed = speed
-end
+-- Create the Open Button
+local openButton = Instance.new("TextButton")
+openButton.Size = UDim2.new(0, 200, 0, 50)
+openButton.Position = UDim2.new(0.5, -100, 0.9, -25)
+openButton.Text = "Open GUI"
+openButton.Parent = screenGui
 
-script.Parent.SpeedButton.MouseButton1Click:Connect(function()
-    speed = speed == 50 and 100 or 50
-    changeSpeed()
-end)
+-- Create the Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 200, 0, 50)
+closeButton.Position = UDim2.new(0.5, -100, 0.9, -25)
+closeButton.Text = "Close GUI"
+closeButton.Parent = screenGui
+closeButton.Visible = false  -- Initially, the Close button is hidden
 
--- Jump power changer
-local function changeJumpPower()
-    player.Character:WaitForChild("Humanoid").JumpPower = jumpPower
-end
-
-script.Parent.JumpButton.MouseButton1Click:Connect(function()
-    jumpPower = jumpPower == 50 and 100 or 50
-    changeJumpPower()
-end)
-
--- Fly function
-local function fly()
-    if not flying then
-        flying = true
-        bodyVelocity.Parent = player.Character:WaitForChild("HumanoidRootPart")
-        bodyVelocity.Velocity = Vector3.new(0, 100, 0)
-    else
+-- Function to toggle flying
+local function toggleFly()
+    if flying then
         flying = false
-        bodyVelocity:Destroy()
+        player.Character.Humanoid.PlatformStand = false  -- Disable flying
+    else
+        flying = true
+        player.Character.Humanoid.PlatformStand = true  -- Enable flying
+        local bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)  -- Max force to keep flying
+        bodyVelocity.Velocity = Vector3.new(0, flySpeed, 0)  -- Set flying speed
+        bodyVelocity.Parent = player.Character.HumanoidRootPart
+
+        -- Handle flying movement (WASD + space for up and shift for down)
+        game:GetService("RunService").Heartbeat:Connect(function()
+            if flying and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local bodyVelocity = player.Character.HumanoidRootPart:FindFirstChildOfClass("BodyVelocity")
+                if bodyVelocity then
+                    local velocity = Vector3.new()
+
+                    -- Basic controls (WASD + Space and Shift)
+                    if userInputService:IsKeyDown(Enum.KeyCode.W) then
+                        velocity = velocity + player.Character.HumanoidRootPart.CFrame.LookVector * flySpeed
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.A) then
+                        velocity = velocity - player.Character.HumanoidRootPart.CFrame.RightVector * flySpeed
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.S) then
+                        velocity = velocity - player.Character.HumanoidRootPart.CFrame.LookVector * flySpeed
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.D) then
+                        velocity = velocity + player.Character.HumanoidRootPart.CFrame.RightVector * flySpeed
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.Space) then
+                        velocity = velocity + Vector3.new(0, flySpeed, 0)
+                    end
+                    if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
+                        velocity = velocity - Vector3.new(0, flySpeed, 0)
+                    end
+
+                    -- Apply the new velocity
+                    bodyVelocity.Velocity = velocity
+                end
+            end
+        end)
     end
 end
 
-script.Parent.FlyButton.MouseButton1Click:Connect(function()
-    fly()
+-- Connect the Fly button to the toggle function
+flyButton.MouseButton1Click:Connect(function()
+    toggleFly()
+end)
+
+-- Function to open the GUI
+local function openGui()
+    screenGui.Visible = true
+    openButton.Visible = false
+    closeButton.Visible = true
+end
+
+-- Function to close the GUI
+local function closeGui()
+    screenGui.Visible = false
+    openButton.Visible = true
+    closeButton.Visible = false
+end
+
+-- Connect Open Button to open the GUI
+openButton.MouseButton1Click:Connect(function()
+    openGui()
+end)
+
+-- Connect Close Button to close the GUI
+closeButton.MouseButton1Click:Connect(function()
+    closeGui()
 end)
