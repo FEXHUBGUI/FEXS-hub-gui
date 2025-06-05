@@ -1,137 +1,423 @@
--- Create GUI
-local player = game.Players.LocalPlayer
-local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-gui.Name = "FEXHub"
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
--- UI Elements
-local openBtn = Instance.new("TextButton")
-openBtn.Size = UDim2.new(0, 100, 0, 40)
-openBtn.Position = UDim2.new(0, 10, 0, 10)
-openBtn.Text = "Open FEX Hub"
-openBtn.Parent = gui
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
+-- Create the GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CustomGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- Main Frame (movable)
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 400)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
-mainFrame.Visible = false
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 350, 0, 400)
+mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
-mainFrame.Draggable = true
-mainFrame.Parent = gui
+mainFrame.Draggable = false -- We'll make custom drag
+mainFrame.Parent = screenGui
 
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 10)
+uiCorner.Parent = mainFrame
+
+-- Title bar for drag
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+titleBar.Parent = mainFrame
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Text = "Custom GUI"
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.TextColor3 = Color3.new(1, 1, 1)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 20
+titleLabel.Parent = titleBar
+
+-- Close button on main frame
 local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 60, 0, 30)
-closeBtn.Position = UDim2.new(1, -70, 0, 10)
-closeBtn.Text = "Close"
-closeBtn.Parent = mainFrame
+closeBtn.Name = "CloseBtn"
+closeBtn.Text = "X"
+closeBtn.Size = UDim2.new(0, 30, 0, 30)
+closeBtn.Position = UDim2.new(1, -30, 0, 0)
+closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+closeBtn.TextColor3 = Color3.new(1, 1, 1)
+closeBtn.Font = Enum.Font.SourceSansBold
+closeBtn.TextSize = 20
+closeBtn.Parent = titleBar
 
--- Toggle menu
+-- Open button (to open the main GUI)
+local openBtn = Instance.new("TextButton")
+openBtn.Name = "OpenBtn"
+openBtn.Text = "Open GUI"
+openBtn.Size = UDim2.new(0, 100, 0, 30)
+openBtn.Position = UDim2.new(0.05, 0, 0.05, 0)
+openBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+openBtn.TextColor3 = Color3.new(1, 1, 1)
+openBtn.Font = Enum.Font.SourceSansBold
+openBtn.TextSize = 18
+openBtn.Visible = false -- hidden at start
+openBtn.Parent = screenGui
+
+-- UI layout inside mainFrame
+local uiList = Instance.new("UIListLayout")
+uiList.Padding = UDim.new(0, 8)
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Parent = mainFrame
+uiList.Padding = UDim.new(0, 10)
+
+-- Utility function for buttons
+local function createButton(text)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 30)
+    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 18
+    btn.Text = text
+    btn.AutoButtonColor = true
+    btn.Parent = mainFrame
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = btn
+    return btn
+end
+
+-- Utility function for sliders
+local function createSlider(text, min, max, default)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -20, 0, 50)
+    frame.BackgroundTransparency = 1
+    frame.Parent = mainFrame
+
+    local label = Instance.new("TextLabel")
+    label.Text = text .. ": " .. tostring(default)
+    label.Size = UDim2.new(1, 0, 0, 20)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 16
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    local sliderBar = Instance.new("Frame")
+    sliderBar.Size = UDim2.new(1, 0, 0, 10)
+    sliderBar.Position = UDim2.new(0, 0, 0, 30)
+    sliderBar.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    sliderBar.Parent = frame
+    local corner1 = Instance.new("UICorner")
+    corner1.CornerRadius = UDim.new(0, 5)
+    corner1.Parent = sliderBar
+
+    local sliderFill = Instance.new("Frame")
+    sliderFill.Size = UDim2.new((default - min) / (max - min), 0, 1, 0)
+    sliderFill.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+    sliderFill.Parent = sliderBar
+    local corner2 = Instance.new("UICorner")
+    corner2.CornerRadius = UDim.new(0, 5)
+    corner2.Parent = sliderFill
+
+    local dragging = false
+    sliderBar.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+        end
+    end)
+    sliderBar.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = false
+        end
+    end)
+    sliderBar.InputChanged:Connect(function(input)
+        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+            local relativeX = math.clamp(input.Position.X - sliderBar.AbsolutePosition.X, 0, sliderBar.AbsoluteSize.X)
+            local percent = relativeX / sliderBar.AbsoluteSize.X
+            sliderFill.Size = UDim2.new(percent, 0, 1, 0)
+            local value = math.floor(min + (max - min) * percent)
+            label.Text = text .. ": " .. value
+            frame.Value = value
+            if frame.ChangedCallback then
+                frame.ChangedCallback(value)
+            end
+        end
+    end)
+
+    frame.Value = default
+    return frame
+end
+
+-- Toggle Button (checkbox style)
+local function createToggle(text)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(1, -20, 0, 30)
+    frame.BackgroundTransparency = 1
+    frame.Parent = mainFrame
+
+    local label = Instance.new("TextLabel")
+    label.Text = text
+    label.Size = UDim2.new(1, -40, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.new(1, 1, 1)
+    label.Font = Enum.Font.SourceSans
+    label.TextSize = 18
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
+
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 30, 0, 30)
+    toggleBtn.Position = UDim2.new(1, -30, 0, 0)
+    toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+    toggleBtn.Font = Enum.Font.SourceSansBold
+    toggleBtn.TextSize = 20
+    toggleBtn.Text = "✗"
+    toggleBtn.Parent = frame
+
+    local toggled = false
+    local function updateVisual()
+        if toggled then
+            toggleBtn.Text = "✓"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        else
+            toggleBtn.Text = "✗"
+            toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+        end
+    end
+
+    toggleBtn.MouseButton1Click:Connect(function()
+        toggled = not toggled
+        updateVisual()
+        if frame.ChangedCallback then
+            frame.ChangedCallback(toggled)
+        end
+    end)
+
+    updateVisual()
+    return frame
+end
+
+-- Open / Close buttons functionality
 openBtn.MouseButton1Click:Connect(function()
-	mainFrame.Visible = true
-	openBtn.Visible = false
+    mainFrame.Visible = true
+    openBtn.Visible = false
 end)
 
 closeBtn.MouseButton1Click:Connect(function()
-	mainFrame.Visible = false
-	openBtn.Visible = true
+    mainFrame.Visible = false
+    openBtn.Visible = true
 end)
 
--- RGB ESP Function (Self)
-local function updateRGBESP()
-	while wait(0.1) do
-		local hue = tick() % 5 / 5
-		local color = Color3.fromHSV(hue, 1, 1)
+-- Dragging functionality for mainFrame (via titleBar)
+local dragging = false
+local dragInput, dragStart, startPos
 
-		for _, part in pairs(player.Character:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.BrickColor = BrickColor.new(color)
-			end
-		end
-	end
+local function updatePosition(input)
+    local delta = input.Position - dragStart
+    mainFrame.Position = UDim2.new(
+        math.clamp(startPos.X.Scale, 0, 1),
+        math.clamp(startPos.X.Offset + delta.X, 0, workspace.CurrentCamera.ViewportSize.X - mainFrame.AbsoluteSize.X),
+        math.clamp(startPos.Y.Scale, 0, 1),
+        math.clamp(startPos.Y.Offset + delta.Y, 0, workspace.CurrentCamera.ViewportSize.Y - mainFrame.AbsoluteSize.Y)
+    )
 end
 
--- RGB Chams Function
-local function applyChams()
-	while wait(0.1) do
-		local hue = tick() % 5 / 5
-		local color = Color3.fromHSV(hue, 1, 1)
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
 
-		for _, plr in pairs(game.Players:GetPlayers()) do
-			if plr ~= player and plr.Character then
-				for _, part in pairs(plr.Character:GetDescendants()) do
-					if part:IsA("BasePart") then
-						part.Material = Enum.Material.ForceField
-						part.Transparency = 0.5
-						part.Color = color
-					end
-				end
-			end
-		end
-	end
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+titleBar.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        updatePosition(input)
+    end
+end)
+
+-- Features --
+
+-- 1) ESP: Highlight all players except yourself
+local espHighlights = {}
+
+local function createHighlight(character)
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    local highlight = Instance.new("Highlight")
+    highlight.Adornee = character
+    highlight.FillColor = Color3.fromRGB(0, 255, 0)
+    highlight.FillTransparency = 0.6
+    highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
+    highlight.OutlineTransparency = 0.4
+    highlight.Parent = screenGui
+    return highlight
 end
 
--- Buttons
-local espBtn = Instance.new("TextButton")
-espBtn.Size = UDim2.new(0, 200, 0, 30)
-espBtn.Position = UDim2.new(0, 50, 0, 60)
-espBtn.Text = "Enable RGB Self ESP"
-espBtn.Parent = mainFrame
+local espToggle = createToggle("ESP (Highlight players)")
+espToggle.Parent = mainFrame
+espToggle.ChangedCallback = function(enabled)
+    if enabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player then
+                local char = p.Character
+                if char then
+                    if not espHighlights[p.Name] then
+                        espHighlights[p.Name] = createHighlight(char)
+                    end
+                end
+            end
+        end
+    else
+        for _, h in pairs(espHighlights) do
+            h:Destroy()
+        end
+        espHighlights = {}
+    end
+end
 
-espBtn.MouseButton1Click:Connect(function()
-	coroutine.wrap(updateRGBESP)()
+Players.PlayerAdded:Connect(function(p)
+    p.CharacterAdded:Connect(function(char)
+        if espToggle.Value then
+            if p ~= player then
+                espHighlights[p.Name] = createHighlight(char)
+            end
+        end
+    end)
 end)
 
-local chamsBtn = Instance.new("TextButton")
-chamsBtn.Size = UDim2.new(0, 200, 0, 30)
-chamsBtn.Position = UDim2.new(0, 50, 0, 100)
-chamsBtn.Text = "Enable RGB Chams"
-chamsBtn.Parent = mainFrame
-
-chamsBtn.MouseButton1Click:Connect(function()
-	coroutine.wrap(applyChams)()
+Players.PlayerRemoving:Connect(function(p)
+    if espHighlights[p.Name] then
+        espHighlights[p.Name]:Destroy()
+        espHighlights[p.Name] = nil
+    end
 end)
 
--- Jump Power Slider
-local jumpLabel = Instance.new("TextLabel")
-jumpLabel.Size = UDim2.new(0, 200, 0, 30)
-jumpLabel.Position = UDim2.new(0, 50, 0, 150)
-jumpLabel.Text = "Jump Power"
-jumpLabel.TextColor3 = Color3.new(1,1,1)
-jumpLabel.BackgroundTransparency = 1
-jumpLabel.Parent = mainFrame
+-- 2) RGB Self (Rainbow color on your character parts)
+local rgbSelfToggle = createToggle("RGB Self")
+rgbSelfToggle.Parent = mainFrame
+local hue = 0
 
-local jumpSlider = Instance.new("TextBox")
-jumpSlider.Size = UDim2.new(0, 200, 0, 30)
-jumpSlider.Position = UDim2.new(0, 50, 0, 180)
-jumpSlider.Text = "50"
+local function setCharacterColor(char, color)
+    for _, part in pairs(char:GetChildren()) do
+        if part:IsA("BasePart") then
+            part.Color = color
+        end
+    end
+end
+
+local rgbSelfEnabled = false
+
+rgbSelfToggle.ChangedCallback = function(enabled)
+    rgbSelfEnabled = enabled
+    if not enabled then
+        -- reset to original colors by reloading character
+        player.Character.HumanoidRootPart.BrickColor = BrickColor.new("Medium stone grey")
+        -- We could improve this but we keep it simple
+    end
+end
+
+-- 3) RGB All (Rainbow color on all players)
+local rgbAllToggle = createToggle("RGB All")
+rgbAllToggle.Parent = mainFrame
+local rgbAllEnabled = false
+
+rgbAllToggle.ChangedCallback = function(enabled)
+    rgbAllEnabled = enabled
+    if not enabled then
+        -- Reset all players colors by respawning
+        for _, p in pairs(Players:GetPlayers()) do
+            local char = p.Character
+            if char then
+                for _, part in pairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        part.Color = part.BrickColor.Color
+                    end
+                end
+            end
+        end
+    end
+end
+
+-- Update rainbow color loop
+RunService.Heartbeat:Connect(function(deltaTime)
+    hue = (hue + deltaTime * 0.5) % 1 -- speed of rainbow
+    local color = Color3.fromHSV(hue, 1, 1)
+
+    if rgbSelfEnabled and player.Character then
+        setCharacterColor(player.Character, color)
+    end
+
+    if rgbAllEnabled then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p.Character then
+                setCharacterColor(p.Character, color)
+            end
+        end
+    end
+end)
+
+-- 4) Jump Power slider
+local jumpSlider = createSlider("Jump Power", 10, 200, humanoid.JumpPower)
 jumpSlider.Parent = mainFrame
+jumpSlider.ChangedCallback = function(value)
+    if humanoid then
+        humanoid.JumpPower = value
+    end
+end
 
-jumpSlider.FocusLost:Connect(function()
-	local jp = tonumber(jumpSlider.Text)
-	if jp then
-		player.Character.Humanoid.JumpPower = jp
-	end
-end)
-
--- Walk Speed Slider
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(0, 200, 0, 30)
-speedLabel.Position = UDim2.new(0, 50, 0, 230)
-speedLabel.Text = "Walk Speed"
-speedLabel.TextColor3 = Color3.new(1,1,1)
-speedLabel.BackgroundTransparency = 1
-speedLabel.Parent = mainFrame
-
-local speedSlider = Instance.new("TextBox")
-speedSlider.Size = UDim2.new(0, 200, 0, 30)
-speedSlider.Position = UDim2.new(0, 50, 0, 260)
-speedSlider.Text = "16"
+-- 5) Speed slider
+local speedSlider = createSlider("Walk Speed", 8, 100, humanoid.WalkSpeed)
 speedSlider.Parent = mainFrame
+speedSlider.ChangedCallback = function(value)
+    if humanoid then
+        humanoid.WalkSpeed = value
+    end
+end
 
-speedSlider.FocusLost:Connect(function()
-	local spd = tonumber(speedSlider.Text)
-	if spd then
-		player.Character.Humanoid.WalkSpeed = spd
-	end
+-- 6) No Gravity toggle
+local noGravityToggle = createToggle("No Gravity")
+noGravityToggle.Parent = mainFrame
+local originalGravity = workspace.Gravity
+local gravityConnection
+
+noGravityToggle.ChangedCallback = function(enabled)
+    if enabled then
+        workspace.Gravity = 0
+    else
+        workspace.Gravity = originalGravity
+    end
+end
+
+-- 7) Reset Gravity button
+local resetGravityBtn = createButton("Reset Gravity")
+resetGravityBtn.Parent = mainFrame
+resetGravityBtn.MouseButton1Click:Connect(function()
+    workspace.Gravity = originalGravity
+    noGravityToggle.ChangedCallback(false)
+    noGravityToggle.Value = false
 end)
+
+-- Initialize visibility
+mainFrame.Visible = true
+openBtn.Visible = false
