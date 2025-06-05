@@ -13,11 +13,17 @@ ScreenGui.ResetOnSpawn = false
 local MainFrame = Instance.new("Frame")
 MainFrame.Size = UDim2.new(0, 280, 0, 160)
 MainFrame.Position = UDim2.new(0.5, -140, 0.3, -80)
-MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 MainFrame.Active = true
 MainFrame.Draggable = true
+
+-- Rainbow background setup
+local hue = 0
+RunService.RenderStepped:Connect(function(dt)
+    hue = (hue + dt * 0.2) % 1  -- Speed of color cycling (0.2)
+    MainFrame.BackgroundColor3 = Color3.fromHSV(hue, 0.8, 0.9)
+end)
 
 -- Title bar
 local TitleBar = Instance.new("TextLabel")
