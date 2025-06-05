@@ -1,109 +1,142 @@
--- Create GUI
-local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "FEXSGUI"
+-- Create ScreenGui
+local gui = Instance.new("ScreenGui", game.Players.LocalPlayer:WaitForChild("PlayerGui"))
+gui.Name = "FEXSGUIHub"
+gui.ResetOnSpawn = false
 
-local openButton = Instance.new("TextButton", screenGui)
-openButton.Size = UDim2.new(0, 100, 0, 30)
-openButton.Position = UDim2.new(0, 10, 0, 10)
-openButton.Text = "Open GUI"
-
--- Main GUI Frame
-local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
-mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-mainFrame.Visible = false
+-- Main frame
+local mainFrame = Instance.new("Frame", gui)
+mainFrame.Size = UDim2.new(0, 300, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -150)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.Active = true
 mainFrame.Draggable = true
+mainFrame.Visible = true
 
 -- Title
 local title = Instance.new("TextLabel", mainFrame)
 title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "FEXS GUI hub"
-title.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-title.TextColor3 = Color3.new(1, 1, 1)
+title.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+title.Text = "FEXS GUI Hub"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 20
 
+-- Toggle GUI button
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.new(0, 100, 0, 30)
+toggleBtn.Position = UDim2.new(0, 10, 0, 10)
+toggleBtn.Text = "Toggle GUI"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+end)
+
 -- Speed Button
-local speedButton = Instance.new("TextButton", mainFrame)
-speedButton.Size = UDim2.new(0, 280, 0, 40)
-speedButton.Position = UDim2.new(0, 10, 0, 50)
-speedButton.Text = "Change Speed"
-speedButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-speedButton.TextColor3 = Color3.new(1, 1, 1)
+local speedBtn = Instance.new("TextButton", mainFrame)
+speedBtn.Size = UDim2.new(0, 260, 0, 30)
+speedBtn.Position = UDim2.new(0, 20, 0, 40)
+speedBtn.Text = "Speed: Normal"
+speedBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+speedBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- ESP Toggle Button
-local espButton = Instance.new("TextButton", mainFrame)
-espButton.Size = UDim2.new(0, 280, 0, 40)
-espButton.Position = UDim2.new(0, 10, 0, 100)
-espButton.Text = "Toggle Box ESP"
-espButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-espButton.TextColor3 = Color3.new(1, 1, 1)
+local speeds = {16, 50, 100}
+local labels = {"Normal", "Fast", "Very Fast"}
+local currentSpeedIndex = 1
 
--- Close Button
-local closeButton = Instance.new("TextButton", mainFrame)
-closeButton.Size = UDim2.new(0, 280, 0, 30)
-closeButton.Position = UDim2.new(0, 10, 0, 150)
-closeButton.Text = "Close GUI"
-closeButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
-closeButton.TextColor3 = Color3.new(1, 1, 1)
-
--- Toggle Main GUI
-openButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = true
-	openButton.Visible = false
+speedBtn.MouseButton1Click:Connect(function()
+	currentSpeedIndex = currentSpeedIndex % #speeds + 1
+	game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = speeds[currentSpeedIndex]
+	speedBtn.Text = "Speed: " .. labels[currentSpeedIndex]
 end)
 
-closeButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = false
-	openButton.Visible = true
-end)
+-- Fly toggle
+local flying = false
+local flyBtn = Instance.new("TextButton", mainFrame)
+flyBtn.Size = UDim2.new(0, 260, 0, 30)
+flyBtn.Position = UDim2.new(0, 20, 0, 80)
+flyBtn.Text = "Fly: OFF"
+flyBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+flyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
--- Speed Change Function
-local speedOn = false
-speedButton.MouseButton1Click:Connect(function()
-	speedOn = not speedOn
-	if speedOn then
-		player.Character.Humanoid.WalkSpeed = 100
-		speedButton.Text = "Reset Speed"
+local UIS = game:GetService("UserInputService")
+local RS = game:GetService("RunService")
+
+flyBtn.MouseButton1Click:Connect(function()
+	flying = not flying
+	flyBtn.Text = flying and "Fly: ON" or "Fly: OFF"
+	local player = game.Players.LocalPlayer
+	local char = player.Character
+	local humanoidRoot = char:WaitForChild("HumanoidRootPart")
+
+	local velocity = Instance.new("BodyVelocity")
+	velocity.MaxForce = Vector3.new(100000, 100000, 100000)
+	velocity.Velocity = Vector3.new(0, 0, 0)
+	velocity.Parent = humanoidRoot
+
+	local flySpeed = 100
+
+	local function flyStep()
+		if flying then
+			local moveVec = Vector3.new()
+			if UIS:IsKeyDown(Enum.KeyCode.W) then moveVec = moveVec + workspace.CurrentCamera.CFrame.LookVector end
+			if UIS:IsKeyDown(Enum.KeyCode.S) then moveVec = moveVec - workspace.CurrentCamera.CFrame.LookVector end
+			if UIS:IsKeyDown(Enum.KeyCode.A) then moveVec = moveVec - workspace.CurrentCamera.CFrame.RightVector end
+			if UIS:IsKeyDown(Enum.KeyCode.D) then moveVec = moveVec + workspace.CurrentCamera.CFrame.RightVector end
+			velocity.Velocity = moveVec.Unit * flySpeed
+		else
+			velocity.Velocity = Vector3.new(0, 0, 0)
+			velocity:Destroy()
+			RS:UnbindFromRenderStep("FlyMovement")
+		end
+	end
+
+	if flying then
+		RS:BindToRenderStep("FlyMovement", Enum.RenderPriority.Input.Value, flyStep)
 	else
-		player.Character.Humanoid.WalkSpeed = 16
-		speedButton.Text = "Change Speed"
+		RS:UnbindFromRenderStep("FlyMovement")
 	end
 end)
 
--- Simple Box ESP
-local espOn = false
-local espBoxes = {}
+-- Box ESP
+local espEnabled = false
+local espBtn = Instance.new("TextButton", mainFrame)
+espBtn.Size = UDim2.new(0, 260, 0, 30)
+espBtn.Position = UDim2.new(0, 20, 0, 120)
+espBtn.Text = "ESP: OFF"
+espBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+espBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 
 local function toggleESP()
-	espOn = not espOn
+	espEnabled = not espEnabled
+	espBtn.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
 
-	if espOn then
-		for _, plr in pairs(game.Players:GetPlayers()) do
-			if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-				local box = Instance.new("BoxHandleAdornment")
-				box.Size = Vector3.new(4, 6, 2)
-				box.Color3 = Color3.fromRGB(255, 0, 0)
-				box.Transparency = 0.5
-				box.AlwaysOnTop = true
-				box.ZIndex = 5
-				box.Adornee = plr.Character:FindFirstChild("HumanoidRootPart")
-				box.Parent = plr.Character
-				table.insert(espBoxes, box)
+	for _, p in pairs(game.Players:GetPlayers()) do
+		if p ~= game.Players.LocalPlayer and p.Character then
+			local box = p.Character:FindFirstChild("ESPBox")
+			if espEnabled then
+				if not box then
+					local selectionBox = Instance.new("SelectionBox", p.Character)
+					selectionBox.Name = "ESPBox"
+					selectionBox.Adornee = p.Character
+					selectionBox.LineThickness = 0.05
+					selectionBox.Color3 = Color3.new(1, 0, 0)
+				end
+			else
+				if box then box:Destroy() end
 			end
 		end
-	else
-		for _, box in pairs(espBoxes) do
-			if box and box.Parent then
-				box:Destroy()
-			end
-		end
-		espBoxes = {}
 	end
 end
 
-espButton.MouseButton1Click:Connect(toggleESP)
+espBtn.MouseButton1Click:Connect(toggleESP)
+
+-- Update ESP when players join
+game.Players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function()
+		wait(1)
+		if espEnabled then
+			toggleESP() toggleESP()
+		end
+	end)
+end)
