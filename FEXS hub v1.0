@@ -1,92 +1,141 @@
--- FEXS Hub with Infinite Jump + RGB Chams
+-- FEXS Hub LocalScript
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+-- Create Screen GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FEXSHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
+-- Create Main Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 400)
+frame.Position = UDim2.new(0.05, 0, 0.1, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.Visible = false
+frame.Parent = screenGui
 
--- Helper: Create UI elements
-local function create(name, parent, props)
-    local obj = Instance.new(name)
-    if parent then obj.Parent = parent end
-    for prop, val in pairs(props or {}) do obj[prop] = val end
-    return obj
+-- UI Tabs
+local tabs = {
+	Main = Instance.new("Frame"),
+	Settings = Instance.new("Frame")
+}
+
+for name, tab in pairs(tabs) do
+	tab.Name = name.."Tab"
+	tab.Size = UDim2.new(1, 0, 1, -40)
+	tab.Position = UDim2.new(0, 0, 0, 40)
+	tab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+	tab.Visible = name == "Main"
+	tab.Parent = frame
 end
 
--- Rainbow color generator
-local function rainbowColor(t)
-    local freq = 2
-    local r = math.sin(freq * t + 0) * 127 + 128
-    local g = math.sin(freq * t + 2) * 127 + 128
-    local b = math.sin(freq * t + 4) * 127 + 128
-    return Color3.fromRGB(r, g, b)
+-- Tab Buttons
+local function createTabButton(name, posX)
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 100, 0, 30)
+	btn.Position = UDim2.new(0, posX, 0, 5)
+	btn.Text = name
+	btn.Parent = frame
+	btn.MouseButton1Click:Connect(function()
+		for _, tab in pairs(tabs) do tab.Visible = false end
+		tabs[name].Visible = true
+	end)
 end
 
--- Create GUI
-local gui = create("ScreenGui", player:WaitForChild("PlayerGui"), {
-    Name = "FEXSHubGUI", ResetOnSpawn = false
-})
+createTabButton("Main", 5)
+createTabButton("Settings", 110)
 
--- Main Frame
-local frame = create("Frame", gui, {
-    Size = UDim2.new(0, 300, 0, 300),
-    Position = UDim2.new(0.5, -150, 0.5, -150),
-    BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-    Visible = false, Name = "MainFrame"
-})
-create("UICorner", frame, {CornerRadius = UDim.new(0, 10)})
+-- Open/Close Buttons
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 100, 0, 40)
+openBtn.Position = UDim2.new(0, 10, 0, 10)
+openBtn.Text = "Open Menu"
+openBtn.Parent = screenGui
 
--- Title Label
-local title = create("TextLabel", frame, {
-    Text = "FEXS hub",
-    Font = Enum.Font.GothamBold,
-    TextSize = 28,
-    BackgroundTransparency = 1,
-    TextColor3 = Color3.new(1, 1, 1),
-    Size = UDim2.new(1, 0, 0, 50),
-    Name = "Title"
-})
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 100, 0, 40)
+closeBtn.Position = UDim2.new(0, 120, 0, 10)
+closeBtn.Text = "Close Menu"
+closeBtn.Parent = screenGui
 
--- Animate Rainbow Title
-task.spawn(function()
-    while true do
-        local t = tick()
-        title.TextColor3 = rainbowColor(t)
-        task.wait(0.05)
-    end
+openBtn.MouseButton1Click:Connect(function()
+	frame.Visible = true
 end)
 
--- Infinite Jump Toggle
-local infiniteJumpEnabled = false
-local infJumpButton = create("TextButton", frame, {
-    Text = "Infinite Jump: OFF",
-    Font = Enum.Font.Gotham,
-    TextSize = 20,
-    BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-    TextColor3 = Color3.new(1, 1, 1),
-    Size = UDim2.new(0.8, 0, 0, 40),
-    Position = UDim2.new(0.1, 0, 0, 60),
-    Name = "InfJumpButton"
-})
-create("UICorner", infJumpButton, {CornerRadius = UDim.new(0, 6)})
-
-infJumpButton.MouseButton1Click:Connect(function()
-    infiniteJumpEnabled = not infiniteJumpEnabled
-    infJumpButton.Text = "Infinite Jump: " .. (infiniteJumpEnabled and "ON" or "OFF")
+closeBtn.MouseButton1Click:Connect(function()
+	frame.Visible = false
 end)
 
--- Infinite Jump Logic
-UserInputService.JumpRequest:Connect(function()
-    if infiniteJumpEnabled then
-        local char = player.Character
-        local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
-        if humanoid then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
+-- RGB Utility
+local function applyRGB(obj)
+	coroutine.wrap(function()
+		while true do
+			for i = 0, 1, 0.01 do
+				obj.Color = Color3.fromHSV(i, 1, 1)
+				wait(0.03)
+			end
+		end
+	end)()
+end
+
+-- RGB Self
+local rgbSelfBtn = Instance.new("TextButton")
+rgbSelfBtn.Size = UDim2.new(0, 200, 0, 40)
+rgbSelfBtn.Position = UDim2.new(0, 50, 0, 20)
+rgbSelfBtn.Text = "RGB Self"
+rgbSelfBtn.Parent = tabs.Main
+
+rgbSelfBtn.MouseButton1Click:Connect(function()
+	local char = game.Players.LocalPlayer.Character
+	if char then
+		for _, part in pairs(char:GetChildren()) do
+			if part:IsA("BasePart") then
+				applyRGB(part)
+			end
+		end
+	end
 end)
 
--- RGB Chams Toggle
-local chams
+-- RGB Chams
+local rgbChamsBtn = Instance.new("TextButton")
+rgbChamsBtn.Size = UDim2.new(0, 200, 0, 40)
+rgbChamsBtn.Position = UDim2.new(0, 50, 0, 70)
+rgbChamsBtn.Text = "RGB Chams All Players"
+rgbChamsBtn.Parent = tabs.Main
+
+rgbChamsBtn.MouseButton1Click:Connect(function()
+	for _, player in pairs(game.Players:GetPlayers()) do
+		if player ~= game.Players.LocalPlayer and player.Character then
+			for _, part in pairs(player.Character:GetChildren()) do
+				if part:IsA("BasePart") then
+					applyRGB(part)
+				end
+			end
+		end
+	end
+end)
+
+-- Jump Power Controls
+local jumpSettings = {
+	["Normal (50)"] = 50,
+	["High (100)"] = 100,
+	["Really High (150)"] = 150
+}
+
+local y = 20
+for label, value in pairs(jumpSettings) do
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 200, 0, 40)
+	btn.Position = UDim2.new(0, 50, 0, y)
+	btn.Text = label
+	btn.Parent = tabs.Settings
+
+	btn.MouseButton1Click:Connect(function()
+		local char = game.Players.LocalPlayer.Character
+		if char and char:FindFirstChild("Humanoid") then
+			char.Humanoid.JumpPower = value
+		end
+	end)
+
+	y = y + 50
+end
