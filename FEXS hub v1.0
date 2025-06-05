@@ -1,51 +1,62 @@
--- Insert this script in the StarterGui > ScreenGui
+-- Main GUI Script
+local player = game.Players.LocalPlayer
+local speed = 50
+local jumpPower = 50
+local flying = false
+local bodyVelocity = Instance.new("BodyVelocity")
+bodyVelocity.MaxForce = Vector3.new(500000, 500000, 500000)
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ScriptHub"
-screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 400)
-frame.Position = UDim2.new(0.5, -150, 0.5, -200)
-frame.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-frame.BackgroundTransparency = 0.5
-frame.Parent = screenGui
-
--- Add buttons for scripts
-local function createButton(text, position, callback)
-    local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 280, 0, 50)
-    button.Position = position
-    button.Text = text
-    button.Font = Enum.Font.GothamBold
-    button.TextSize = 20
-    button.TextColor3 = Color3.fromRGB(255, 255, 255)
-    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    button.Parent = frame
-
-    button.MouseButton1Click:Connect(callback)
+-- Create ESP
+local function createESP(target)
+    if target:IsA("Player") then
+        local box = Instance.new("BoxHandleAdornment")
+        box.Adornee = target.Character:FindFirstChild("Head") or target.Character:FindFirstChild("HumanoidRootPart")
+        box.Size = Vector3.new(2, 5, 2)
+        box.Color3 = Color3.fromRGB(255, 0, 0)
+        box.Transparency = 0.5
+        box.Parent = target.Character
+    end
 end
 
--- Define button actions
-createButton("Teleport to Spawn", UDim2.new(0, 10, 0, 10), function()
-    -- Example script: Teleport to the spawn location
-    game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = game.Workspace.SpawnLocation.CFrame
+game.Players.PlayerAdded:Connect(function(player)
+    player.CharacterAdded:Connect(function(character)
+        wait(1)
+        createESP(player)
+    end)
 end)
 
-createButton("Infinite Jump", UDim2.new(0, 10, 0, 70), function()
-    -- Example script: Infinite jump
-    local player = game.Players.LocalPlayer
-    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.JumpHeight = 100
-    end
+-- Speed changer
+local function changeSpeed()
+    player.Character:WaitForChild("Humanoid").WalkSpeed = speed
+end
+
+script.Parent.SpeedButton.MouseButton1Click:Connect(function()
+    speed = speed == 50 and 100 or 50
+    changeSpeed()
 end)
 
-createButton("Speed Hack", UDim2.new(0, 10, 0, 130), function()
-    -- Example script: Speed hack
-    local player = game.Players.LocalPlayer
-    local humanoid = player.Character and player.Character:FindFirstChild("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = 100
+-- Jump power changer
+local function changeJumpPower()
+    player.Character:WaitForChild("Humanoid").JumpPower = jumpPower
+end
+
+script.Parent.JumpButton.MouseButton1Click:Connect(function()
+    jumpPower = jumpPower == 50 and 100 or 50
+    changeJumpPower()
+end)
+
+-- Fly function
+local function fly()
+    if not flying then
+        flying = true
+        bodyVelocity.Parent = player.Character:WaitForChild("HumanoidRootPart")
+        bodyVelocity.Velocity = Vector3.new(0, 100, 0)
+    else
+        flying = false
+        bodyVelocity:Destroy()
     end
+end
+
+script.Parent.FlyButton.MouseButton1Click:Connect(function()
+    fly()
 end)
