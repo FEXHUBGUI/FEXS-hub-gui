@@ -60,6 +60,18 @@ OpenBtn.TextSize = 18
 OpenBtn.Visible = false
 OpenBtn.Parent = ScreenGui
 
+-- Close button functionality
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenBtn.Visible = true
+end)
+
+-- Open button functionality
+OpenBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenBtn.Visible = false
+end)
+
 -- Speed Button
 local SpeedBtn = Instance.new("TextButton")
 SpeedBtn.Size = UDim2.new(0, 240, 0, 45)
