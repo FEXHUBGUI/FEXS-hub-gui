@@ -1,274 +1,310 @@
--- FEXS Hub Script
--- Place this LocalScript inside a ScreenGui
+-- FEXS Hub Rainbow GUI Script
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
+local RunService = game:GetService("RunService")
 
--- Create GUI Elements
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FEXSHub"
-ScreenGui.Parent = game.CoreGui -- use CoreGui for LocalScripts in modern Roblox
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local character = player.Character or player.CharacterAdded:Wait()
 
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 350)
-MainFrame.Position = UDim2.new(0.5, -150, 0.5, -175)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
-
-local Title = Instance.new("TextLabel")
-Title.Text = "FEXS Hub"
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 24
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Parent = MainFrame
-
--- Open/Close Button
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Text = "Close"
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.TextSize = 18
-ToggleButton.Size = UDim2.new(0, 70, 0, 30)
-ToggleButton.Position = UDim2.new(1, -75, 0, 5)
-ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-ToggleButton.Parent = MainFrame
-
--- Helper function for buttons
-local function createButton(text, positionY)
-    local btn = Instance.new("TextButton")
-    btn.Text = text
-    btn.Font = Enum.Font.SourceSans
-    btn.TextSize = 18
-    btn.Size = UDim2.new(1, -20, 0, 35)
-    btn.Position = UDim2.new(0, 10, 0, positionY)
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Parent = MainFrame
-    return btn
+-- Helper function to create UI elements quickly
+local function create(name, parent, properties)
+    local obj = Instance.new(name)
+    if parent then obj.Parent = parent end
+    if properties then
+        for prop, val in pairs(properties) do
+            obj[prop] = val
+        end
+    end
+    return obj
 end
 
-local BoxESPButton = createButton("Toggle Box ESP", 50)
-local ChamsButton = createButton("Toggle Chams", 95)
+-- Rainbow color generator
+local function rainbowColor(t)
+    local freq = 2
+    local r = math.sin(freq * t + 0) * 127 + 128
+    local g = math.sin(freq * t + 2) * 127 + 128
+    local b = math.sin(freq * t + 4) * 127 + 128
+    return Color3.fromRGB(r,g,b)
+end
 
-local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.Text = "Speed:"
-SpeedLabel.Font = Enum.Font.SourceSans
-SpeedLabel.TextSize = 18
-SpeedLabel.TextColor3 = Color3.fromRGB(255,255,255)
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.Position = UDim2.new(0, 10, 0, 140)
-SpeedLabel.Size = UDim2.new(0, 60, 0, 30)
-SpeedLabel.Parent = MainFrame
+-- Create ScreenGui
+local screenGui = create("ScreenGui", player:WaitForChild("PlayerGui"), {Name = "FEXSHubGUI", ResetOnSpawn = false})
 
-local SpeedDropdown = Instance.new("TextButton")
-SpeedDropdown.Text = "Normal"
-SpeedDropdown.Font = Enum.Font.SourceSans
-SpeedDropdown.TextSize = 18
-SpeedDropdown.Size = UDim2.new(0, 120, 0, 30)
-SpeedDropdown.Position = UDim2.new(0, 70, 0, 140)
-SpeedDropdown.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-SpeedDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedDropdown.Parent = MainFrame
+-- Main Frame (menu)
+local mainFrame = create("Frame", screenGui, {
+    Size = UDim2.new(0, 300, 0, 400),
+    Position = UDim2.new(0.5, -150, 0.5, -200),
+    BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+    Visible = false,
+    BorderSizePixel = 0,
+    ClipsDescendants = true,
+    Name = "MainFrame"
+})
 
-local SpeedOptions = {"Normal", "Fast", "Very Fast"}
-local SpeedIndex = 1
+-- UI corner rounder
+create("UICorner", mainFrame, {CornerRadius = UDim.new(0, 10)})
 
-local InfiniteJumpButton = createButton("Toggle Infinite Jump", 185)
+-- Title label
+local title = create("TextLabel", mainFrame, {
+    Text = "FEXS hub",
+    Font = Enum.Font.GothamBold,
+    TextSize = 28,
+    TextColor3 = Color3.new(1,1,1),
+    BackgroundTransparency = 1,
+    Size = UDim2.new(1, 0, 0, 50),
+    Position = UDim2.new(0, 0, 0, 0),
+    TextStrokeTransparency = 0.7,
+    Name = "Title"
+})
 
--- State variables
-local boxESPEnabled = false
-local chamsEnabled = false
+-- Rainbow effect for title
+spawn(function()
+    while true do
+        for t=0, 6.28, 0.03 do
+            title.TextColor3 = rainbowColor(t)
+            wait(0.03)
+            if not mainFrame.Visible then break end
+        end
+        if not mainFrame.Visible then break end
+    end
+end)
+
+-- Infinite Jump Toggle
+local infiniteJumpToggle = create("TextButton", mainFrame, {
+    Text = "Infinite Jump: OFF",
+    Font = Enum.Font.Gotham,
+    TextSize = 20,
+    TextColor3 = Color3.new(1,1,1),
+    BackgroundColor3 = Color3.fromRGB(40,40,40),
+    Size = UDim2.new(0.8, 0, 0, 40),
+    Position = UDim2.new(0.1, 0, 0, 60),
+    AutoButtonColor = true,
+    Name = "InfiniteJumpToggle"
+})
+create("UICorner", infiniteJumpToggle, {CornerRadius = UDim.new(0,6)})
+
+-- Rainbow Yourself Toggle
+local rainbowYourselfToggle = create("TextButton", mainFrame, {
+    Text = "Rainbow Yourself: OFF",
+    Font = Enum.Font.Gotham,
+    TextSize = 20,
+    TextColor3 = Color3.new(1,1,1),
+    BackgroundColor3 = Color3.fromRGB(40,40,40),
+    Size = UDim2.new(0.8, 0, 0, 40),
+    Position = UDim2.new(0.1, 0, 0, 110),
+    AutoButtonColor = true,
+    Name = "RainbowYourselfToggle"
+})
+create("UICorner", rainbowYourselfToggle, {CornerRadius = UDim.new(0,6)})
+
+-- Chams Toggle
+local chamsToggle = create("TextButton", mainFrame, {
+    Text = "Chams All Players: OFF",
+    Font = Enum.Font.Gotham,
+    TextSize = 20,
+    TextColor3 = Color3.new(1,1,1),
+    BackgroundColor3 = Color3.fromRGB(40,40,40),
+    Size = UDim2.new(0.8, 0, 0, 40),
+    Position = UDim2.new(0.1, 0, 0, 160),
+    AutoButtonColor = true,
+    Name = "ChamsToggle"
+})
+create("UICorner", chamsToggle, {CornerRadius = UDim.new(0,6)})
+
+-- Close button
+local closeButton = create("TextButton", mainFrame, {
+    Text = "Close",
+    Font = Enum.Font.GothamBold,
+    TextSize = 20,
+    TextColor3 = Color3.new(1,1,1),
+    BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+    Size = UDim2.new(0.3, 0, 0, 40),
+    Position = UDim2.new(0.35, 0, 1, -50),
+    AutoButtonColor = true,
+    Name = "CloseButton"
+})
+create("UICorner", closeButton, {CornerRadius = UDim.new(0,6)})
+
+-- Open Button (small button to open the menu)
+local openButton = create("TextButton", screenGui, {
+    Text = "Open FEXS hub",
+    Font = Enum.Font.GothamBold,
+    TextSize = 18,
+    TextColor3 = Color3.new(1,1,1),
+    BackgroundColor3 = Color3.fromRGB(0, 120, 255),
+    Size = UDim2.new(0, 150, 0, 40),
+    Position = UDim2.new(0, 10, 0, 10),
+    AutoButtonColor = true,
+    Name = "OpenButton"
+})
+create("UICorner", openButton, {CornerRadius = UDim.new(0, 6)})
+
+-- States
 local infiniteJumpEnabled = false
+local rainbowYourselfEnabled = false
+local chamsEnabled = false
 
--- For ESP Boxes
-local espBoxes = {}
-
--- Speed values
-local speeds = {
-    Normal = 16,
-    Fast = 50,
-    ["Very Fast"] = 100
-}
-
--- Toggle GUI visibility
-ToggleButton.MouseButton1Click:Connect(function()
-    if MainFrame.Visible then
-        MainFrame.Visible = false
-        ToggleButton.Text = "Open"
-    else
-        MainFrame.Visible = true
-        ToggleButton.Text = "Close"
+-- Infinite jump function
+local function onJumpRequest()
+    if infiniteJumpEnabled then
+        local char = player.Character
+        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
+        if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
     end
-end)
-
--- Box ESP Logic
-local function createBox(player)
-    local box = Drawing.new("Square")
-    box.Visible = false
-    box.Color = Color3.new(1, 0, 0) -- Red box
-    box.Thickness = 2
-    box.Transparency = 1
-    box.Filled = false
-    espBoxes[player] = box
 end
 
-local function updateBoxESP()
-    for player, box in pairs(espBoxes) do
-        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
-            local rootPart = player.Character.HumanoidRootPart
-            local screenPos, onScreen = workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position)
-            if onScreen and boxESPEnabled then
-                box.Position = Vector2.new(screenPos.X - 25, screenPos.Y - 50)
-                box.Size = Vector2.new(50, 100)
-                box.Visible = true
+-- Rainbow Yourself function
+local function rainbowYourselfStep()
+    local char = player.Character
+    if not char then return end
+    local t = tick()
+    local color = rainbowColor(t)
+    for _, part in pairs(char:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            part.Color = color
+            if part:FindFirstChild("OriginalMaterial") == nil then
+                local origMat = Instance.new("StringValue")
+                origMat.Name = "OriginalMaterial"
+                origMat.Value = part.Material.Name
+                origMat.Parent = part
+            end
+            part.Material = Enum.Material.Neon
+        end
+    end
+end
+
+local function resetYourselfColors()
+    local char = player.Character
+    if not char then return end
+    for _, part in pairs(char:GetChildren()) do
+        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+            local origMat = part:FindFirstChild("OriginalMaterial")
+            if origMat then
+                part.Material = Enum.Material[origMat.Value] or Enum.Material.Plastic
+                origMat:Destroy()
             else
-                box.Visible = false
+                part.Material = Enum.Material.Plastic
             end
-        else
-            box.Visible = false
+            part.Color = Color3.fromRGB(255, 255, 255) -- Reset to white (default)
         end
     end
 end
 
-BoxESPButton.MouseButton1Click:Connect(function()
-    boxESPEnabled = not boxESPEnabled
-    if boxESPEnabled then
-        BoxESPButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-        -- Create boxes for all players except LocalPlayer
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and not espBoxes[player] then
-                createBox(player)
-            end
-        end
-    else
-        BoxESPButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        -- Hide all boxes
-        for _, box in pairs(espBoxes) do
-            box.Visible = false
-        end
-    end
-end)
-
--- Update espBoxes when players join/leave
-Players.PlayerAdded:Connect(function(player)
-    if boxESPEnabled and player ~= LocalPlayer then
-        createBox(player)
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    if espBoxes[player] then
-        espBoxes[player]:Remove()
-        espBoxes[player] = nil
-    end
-end)
-
--- Chams Logic (simple: highlights parts)
-local chamHighlights = {}
-
-local function createCham(player)
-    if player.Character then
-        for _, part in pairs(player.Character:GetChildren()) do
-            if part:IsA("BasePart") then
-                local highlight = Instance.new("Highlight")
-                highlight.FillColor = Color3.fromRGB(0, 255, 255)
-                highlight.OutlineColor = Color3.fromRGB(0, 255, 255)
-                highlight.Adornee = part
-                highlight.Parent = part
-                chamHighlights[part] = highlight
+-- Chams function
+local function applyChams()
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local char = plr.Character
+            if char then
+                for _, part in pairs(char:GetChildren()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        -- Add outline or glow effect
+                        if not part:FindFirstChild("FEXSChams") then
+                            local box = Instance.new("BoxHandleAdornment")
+                            box.Name = "FEXSChams"
+                            box.Adornee = part
+                            box.AlwaysOnTop = true
+                            box.ZIndex = 10
+                            box.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
+                            box.Color3 = Color3.new(1, 0, 1) -- Magenta cham color
+                            box.Transparency = 0.5
+                            box.Parent = part
+                        end
+                    end
+                end
             end
         end
     end
 end
 
 local function removeChams()
-    for _, highlight in pairs(chamHighlights) do
-        if highlight and highlight.Parent then
-            highlight:Destroy()
-        end
-    end
-    chamHighlights = {}
-end
-
-ChamsButton.MouseButton1Click:Connect(function()
-    chamsEnabled = not chamsEnabled
-    if chamsEnabled then
-        ChamsButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer then
-                createCham(player)
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= player then
+            local char = plr.Character
+            if char then
+                for _, part in pairs(char:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local box = part:FindFirstChild("FEXSChams")
+                        if box then
+                            box:Destroy()
+                        end
+                    end
+                end
             end
         end
+    end
+end
+
+-- Connect toggles
+infiniteJumpToggle.MouseButton1Click:Connect(function()
+    infiniteJumpEnabled = not infiniteJumpEnabled
+    infiniteJumpToggle.Text = "Infinite Jump: " .. (infiniteJumpEnabled and "ON" or "OFF")
+end)
+
+rainbowYourselfToggle.MouseButton1Click:Connect(function()
+    rainbowYourselfEnabled = not rainbowYourselfEnabled
+    rainbowYourselfToggle.Text = "Rainbow Yourself: " .. (rainbowYourselfEnabled and "ON" or "OFF")
+    if not rainbowYourselfEnabled then
+        resetYourselfColors()
+    end
+end)
+
+chamsToggle.MouseButton1Click:Connect(function()
+    chamsEnabled = not chamsEnabled
+    chamsToggle.Text = "Chams All Players: " .. (chamsEnabled and "ON" or "OFF")
+    if chamsEnabled then
+        applyChams()
     else
-        ChamsButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
         removeChams()
     end
 end)
 
-Players.PlayerAdded:Connect(function(player)
-    if chamsEnabled and player ~= LocalPlayer then
-        player.CharacterAdded:Connect(function()
-            wait(1)
-            createCham(player)
-        end)
-    end
+-- Open and Close buttons
+openButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = true
+    openButton.Visible = false
 end)
 
-Players.PlayerRemoving:Connect(function(player)
-    if chamsEnabled then
-        for part, highlight in pairs(chamHighlights) do
-            if part.Parent and part.Parent.Parent == player.Character then
-                highlight:Destroy()
-                chamHighlights[part] = nil
-            end
-        end
-    end
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = false
+    openButton.Visible = true
 end)
 
--- Speed changer logic
-local function setSpeed(speedName)
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChildOfClass("Humanoid") then
-        char:FindFirstChildOfClass("Humanoid").WalkSpeed = speeds[speedName] or 16
-        SpeedDropdown.Text = speedName
-    end
-end
-
-SpeedDropdown.MouseButton1Click:Connect(function()
-    SpeedIndex = SpeedIndex + 1
-    if SpeedIndex > #SpeedOptions then SpeedIndex = 1 end
-    setSpeed(SpeedOptions[SpeedIndex])
-end)
-
--- Infinite jump logic
+-- Infinite jump connection
 UserInputService.JumpRequest:Connect(function()
-    if infiniteJumpEnabled then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+    onJumpRequest()
+end)
+
+-- Rainbow yourself update loop
+RunService.Heartbeat:Connect(function()
+    if rainbowYourselfEnabled then
+        rainbowYourselfStep()
     end
 end)
 
-InfiniteJumpButton.MouseButton1Click:Connect(function()
-    infiniteJumpEnabled = not infiniteJumpEnabled
-    if infiniteJumpEnabled then
-        InfiniteJumpButton.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-    else
-        InfiniteJumpButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+-- Update chams when players join or character spawns
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function()
+        if chamsEnabled then
+            wait(1) -- Wait a moment for character to load
+            applyChams()
+        end
+    end)
+end)
+
+player.CharacterAdded:Connect(function()
+    if rainbowYourselfEnabled then
+        wait(1)
+        rainbowYourselfStep()
+    end
+    if chamsEnabled then
+        wait(1)
+        applyChams()
     end
 end)
 
--- Update loop for Box ESP
-RunService.RenderStepped:Connect(function()
-    if boxESPEnabled then
-        updateBoxESP()
-    end
-end)
-
--- Initialize default speed
-setSpeed("Normal")
-
-return ScreenGui
+print("FEXS hub loaded!")
