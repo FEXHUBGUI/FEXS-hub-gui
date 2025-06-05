@@ -38,21 +38,21 @@ TitleBar.Font = Enum.Font.SourceSansBold
 TitleBar.TextSize = 22
 TitleBar.Parent = MainFrame
 
--- Close Button
+-- Close Button (floating above the main frame)
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 40, 0, 30)
-CloseBtn.Position = UDim2.new(1, -40, 0, 0)
+CloseBtn.Position = UDim2.new(0.5, -20, 0.3, -190) -- centered above MainFrame
 CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.new(1,1,1)
 CloseBtn.Font = Enum.Font.SourceSansBold
 CloseBtn.TextSize = 20
-CloseBtn.Parent = MainFrame
+CloseBtn.Parent = ScreenGui
 
--- Open Button
+-- Open Button (floating above the main frame, same position as CloseBtn)
 local OpenBtn = Instance.new("TextButton")
 OpenBtn.Size = UDim2.new(0, 120, 0, 30)
-OpenBtn.Position = UDim2.new(0, 10, 0.5, -15)
+OpenBtn.Position = CloseBtn.Position -- same position as CloseBtn
 OpenBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
 OpenBtn.BorderSizePixel = 0
 OpenBtn.Text = "Open FEXS GUI"
@@ -65,11 +65,13 @@ OpenBtn.Parent = ScreenGui
 -- Open/Close functionality
 CloseBtn.MouseButton1Click:Connect(function()
 	MainFrame.Visible = false
+	CloseBtn.Visible = false
 	OpenBtn.Visible = true
 end)
 
 OpenBtn.MouseButton1Click:Connect(function()
 	MainFrame.Visible = true
+	CloseBtn.Visible = true
 	OpenBtn.Visible = false
 end)
 
@@ -274,113 +276,63 @@ local function updateTracer(player)
 		local screenCenterX = camera.ViewportSize.X / 2
 		local screenCenterY = camera.ViewportSize.Y
 		local tracerHeight = (screenCenterY - rootPos.Y)
-		tracer.Size = UDim2.new(0, 2, 0, tracerHeight)
 		tracer.Position = UDim2.new(0, rootPos.X, 0, rootPos.Y)
+		tracer.Size = UDim2.new(0, 2, 0, tracerHeight)
 		tracer.Visible = true
 	else
 		tracer.Visible = false
 	end
 end
 
--- Example ESP toggles logic (simplified for demo)
-local function toggleESP(enabled)
-	if enabled then
-		-- Create tracers for players if espSettings.tracers is true
+-- Connect toggles to ESP features
+BoxesToggle.MouseButton1Click:Connect(function()
+	espSettings.boxes = not espSettings.boxes
+	BoxesToggle.Text = espSettings.boxes and "ON" or "OFF"
+	-- Update Boxes visibility here if implemented
+end)
+
+HealthBarToggle.MouseButton1Click:Connect(function()
+	espSettings.healthBars = not espSettings.healthBars
+	HealthBarToggle.Text = espSettings.healthBars and "ON" or "OFF"
+	-- Update HealthBars visibility here if implemented
+end)
+
+TracersToggle.MouseButton1Click:Connect(function()
+	espSettings.tracers = not espSettings.tracers
+	TracersToggle.Text = espSettings.tracers and "ON" or "OFF"
+	if espSettings.tracers then
 		for _, player in pairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer and player.Character then
-				if espSettings.tracers then
-					createTracer(player)
-				end
-			end
-		end
-	else
-		-- Remove all ESP visuals
-		for player, _ in pairs(espTracers) do
-			removeTracer(player)
-		end
-	end
-end
-
--- Update toggle button display and espSettings on click
-local function toggleSetting(settingName, toggleBtn)
-	toggleBtn.MouseButton1Click:Connect(function()
-		espSettings[settingName] = not espSettings[settingName]
-		if espSettings[settingName] then
-			toggleBtn.Text = "ON"
-			toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
-		else
-			toggleBtn.Text = "OFF"
-			toggleBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-		end
-
-		-- Update ESP visuals live when toggles change
-		if settingName == "tracers" then
-			if espSettings.tracers then
-				for _, player in pairs(Players:GetPlayers()) do
-					if player ~= LocalPlayer and player.Character then
-						createTracer(player)
-					end
-				end
-			else
-				for player, _ in pairs(espTracers) do
-					removeTracer(player)
-				end
-			end
-		end
-
-		-- Add your logic for boxes and health bars here similarly if needed
-
-		-- Update main ESP button text depending on if any ESP setting is enabled
-		local anyESP = espSettings.boxes or espSettings.healthBars or espSettings.tracers
-		ESPBtn.Text = "ESP: " .. (anyESP and "ON" or "OFF")
-	end)
-end
-
-toggleSetting("boxes", BoxesToggle)
-toggleSetting("healthBars", HealthBarToggle)
-toggleSetting("tracers", TracersToggle)
-
--- Initial colors for toggles
-BoxesToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-HealthBarToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-TracersToggle.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-
--- ESP Button toggles all ESP on/off for quick toggle (toggles all settings together)
-ESPBtn.MouseButton1Click:Connect(function()
-	local newState = not (espSettings.boxes or espSettings.healthBars or espSettings.tracers)
-	espSettings.boxes = newState
-	espSettings.healthBars = newState
-	espSettings.tracers = newState
-
-	-- Update toggles UI
-	BoxesToggle.Text = newState and "ON" or "OFF"
-	BoxesToggle.BackgroundColor3 = newState and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(70, 70, 70)
-	HealthBarToggle.Text = newState and "ON" or "OFF"
-	HealthBarToggle.BackgroundColor3 = newState and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(70, 70, 70)
-	TracersToggle.Text = newState and "ON" or "OFF"
-	TracersToggle.BackgroundColor3 = newState and Color3.fromRGB(50, 150, 50) or Color3.fromRGB(70, 70, 70)
-
-	-- Apply tracer toggles live
-	if newState then
-		for _, player in pairs(Players:GetPlayers()) do
-			if player ~= LocalPlayer and player.Character then
+			if player ~= LocalPlayer then
 				createTracer(player)
 			end
 		end
 	else
-		for player, _ in pairs(espTracers) do
-			removeTracer(player)
+		for player, tracer in pairs(espTracers) do
+			tracer:Destroy()
 		end
+		espTracers = {}
 	end
-
-	ESPBtn.Text = "ESP: " .. (newState and "ON" or "OFF")
 end)
 
--- Update tracers on render step if enabled
+-- Update ESP every frame
 RunService.RenderStepped:Connect(function()
 	if espSettings.tracers then
 		for player, tracer in pairs(espTracers) do
 			updateTracer(player)
 		end
+	end
+end)
+
+-- Optional: Update ESP on player join/leave for tracers
+Players.PlayerAdded:Connect(function(player)
+	if espSettings.tracers and player ~= LocalPlayer then
+		createTracer(player)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+	if espTracers[player] then
+		espTracers[player]:Destroy()
+		espTracers[player] = nil
 	end
 end)
