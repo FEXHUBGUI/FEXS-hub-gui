@@ -111,7 +111,7 @@ end)
 -- Initialize speed button text and value
 updateSpeed()
 
--- ESP setup using BillboardGui for boxes visible through walls with rainbow color, smaller size
+-- ESP setup using BillboardGui for boxes visible through walls with rainbow color, about player size
 local espEnabled = false
 local espBoxes = {}
 local espHue = 0
@@ -125,8 +125,8 @@ local function createESPBox(player)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "FEXS_ESP"
     billboard.Adornee = hrp
-    billboard.Size = UDim2.new(0, 20, 0, 50)       -- Smaller size here
-    billboard.StudsOffset = Vector3.new(0, 1.5, 0) -- Adjusted offset for smaller box
+    billboard.Size = UDim2.new(0, 35, 0, 105)       -- About player size width and height
+    billboard.StudsOffset = Vector3.new(0, 3, 0)    -- Offset adjusted to center box
     billboard.AlwaysOnTop = true
     billboard.Parent = PlayerGui
 
