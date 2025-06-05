@@ -1,22 +1,16 @@
--- FEXS Hub Rainbow GUI Script
+-- FEXS Hub RGB Chams GUI
 
 local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local mouse = player:GetMouse()
 local character = player.Character or player.CharacterAdded:Wait()
 
--- Helper function to create UI elements quickly
-local function create(name, parent, properties)
+-- Helper: Create UI elements
+local function create(name, parent, props)
     local obj = Instance.new(name)
     if parent then obj.Parent = parent end
-    if properties then
-        for prop, val in pairs(properties) do
-            obj[prop] = val
-        end
-    end
+    for prop, val in pairs(props or {}) do obj[prop] = val end
     return obj
 end
 
@@ -26,195 +20,102 @@ local function rainbowColor(t)
     local r = math.sin(freq * t + 0) * 127 + 128
     local g = math.sin(freq * t + 2) * 127 + 128
     local b = math.sin(freq * t + 4) * 127 + 128
-    return Color3.fromRGB(r,g,b)
+    return Color3.fromRGB(r, g, b)
 end
 
--- Create ScreenGui
-local screenGui = create("ScreenGui", player:WaitForChild("PlayerGui"), {Name = "FEXSHubGUI", ResetOnSpawn = false})
-
--- Main Frame (menu)
-local mainFrame = create("Frame", screenGui, {
-    Size = UDim2.new(0, 300, 0, 400),
-    Position = UDim2.new(0.5, -150, 0.5, -200),
-    BackgroundColor3 = Color3.fromRGB(20, 20, 20),
-    Visible = false,
-    BorderSizePixel = 0,
-    ClipsDescendants = true,
-    Name = "MainFrame"
+-- Create GUI
+local gui = create("ScreenGui", player:WaitForChild("PlayerGui"), {
+    Name = "FEXSHubGUI", ResetOnSpawn = false
 })
 
--- UI corner rounder
-create("UICorner", mainFrame, {CornerRadius = UDim.new(0, 10)})
+-- Main Frame
+local frame = create("Frame", gui, {
+    Size = UDim2.new(0, 300, 0, 250),
+    Position = UDim2.new(0.5, -150, 0.5, -125),
+    BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+    Visible = false, Name = "MainFrame"
+})
+create("UICorner", frame, {CornerRadius = UDim.new(0, 10)})
 
--- Title label
-local title = create("TextLabel", mainFrame, {
+-- Title Label with Rainbow
+local title = create("TextLabel", frame, {
     Text = "FEXS hub",
     Font = Enum.Font.GothamBold,
     TextSize = 28,
-    TextColor3 = Color3.new(1,1,1),
     BackgroundTransparency = 1,
+    TextColor3 = Color3.new(1, 1, 1),
     Size = UDim2.new(1, 0, 0, 50),
-    Position = UDim2.new(0, 0, 0, 0),
-    TextStrokeTransparency = 0.7,
     Name = "Title"
 })
 
--- Rainbow effect for title
-spawn(function()
+-- Rainbow Title Color
+task.spawn(function()
     while true do
-        for t=0, 6.28, 0.03 do
-            title.TextColor3 = rainbowColor(t)
-            wait(0.03)
-            if not mainFrame.Visible then break end
-        end
-        if not mainFrame.Visible then break end
+        local t = tick()
+        title.TextColor3 = rainbowColor(t)
+        task.wait(0.05)
     end
 end)
 
--- Infinite Jump Toggle
-local infiniteJumpToggle = create("TextButton", mainFrame, {
-    Text = "Infinite Jump: OFF",
+-- Rainbow Chams Toggle
+local chamsButton = create("TextButton", frame, {
+    Text = "RGB Chams: OFF",
     Font = Enum.Font.Gotham,
     TextSize = 20,
-    TextColor3 = Color3.new(1,1,1),
-    BackgroundColor3 = Color3.fromRGB(40,40,40),
+    BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+    TextColor3 = Color3.new(1, 1, 1),
     Size = UDim2.new(0.8, 0, 0, 40),
-    Position = UDim2.new(0.1, 0, 0, 60),
+    Position = UDim2.new(0.1, 0, 0, 70),
     AutoButtonColor = true,
-    Name = "InfiniteJumpToggle"
+    Name = "ChamsButton"
 })
-create("UICorner", infiniteJumpToggle, {CornerRadius = UDim.new(0,6)})
+create("UICorner", chamsButton, {CornerRadius = UDim.new(0, 6)})
 
--- Rainbow Yourself Toggle
-local rainbowYourselfToggle = create("TextButton", mainFrame, {
-    Text = "Rainbow Yourself: OFF",
-    Font = Enum.Font.Gotham,
-    TextSize = 20,
-    TextColor3 = Color3.new(1,1,1),
-    BackgroundColor3 = Color3.fromRGB(40,40,40),
-    Size = UDim2.new(0.8, 0, 0, 40),
-    Position = UDim2.new(0.1, 0, 0, 110),
-    AutoButtonColor = true,
-    Name = "RainbowYourselfToggle"
-})
-create("UICorner", rainbowYourselfToggle, {CornerRadius = UDim.new(0,6)})
-
--- Chams Toggle
-local chamsToggle = create("TextButton", mainFrame, {
-    Text = "Chams All Players: OFF",
-    Font = Enum.Font.Gotham,
-    TextSize = 20,
-    TextColor3 = Color3.new(1,1,1),
-    BackgroundColor3 = Color3.fromRGB(40,40,40),
-    Size = UDim2.new(0.8, 0, 0, 40),
-    Position = UDim2.new(0.1, 0, 0, 160),
-    AutoButtonColor = true,
-    Name = "ChamsToggle"
-})
-create("UICorner", chamsToggle, {CornerRadius = UDim.new(0,6)})
-
--- Close button
-local closeButton = create("TextButton", mainFrame, {
+-- Close Button
+local closeButton = create("TextButton", frame, {
     Text = "Close",
     Font = Enum.Font.GothamBold,
     TextSize = 20,
-    TextColor3 = Color3.new(1,1,1),
     BackgroundColor3 = Color3.fromRGB(255, 0, 0),
+    TextColor3 = Color3.new(1, 1, 1),
     Size = UDim2.new(0.3, 0, 0, 40),
     Position = UDim2.new(0.35, 0, 1, -50),
-    AutoButtonColor = true,
     Name = "CloseButton"
 })
-create("UICorner", closeButton, {CornerRadius = UDim.new(0,6)})
+create("UICorner", closeButton, {CornerRadius = UDim.new(0, 6)})
 
--- Open Button (small button to open the menu)
-local openButton = create("TextButton", screenGui, {
+-- Open Button
+local openButton = create("TextButton", gui, {
     Text = "Open FEXS hub",
     Font = Enum.Font.GothamBold,
     TextSize = 18,
-    TextColor3 = Color3.new(1,1,1),
     BackgroundColor3 = Color3.fromRGB(0, 120, 255),
+    TextColor3 = Color3.new(1, 1, 1),
     Size = UDim2.new(0, 150, 0, 40),
     Position = UDim2.new(0, 10, 0, 10),
-    AutoButtonColor = true,
     Name = "OpenButton"
 })
 create("UICorner", openButton, {CornerRadius = UDim.new(0, 6)})
 
--- States
-local infiniteJumpEnabled = false
-local rainbowYourselfEnabled = false
+-- 🌈 RGB Chams Functionality
 local chamsEnabled = false
+local activeChams = {}
 
--- Infinite jump function
-local function onJumpRequest()
-    if infiniteJumpEnabled then
-        local char = player.Character
-        local humanoid = char and char:FindFirstChildOfClass("Humanoid")
-        if humanoid and humanoid:GetState() ~= Enum.HumanoidStateType.Jumping and humanoid:GetState() ~= Enum.HumanoidStateType.Freefall then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end
-end
-
--- Rainbow Yourself function
-local function rainbowYourselfStep()
-    local char = player.Character
-    if not char then return end
-    local t = tick()
-    local color = rainbowColor(t)
-    for _, part in pairs(char:GetChildren()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            part.Color = color
-            if part:FindFirstChild("OriginalMaterial") == nil then
-                local origMat = Instance.new("StringValue")
-                origMat.Name = "OriginalMaterial"
-                origMat.Value = part.Material.Name
-                origMat.Parent = part
-            end
-            part.Material = Enum.Material.Neon
-        end
-    end
-end
-
-local function resetYourselfColors()
-    local char = player.Character
-    if not char then return end
-    for _, part in pairs(char:GetChildren()) do
-        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-            local origMat = part:FindFirstChild("OriginalMaterial")
-            if origMat then
-                part.Material = Enum.Material[origMat.Value] or Enum.Material.Plastic
-                origMat:Destroy()
-            else
-                part.Material = Enum.Material.Plastic
-            end
-            part.Color = Color3.fromRGB(255, 255, 255) -- Reset to white (default)
-        end
-    end
-end
-
--- Chams function
-local function applyChams()
+local function applyRGBChams()
     for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= player then
-            local char = plr.Character
-            if char then
-                for _, part in pairs(char:GetChildren()) do
-                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                        -- Add outline or glow effect
-                        if not part:FindFirstChild("FEXSChams") then
-                            local box = Instance.new("BoxHandleAdornment")
-                            box.Name = "FEXSChams"
-                            box.Adornee = part
-                            box.AlwaysOnTop = true
-                            box.ZIndex = 10
-                            box.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
-                            box.Color3 = Color3.new(1, 0, 1) -- Magenta cham color
-                            box.Transparency = 0.5
-                            box.Parent = part
-                        end
-                    end
+        if plr ~= player and plr.Character then
+            for _, part in pairs(plr.Character:GetDescendants()) do
+                if part:IsA("BasePart") and not part:FindFirstChild("FEXSRainbowCham") then
+                    local box = Instance.new("BoxHandleAdornment")
+                    box.Name = "FEXSRainbowCham"
+                    box.Adornee = part
+                    box.AlwaysOnTop = true
+                    box.ZIndex = 10
+                    box.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
+                    box.Color3 = Color3.new(1, 0, 0)
+                    box.Transparency = 0.5
+                    box.Parent = part
+                    table.insert(activeChams, box)
                 end
             end
         end
@@ -222,89 +123,57 @@ local function applyChams()
 end
 
 local function removeChams()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= player then
-            local char = plr.Character
-            if char then
-                for _, part in pairs(char:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        local box = part:FindFirstChild("FEXSChams")
-                        if box then
-                            box:Destroy()
-                        end
-                    end
-                end
-            end
+    for _, cham in pairs(activeChams) do
+        if cham and cham.Parent then
+            cham:Destroy()
         end
     end
+    activeChams = {}
 end
 
--- Connect toggles
-infiniteJumpToggle.MouseButton1Click:Connect(function()
-    infiniteJumpEnabled = not infiniteJumpEnabled
-    infiniteJumpToggle.Text = "Infinite Jump: " .. (infiniteJumpEnabled and "ON" or "OFF")
-end)
-
-rainbowYourselfToggle.MouseButton1Click:Connect(function()
-    rainbowYourselfEnabled = not rainbowYourselfEnabled
-    rainbowYourselfToggle.Text = "Rainbow Yourself: " .. (rainbowYourselfEnabled and "ON" or "OFF")
-    if not rainbowYourselfEnabled then
-        resetYourselfColors()
-    end
-end)
-
-chamsToggle.MouseButton1Click:Connect(function()
+-- Toggle RGB Chams
+chamsButton.MouseButton1Click:Connect(function()
     chamsEnabled = not chamsEnabled
-    chamsToggle.Text = "Chams All Players: " .. (chamsEnabled and "ON" or "OFF")
+    chamsButton.Text = "RGB Chams: " .. (chamsEnabled and "ON" or "OFF")
     if chamsEnabled then
-        applyChams()
+        applyRGBChams()
     else
         removeChams()
     end
 end)
 
--- Open and Close buttons
+-- Animate Chams
+RunService.Heartbeat:Connect(function()
+    if chamsEnabled then
+        local t = tick()
+        local color = rainbowColor(t)
+        for _, cham in pairs(activeChams) do
+            if cham and cham.Parent then
+                cham.Color3 = color
+            end
+        end
+    end
+end)
+
+-- Open/Close GUI
 openButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = true
+    frame.Visible = true
     openButton.Visible = false
 end)
 
 closeButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
+    frame.Visible = false
     openButton.Visible = true
 end)
 
--- Infinite jump connection
-UserInputService.JumpRequest:Connect(function()
-    onJumpRequest()
-end)
-
--- Rainbow yourself update loop
-RunService.Heartbeat:Connect(function()
-    if rainbowYourselfEnabled then
-        rainbowYourselfStep()
-    end
-end)
-
--- Update chams when players join or character spawns
+-- Handle new players
 Players.PlayerAdded:Connect(function(plr)
     plr.CharacterAdded:Connect(function()
         if chamsEnabled then
-            wait(1) -- Wait a moment for character to load
-            applyChams()
+            wait(1)
+            applyRGBChams()
         end
     end)
 end)
 
-player.CharacterAdded:Connect(function()
-    if rainbowYourselfEnabled then
-        wait(1)
-        rainbowYourselfStep()
-    end
-    if chamsEnabled then
-        wait(1)
-        applyChams()
-    end
-end)
-
-print("FEXS hub loaded!")
+print("✅ FEXS hub loaded with RGB Chams.")
