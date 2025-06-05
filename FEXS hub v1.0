@@ -1,141 +1,116 @@
--- FEXS Hub LocalScript
+-- FEX Hub GUI Script
 
--- Create Screen GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "FEXSHub"
+local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local char = player.Character or player.CharacterAdded:Wait()
+local humanoid = char:WaitForChild("Humanoid")
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+-- UI Setup
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "FEXHub"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Create Main Frame
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 400)
-frame.Position = UDim2.new(0.05, 0, 0.1, 0)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.Visible = false
-frame.Parent = screenGui
+-- Draggable Frame
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 300, 0, 300)
+mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
+mainFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Visible = false
 
--- UI Tabs
-local tabs = {
-	Main = Instance.new("Frame"),
-	Settings = Instance.new("Frame")
-}
-
-for name, tab in pairs(tabs) do
-	tab.Name = name.."Tab"
-	tab.Size = UDim2.new(1, 0, 1, -40)
-	tab.Position = UDim2.new(0, 0, 0, 40)
-	tab.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-	tab.Visible = name == "Main"
-	tab.Parent = frame
-end
-
--- Tab Buttons
-local function createTabButton(name, posX)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, 100, 0, 30)
-	btn.Position = UDim2.new(0, posX, 0, 5)
-	btn.Text = name
-	btn.Parent = frame
-	btn.MouseButton1Click:Connect(function()
-		for _, tab in pairs(tabs) do tab.Visible = false end
-		tabs[name].Visible = true
-	end)
-end
-
-createTabButton("Main", 5)
-createTabButton("Settings", 110)
-
--- Open/Close Buttons
-local openBtn = Instance.new("TextButton")
-openBtn.Size = UDim2.new(0, 100, 0, 40)
-openBtn.Position = UDim2.new(0, 10, 0, 10)
-openBtn.Text = "Open Menu"
-openBtn.Parent = screenGui
-
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0, 100, 0, 40)
-closeBtn.Position = UDim2.new(0, 120, 0, 10)
-closeBtn.Text = "Close Menu"
-closeBtn.Parent = screenGui
-
-openBtn.MouseButton1Click:Connect(function()
-	frame.Visible = true
+-- Rainbow UI
+RunService.RenderStepped:Connect(function()
+	local t = tick()
+	local r = math.sin(t) * 0.5 + 0.5
+	local g = math.sin(t + 2) * 0.5 + 0.5
+	local b = math.sin(t + 4) * 0.5 + 0.5
+	mainFrame.BackgroundColor3 = Color3.new(r, g, b)
 end)
 
-closeBtn.MouseButton1Click:Connect(function()
-	frame.Visible = false
+-- Open / Close Buttons
+local openButton = Instance.new("TextButton", screenGui)
+openButton.Size = UDim2.new(0, 100, 0, 40)
+openButton.Position = UDim2.new(0, 10, 0, 10)
+openButton.Text = "Open FEX Hub"
+
+local closeButton = Instance.new("TextButton", mainFrame)
+closeButton.Size = UDim2.new(0, 100, 0, 40)
+closeButton.Position = UDim2.new(1, -110, 0, 10)
+closeButton.Text = "Close"
+
+openButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = true
 end)
 
--- RGB Utility
-local function applyRGB(obj)
-	coroutine.wrap(function()
-		while true do
-			for i = 0, 1, 0.01 do
-				obj.Color = Color3.fromHSV(i, 1, 1)
-				wait(0.03)
-			end
-		end
-	end)()
+closeButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = false
+end)
+
+-- Buttons for features
+local function createButton(name, posY, callback)
+	local button = Instance.new("TextButton", mainFrame)
+	button.Size = UDim2.new(0, 280, 0, 30)
+	button.Position = UDim2.new(0, 10, 0, posY)
+	button.Text = name
+	button.MouseButton1Click:Connect(callback)
+	return button
 end
 
 -- RGB Self
-local rgbSelfBtn = Instance.new("TextButton")
-rgbSelfBtn.Size = UDim2.new(0, 200, 0, 40)
-rgbSelfBtn.Position = UDim2.new(0, 50, 0, 20)
-rgbSelfBtn.Text = "RGB Self"
-rgbSelfBtn.Parent = tabs.Main
-
-rgbSelfBtn.MouseButton1Click:Connect(function()
-	local char = game.Players.LocalPlayer.Character
-	if char then
-		for _, part in pairs(char:GetChildren()) do
-			if part:IsA("BasePart") then
-				applyRGB(part)
-			end
-		end
-	end
+local selfRGBEnabled = false
+createButton("RGB Self", 60, function()
+	selfRGBEnabled = not selfRGBEnabled
 end)
 
 -- RGB Chams
-local rgbChamsBtn = Instance.new("TextButton")
-rgbChamsBtn.Size = UDim2.new(0, 200, 0, 40)
-rgbChamsBtn.Position = UDim2.new(0, 50, 0, 70)
-rgbChamsBtn.Text = "RGB Chams All Players"
-rgbChamsBtn.Parent = tabs.Main
+local chamsEnabled = false
+createButton("RGB Chams (Others)", 100, function()
+	chamsEnabled = not chamsEnabled
+end)
 
-rgbChamsBtn.MouseButton1Click:Connect(function()
-	for _, player in pairs(game.Players:GetPlayers()) do
-		if player ~= game.Players.LocalPlayer and player.Character then
-			for _, part in pairs(player.Character:GetChildren()) do
-				if part:IsA("BasePart") then
-					applyRGB(part)
+-- Jump Power Buttons
+createButton("Jump Power: Normal", 140, function()
+	humanoid.JumpPower = 50
+end)
+
+createButton("Jump Power: High", 180, function()
+	humanoid.JumpPower = 100
+end)
+
+createButton("Jump Power: Really High", 220, function()
+	humanoid.JumpPower = 200
+end)
+
+-- RGB Effects Logic
+RunService.RenderStepped:Connect(function()
+	local t = tick()
+	local r = math.sin(t) * 0.5 + 0.5
+	local g = math.sin(t + 2) * 0.5 + 0.5
+	local b = math.sin(t + 4) * 0.5 + 0.5
+	local rainbow = Color3.new(r, g, b)
+
+	if selfRGBEnabled and char then
+		for _, part in pairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.Color = rainbow
+				part.Material = Enum.Material.Neon
+			end
+		end
+	end
+
+	if chamsEnabled then
+		for _, plr in pairs(game.Players:GetPlayers()) do
+			if plr ~= player and plr.Character then
+				for _, part in pairs(plr.Character:GetDescendants()) do
+					if part:IsA("BasePart") then
+						part.Color = rainbow
+						part.Material = Enum.Material.Neon
+					end
 				end
 			end
 		end
 	end
 end)
-
--- Jump Power Controls
-local jumpSettings = {
-	["Normal (50)"] = 50,
-	["High (100)"] = 100,
-	["Really High (150)"] = 150
-}
-
-local y = 20
-for label, value in pairs(jumpSettings) do
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, 200, 0, 40)
-	btn.Position = UDim2.new(0, 50, 0, y)
-	btn.Text = label
-	btn.Parent = tabs.Settings
-
-	btn.MouseButton1Click:Connect(function()
-		local char = game.Players.LocalPlayer.Character
-		if char and char:FindFirstChild("Humanoid") then
-			char.Humanoid.JumpPower = value
-		end
-	end)
-
-	y = y + 50
-end
