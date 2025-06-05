@@ -111,7 +111,7 @@ end)
 -- Initialize speed button text and value
 updateSpeed()
 
--- ESP setup using BillboardGui for boxes visible through walls with rainbow color
+-- ESP setup using BillboardGui for boxes visible through walls with rainbow color, smaller size
 local espEnabled = false
 local espBoxes = {}
 local espHue = 0
@@ -125,105 +125,4 @@ local function createESPBox(player)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "FEXS_ESP"
     billboard.Adornee = hrp
-    billboard.Size = UDim2.new(0, 60, 0, 150)
-    billboard.StudsOffset = Vector3.new(0, 3, 0)
-    billboard.AlwaysOnTop = true
-    billboard.Parent = PlayerGui
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundTransparency = 0.6
-    frame.BorderSizePixel = 2
-    frame.Parent = billboard
-
-    espBoxes[player] = frame
-end
-
-local function removeESPBox(player)
-    if espBoxes[player] then
-        espBoxes[player].Parent:Destroy()
-        espBoxes[player] = nil
-    end
-end
-
-local function createBoxesForPlayers()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and not espBoxes[player] then
-            createESPBox(player)
-        end
-    end
-end
-
-local function removeAllBoxes()
-    for player, frame in pairs(espBoxes) do
-        if frame and frame.Parent then
-            frame.Parent:Destroy()
-        end
-    end
-    espBoxes = {}
-end
-
-ESPBtn.Text = "Box ESP: Off"
-
-ESPBtn.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    ESPBtn.Text = "Box ESP: " .. (espEnabled and "On" or "Off")
-
-    if espEnabled then
-        createBoxesForPlayers()
-    else
-        removeAllBoxes()
-    end
-end)
-
--- Animate rainbow color on ESP boxes
-RunService.RenderStepped:Connect(function(dt)
-    if espEnabled then
-        espHue = (espHue + dt * 0.7) % 1  -- Faster color cycling for ESP
-        for _, frame in pairs(espBoxes) do
-            frame.BorderColor3 = Color3.fromHSV(espHue, 1, 1)
-            frame.BackgroundColor3 = Color3.fromHSV(espHue, 0.7, 0.8)
-        end
-    end
-end)
-
--- Update ESP boxes when characters respawn or players join
-Players.PlayerAdded:Connect(function(player)
-    player.CharacterAdded:Connect(function()
-        if espEnabled and player ~= LocalPlayer then
-            removeESPBox(player)
-            createESPBox(player)
-        end
-    end)
-end)
-
-Players.PlayerRemoving:Connect(function(player)
-    removeESPBox(player)
-end)
-
--- For players who already have characters
-for _, player in pairs(Players:GetPlayers()) do
-    player.CharacterAdded:Connect(function()
-        if espEnabled and player ~= LocalPlayer then
-            removeESPBox(player)
-            createESPBox(player)
-        end
-    end)
-end
-
--- Open/Close GUI logic
-CloseBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = false
-    OpenBtn.Visible = true
-end)
-
-OpenBtn.MouseButton1Click:Connect(function()
-    MainFrame.Visible = true
-    OpenBtn.Visible = false
-end)
-
--- Reset speed when character respawns
-LocalPlayer.CharacterAdded:Connect(function()
-    wait(1)
-    updateSpeed()
-end)
+    billboard.Size = UDim2.new(0, 40, 0, 100)       -- Smaller siz
