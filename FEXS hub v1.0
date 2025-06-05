@@ -1,22 +1,120 @@
--- Open Button (initially hidden)
-local openButton = Instance.new("TextButton")
-openButton.Size = UDim2.new(0, 100, 0, 30)
-openButton.Position = UDim2.new(0, 10, 0, 10) -- Position when frame is closed
-openButton.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-openButton.Text = "Open"
-openButton.TextColor3 = Color3.new(1, 1, 1)
-openButton.TextScaled = true
-openButton.Visible = false
-openButton.Parent = screenGui
+-- Create the main screen GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FEXSGUIHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Toggle GUI with closeButton
-toggleButton.MouseButton1Click:Connect(function()
-	frame.Visible = false
-	openButton.Visible = true
+-- Main Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 200)
+frame.Position = UDim2.new(0.3, 0, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.Draggable = true
+frame.Active = true
+frame.Parent = screenGui
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 40)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.Text = "FEXS GUI Hub"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.TextScaled = true
+title.Parent = frame
+
+-- WalkSpeed Button
+local speedButton = Instance.new("TextButton")
+speedButton.Size = UDim2.new(1, -20, 0, 40)
+speedButton.Position = UDim2.new(0, 10, 0, 50)
+speedButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+speedButton.Text = "Toggle Speed"
+speedButton.TextColor3 = Color3.new(1, 1, 1)
+speedButton.TextScaled = true
+speedButton.Parent = frame
+
+-- ESP Button
+local espButton = Instance.new("TextButton")
+espButton.Size = UDim2.new(1, -20, 0, 40)
+espButton.Position = UDim2.new(0, 10, 0, 100)
+espButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+espButton.Text = "Toggle ESP"
+espButton.TextColor3 = Color3.new(1, 1, 1)
+espButton.TextScaled = true
+espButton.Parent = frame
+
+-- Open/Close Toggle
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 100, 0, 30)
+toggleButton.Position = UDim2.new(0, 10, 0, 150)
+toggleButton.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+toggleButton.Text = "Close"
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+toggleButton.TextScaled = true
+toggleButton.Parent = frame
+
+-- Toggle Walk Speed
+local fastSpeed = 60
+local normalSpeed = 16
+local usingFast = false
+
+speedButton.MouseButton1Click:Connect(function()
+	local player = game.Players.LocalPlayer
+	if player and player.Character and player.Character:FindFirstChild("Humanoid") then
+		if usingFast then
+			player.Character.Humanoid.WalkSpeed = normalSpeed
+		else
+			player.Character.Humanoid.WalkSpeed = fastSpeed
+		end
+		usingFast = not usingFast
+	end
 end)
 
--- Restore GUI with openButton
-openButton.MouseButton1Click:Connect(function()
-	frame.Visible = true
-	openButton.Visible = false
+-- ESP Functionality
+local espEnabled = false
+local espObjects = {}
+
+local function createESP(target)
+	local box = Instance.new("BillboardGui")
+	box.Name = "ESPBox"
+	box.Size = UDim2.new(0, 100, 0, 40)
+	box.AlwaysOnTop = true
+	box.Adornee = target:FindFirstChild("Head")
+	box.Parent = target
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1, 0, 1, 0)
+	label.BackgroundTransparency = 1
+	label.Text = target.Name
+	label.TextColor3 = Color3.new(1, 0, 0)
+	label.TextScaled = true
+	label.Parent = box
+
+	table.insert(espObjects, box)
+end
+
+local function removeAllESP()
+	for _, gui in pairs(espObjects) do
+		gui:Destroy()
+	end
+	espObjects = {}
+end
+
+espButton.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+	removeAllESP()
+	if espEnabled then
+		for _, player in pairs(game.Players:GetPlayers()) do
+			if player ~= game.Players.LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+				createESP(player.Character)
+			end
+		end
+	end
+end)
+
+-- Toggle GUI
+local open = true
+toggleButton.MouseButton1Click:Connect(function()
+	open = not open
+	frame.Visible = open
+	toggleButton.Text = open and "Close" or "Open"
 end)
