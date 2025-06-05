@@ -1,7 +1,8 @@
--- FEXS Hub RGB Chams GUI
+-- FEXS Hub with Infinite Jump + RGB Chams
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
@@ -30,14 +31,14 @@ local gui = create("ScreenGui", player:WaitForChild("PlayerGui"), {
 
 -- Main Frame
 local frame = create("Frame", gui, {
-    Size = UDim2.new(0, 300, 0, 250),
-    Position = UDim2.new(0.5, -150, 0.5, -125),
+    Size = UDim2.new(0, 300, 0, 300),
+    Position = UDim2.new(0.5, -150, 0.5, -150),
     BackgroundColor3 = Color3.fromRGB(20, 20, 20),
     Visible = false, Name = "MainFrame"
 })
 create("UICorner", frame, {CornerRadius = UDim.new(0, 10)})
 
--- Title Label with Rainbow
+-- Title Label
 local title = create("TextLabel", frame, {
     Text = "FEXS hub",
     Font = Enum.Font.GothamBold,
@@ -48,7 +49,7 @@ local title = create("TextLabel", frame, {
     Name = "Title"
 })
 
--- Rainbow Title Color
+-- Animate Rainbow Title
 task.spawn(function()
     while true do
         local t = tick()
@@ -57,123 +58,35 @@ task.spawn(function()
     end
 end)
 
--- Rainbow Chams Toggle
-local chamsButton = create("TextButton", frame, {
-    Text = "RGB Chams: OFF",
+-- Infinite Jump Toggle
+local infiniteJumpEnabled = false
+local infJumpButton = create("TextButton", frame, {
+    Text = "Infinite Jump: OFF",
     Font = Enum.Font.Gotham,
     TextSize = 20,
     BackgroundColor3 = Color3.fromRGB(40, 40, 40),
     TextColor3 = Color3.new(1, 1, 1),
     Size = UDim2.new(0.8, 0, 0, 40),
-    Position = UDim2.new(0.1, 0, 0, 70),
-    AutoButtonColor = true,
-    Name = "ChamsButton"
+    Position = UDim2.new(0.1, 0, 0, 60),
+    Name = "InfJumpButton"
 })
-create("UICorner", chamsButton, {CornerRadius = UDim.new(0, 6)})
+create("UICorner", infJumpButton, {CornerRadius = UDim.new(0, 6)})
 
--- Close Button
-local closeButton = create("TextButton", frame, {
-    Text = "Close",
-    Font = Enum.Font.GothamBold,
-    TextSize = 20,
-    BackgroundColor3 = Color3.fromRGB(255, 0, 0),
-    TextColor3 = Color3.new(1, 1, 1),
-    Size = UDim2.new(0.3, 0, 0, 40),
-    Position = UDim2.new(0.35, 0, 1, -50),
-    Name = "CloseButton"
-})
-create("UICorner", closeButton, {CornerRadius = UDim.new(0, 6)})
-
--- Open Button
-local openButton = create("TextButton", gui, {
-    Text = "Open FEXS hub",
-    Font = Enum.Font.GothamBold,
-    TextSize = 18,
-    BackgroundColor3 = Color3.fromRGB(0, 120, 255),
-    TextColor3 = Color3.new(1, 1, 1),
-    Size = UDim2.new(0, 150, 0, 40),
-    Position = UDim2.new(0, 10, 0, 10),
-    Name = "OpenButton"
-})
-create("UICorner", openButton, {CornerRadius = UDim.new(0, 6)})
-
--- 🌈 RGB Chams Functionality
-local chamsEnabled = false
-local activeChams = {}
-
-local function applyRGBChams()
-    for _, plr in pairs(Players:GetPlayers()) do
-        if plr ~= player and plr.Character then
-            for _, part in pairs(plr.Character:GetDescendants()) do
-                if part:IsA("BasePart") and not part:FindFirstChild("FEXSRainbowCham") then
-                    local box = Instance.new("BoxHandleAdornment")
-                    box.Name = "FEXSRainbowCham"
-                    box.Adornee = part
-                    box.AlwaysOnTop = true
-                    box.ZIndex = 10
-                    box.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
-                    box.Color3 = Color3.new(1, 0, 0)
-                    box.Transparency = 0.5
-                    box.Parent = part
-                    table.insert(activeChams, box)
-                end
-            end
-        end
-    end
-end
-
-local function removeChams()
-    for _, cham in pairs(activeChams) do
-        if cham and cham.Parent then
-            cham:Destroy()
-        end
-    end
-    activeChams = {}
-end
-
--- Toggle RGB Chams
-chamsButton.MouseButton1Click:Connect(function()
-    chamsEnabled = not chamsEnabled
-    chamsButton.Text = "RGB Chams: " .. (chamsEnabled and "ON" or "OFF")
-    if chamsEnabled then
-        applyRGBChams()
-    else
-        removeChams()
-    end
+infJumpButton.MouseButton1Click:Connect(function()
+    infiniteJumpEnabled = not infiniteJumpEnabled
+    infJumpButton.Text = "Infinite Jump: " .. (infiniteJumpEnabled and "ON" or "OFF")
 end)
 
--- Animate Chams
-RunService.Heartbeat:Connect(function()
-    if chamsEnabled then
-        local t = tick()
-        local color = rainbowColor(t)
-        for _, cham in pairs(activeChams) do
-            if cham and cham.Parent then
-                cham.Color3 = color
-            end
+-- Infinite Jump Logic
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJumpEnabled then
+        local char = player.Character
+        local humanoid = char and char:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
         end
     end
 end)
 
--- Open/Close GUI
-openButton.MouseButton1Click:Connect(function()
-    frame.Visible = true
-    openButton.Visible = false
-end)
-
-closeButton.MouseButton1Click:Connect(function()
-    frame.Visible = false
-    openButton.Visible = true
-end)
-
--- Handle new players
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function()
-        if chamsEnabled then
-            wait(1)
-            applyRGBChams()
-        end
-    end)
-end)
-
-print("✅ FEXS hub loaded with RGB Chams.")
+-- RGB Chams Toggle
+local chams
