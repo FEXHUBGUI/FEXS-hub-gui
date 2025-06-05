@@ -17,6 +17,7 @@ MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 MainFrame.Active = true
 MainFrame.Draggable = true
+MainFrame.Visible = true
 
 -- Rainbow background setup
 local hue = 0
@@ -214,7 +215,7 @@ local function removeAllBoxes()
     espBoxes = {}
 end
 
-ESPBtn.Text = "Box ESP: Off"
+ESPBtn.Text = "Box ESP glitchy: Off"
 
 ESPBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
