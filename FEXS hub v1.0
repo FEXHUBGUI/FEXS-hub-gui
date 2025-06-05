@@ -1,42 +1,40 @@
--- FEXS GUI Hub Script
-
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Create main ScreenGui
+-- Create ScreenGui
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "FEXSGUIHub"
 ScreenGui.Parent = PlayerGui
 ScreenGui.ResetOnSpawn = false
 
--- Main Frame
+-- Main Frame (Draggable)
 local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 300, 0, 180)
-MainFrame.Position = UDim2.new(0.5, -150, 0.3, -90)
-MainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+MainFrame.Size = UDim2.new(0, 280, 0, 160)
+MainFrame.Position = UDim2.new(0.5, -140, 0.3, -80)
+MainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 MainFrame.Active = true
 MainFrame.Draggable = true
 
--- Title
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Title.BorderSizePixel = 0
-Title.Text = "FEXS GUI Hub"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
-Title.Parent = MainFrame
+-- Title bar
+local TitleBar = Instance.new("TextLabel")
+TitleBar.Size = UDim2.new(1, 0, 0, 30)
+TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+TitleBar.BorderSizePixel = 0
+TitleBar.Text = "FEXS GUI Hub"
+TitleBar.TextColor3 = Color3.new(1,1,1)
+TitleBar.Font = Enum.Font.SourceSansBold
+TitleBar.TextSize = 22
+TitleBar.Parent = MainFrame
 
 -- Close Button
 local CloseBtn = Instance.new("TextButton")
 CloseBtn.Size = UDim2.new(0, 40, 0, 30)
 CloseBtn.Position = UDim2.new(1, -40, 0, 0)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(170, 40, 40)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.new(1,1,1)
 CloseBtn.Font = Enum.Font.SourceSansBold
@@ -45,9 +43,9 @@ CloseBtn.Parent = MainFrame
 
 -- Open Button (hidden by default)
 local OpenBtn = Instance.new("TextButton")
-OpenBtn.Size = UDim2.new(0, 100, 0, 30)
-OpenBtn.Position = UDim2.new(0, 20, 0.3, 0)
-OpenBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+OpenBtn.Size = UDim2.new(0, 120, 0, 30)
+OpenBtn.Position = UDim2.new(0.5, -60, 0.3, 0)
+OpenBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
 OpenBtn.BorderSizePixel = 0
 OpenBtn.Text = "Open FEXS GUI"
 OpenBtn.TextColor3 = Color3.new(1,1,1)
@@ -58,11 +56,10 @@ OpenBtn.Parent = ScreenGui
 
 -- Speed Button
 local SpeedBtn = Instance.new("TextButton")
-SpeedBtn.Size = UDim2.new(0, 260, 0, 40)
+SpeedBtn.Size = UDim2.new(0, 240, 0, 45)
 SpeedBtn.Position = UDim2.new(0, 20, 0, 50)
-SpeedBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SpeedBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
 SpeedBtn.BorderSizePixel = 0
-SpeedBtn.Text = "Speed: Normal"
 SpeedBtn.TextColor3 = Color3.new(1,1,1)
 SpeedBtn.Font = Enum.Font.SourceSans
 SpeedBtn.TextSize = 20
@@ -70,126 +67,124 @@ SpeedBtn.Parent = MainFrame
 
 -- ESP Button
 local ESPBtn = Instance.new("TextButton")
-ESPBtn.Size = UDim2.new(0, 260, 0, 40)
-ESPBtn.Position = UDim2.new(0, 20, 0, 100)
-ESPBtn.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+ESPBtn.Size = UDim2.new(0, 240, 0, 45)
+ESPBtn.Position = UDim2.new(0, 20, 0, 105)
+ESPBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
 ESPBtn.BorderSizePixel = 0
-ESPBtn.Text = "Box ESP: Off"
 ESPBtn.TextColor3 = Color3.new(1,1,1)
 ESPBtn.Font = Enum.Font.SourceSans
 ESPBtn.TextSize = 20
 ESPBtn.Parent = MainFrame
 
--- Speed States
-local speeds = {
-    ["Normal"] = 16,
-    ["Fast"] = 40,
-    ["Very Fast"] = 80
+-- Speed states
+local speeds = {"Normal", "Fast", "Very Fast"}
+local speedValues = {
+    Normal = 16,
+    Fast = 40,
+    ["Very Fast"] = 80,
 }
-local currentSpeedState = "Normal"
+local currentSpeedIndex = 1
 
--- Function to update speed button text and set speed
 local function updateSpeed()
-    local speed = speeds[currentSpeedState]
-    SpeedBtn.Text = "Speed: " .. currentSpeedState
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = speed
+    local speedName = speeds[currentSpeedIndex]
+    SpeedBtn.Text = "Speed: " .. speedName
+    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = speedValues[speedName]
     end
 end
 
--- Cycle speed on button click
 SpeedBtn.MouseButton1Click:Connect(function()
-    if currentSpeedState == "Normal" then
-        currentSpeedState = "Fast"
-    elseif currentSpeedState == "Fast" then
-        currentSpeedState = "Very Fast"
-    else
-        currentSpeedState = "Normal"
+    currentSpeedIndex = currentSpeedIndex + 1
+    if currentSpeedIndex > #speeds then
+        currentSpeedIndex = 1
     end
     updateSpeed()
 end)
 
--- Initially set speed
+-- Initialize speed button text and value
 updateSpeed()
 
--- ESP variables
+-- ESP setup
 local espEnabled = false
 local espBoxes = {}
 
--- Function to create box ESP for a player
-local function createESP(player)
+-- Create a box for ESP using Drawing API
+local function createBox()
     local box = Drawing.new("Square")
     box.Color = Color3.fromRGB(0, 255, 0)
     box.Thickness = 2
-    box.Transparency = 1
     box.Filled = false
+    box.Transparency = 1
+    box.Visible = false
     return box
 end
 
--- Update ESP boxes every frame
-local function updateESP()
-    if not espEnabled then
-        for _, box in pairs(espBoxes) do
-            box.Visible = false
-        end
-        return
-    end
-
+-- Create ESP boxes for all players except local
+local function createBoxesForPlayers()
     for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            local character = player.Character
-            local box = espBoxes[player]
-            if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Head") then
-                local rootPart = character.HumanoidRootPart
-                local head = character.Head
-                local rootPos, rootOnScreen = workspace.CurrentCamera:WorldToViewportPoint(rootPart.Position)
-                local headPos, headOnScreen = workspace.CurrentCamera:WorldToViewportPoint(head.Position)
-
-                if rootOnScreen or headOnScreen then
-                    local boxHeight = math.abs(headPos.Y - rootPos.Y)
-                    local boxWidth = boxHeight / 2
-                    local boxX = rootPos.X - boxWidth / 2
-                    local boxY = headPos.Y
-
-                    box.Position = Vector2.new(boxX, boxY)
-                    box.Size = Vector2.new(boxWidth, boxHeight)
-                    box.Visible = true
-                else
-                    box.Visible = false
-                end
-            else
-                box.Visible = false
-            end
+        if player ~= LocalPlayer and not espBoxes[player] then
+            espBoxes[player] = createBox()
         end
     end
 end
 
--- Toggle ESP on button click
+local function removeBoxes()
+    for _, box in pairs(espBoxes) do
+        box.Visible = false
+        box:Remove()
+    end
+    espBoxes = {}
+end
+
+ESPBtn.Text = "Box ESP: Off"
+
 ESPBtn.MouseButton1Click:Connect(function()
     espEnabled = not espEnabled
     ESPBtn.Text = "Box ESP: " .. (espEnabled and "On" or "Off")
-
     if espEnabled then
-        -- Create boxes for players without one
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and not espBoxes[player] then
-                espBoxes[player] = createESP(player)
-            end
-        end
+        createBoxesForPlayers()
     else
-        -- Hide and remove boxes
-        for _, box in pairs(espBoxes) do
-            box.Visible = false
-            box:Remove()
-        end
-        espBoxes = {}
+        removeBoxes()
     end
 end)
 
--- Connect player added/removed for ESP boxes
+-- Update ESP boxes position each frame
+RunService.RenderStepped:Connect(function()
+    if not espEnabled then
+        return
+    end
+
+    local camera = workspace.CurrentCamera
+
+    for player, box in pairs(espBoxes) do
+        local character = player.Character
+        if character and character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Head") then
+            local rootPos, rootVisible = camera:WorldToViewportPoint(character.HumanoidRootPart.Position)
+            local headPos, headVisible = camera:WorldToViewportPoint(character.Head.Position)
+
+            if rootVisible or headVisible then
+                local height = math.abs(headPos.Y - rootPos.Y)
+                local width = height / 2
+                local x = rootPos.X - width / 2
+                local y = headPos.Y
+
+                box.Position = Vector2.new(x, y)
+                box.Size = Vector2.new(width, height)
+                box.Visible = true
+            else
+                box.Visible = false
+            end
+        else
+            box.Visible = false
+        end
+    end
+end)
+
+-- Handle players joining/leaving
 Players.PlayerAdded:Connect(function(player)
     if espEnabled and player ~= LocalPlayer then
-        espBoxes[player] = createESP(player)
+        espBoxes[player] = createBox()
     end
 end)
 
@@ -200,7 +195,7 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- Open/Close GUI toggle
+-- Open/Close GUI logic
 CloseBtn.MouseButton1Click:Connect(function()
     MainFrame.Visible = false
     OpenBtn.Visible = true
@@ -211,13 +206,8 @@ OpenBtn.MouseButton1Click:Connect(function()
     OpenBtn.Visible = false
 end)
 
--- Update loop
-RunService.RenderStepped:Connect(function()
-    updateESP()
-end)
-
--- Make sure speed resets when character loads
-LocalPlayer.CharacterAdded:Connect(function(char)
+-- Reset speed when character respawns
+LocalPlayer.CharacterAdded:Connect(function()
     wait(1)
     updateSpeed()
 end)
