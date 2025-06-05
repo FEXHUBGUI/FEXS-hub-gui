@@ -60,6 +60,17 @@ OpenBtn.TextSize = 18
 OpenBtn.Visible = false
 OpenBtn.Parent = ScreenGui
 
+-- Close/Open button functionality
+CloseBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = false
+    OpenBtn.Visible = true
+end)
+
+OpenBtn.MouseButton1Click:Connect(function()
+    MainFrame.Visible = true
+    OpenBtn.Visible = false
+end)
+
 -- Speed Button
 local SpeedBtn = Instance.new("TextButton")
 SpeedBtn.Size = UDim2.new(0, 240, 0, 45)
@@ -111,7 +122,7 @@ end)
 -- Initialize speed button text and value
 updateSpeed()
 
--- ====== ESP Setup (Fixed Box ESP) =======
+-- ====== ESP Setup (Fixed Size Box ESP) =======
 local espEnabled = false
 local espBoxes = {}
 local espHue = 0
@@ -128,6 +139,7 @@ local function createESPBox(player)
     billboard.Size = UDim2.new(0, 40, 0, 120)
     billboard.StudsOffset = Vector3.new(0, 3, 0)
     billboard.AlwaysOnTop = true
+    billboard.SizeBehavior = Enum.SizeBehavior.FixedSize  -- Keeps size constant on screen
     billboard.Parent = PlayerGui
 
     local container = Instance.new("Frame")
@@ -242,5 +254,3 @@ Players.PlayerAdded:Connect(function(player)
         end
     end)
 end)
-
--- (rest of your code such as open/close GUI and other features can go here)
