@@ -1,121 +1,3 @@
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
--- Create ScreenGui
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FEXSGUIHub"
-ScreenGui.Parent = PlayerGui
-ScreenGui.ResetOnSpawn = false
-
--- Main Frame (Draggable)
-local MainFrame = Instance.new("Frame")
-MainFrame.Size = UDim2.new(0, 280, 0, 160)
-MainFrame.Position = UDim2.new(0.5, -140, 0.3, -80)
-MainFrame.BorderSizePixel = 0
-MainFrame.Parent = ScreenGui
-MainFrame.Active = true
-MainFrame.Draggable = true
-
--- Rainbow background setup
-local hue = 0
-RunService.RenderStepped:Connect(function(dt)
-    hue = (hue + dt * 0.2) % 1  -- Speed of color cycling (0.2)
-    MainFrame.BackgroundColor3 = Color3.fromHSV(hue, 0.8, 0.9)
-end)
-
--- Title bar
-local TitleBar = Instance.new("TextLabel")
-TitleBar.Size = UDim2.new(1, 0, 0, 30)
-TitleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-TitleBar.BorderSizePixel = 0
-TitleBar.Text = "FEXS GUI Hub"
-TitleBar.TextColor3 = Color3.new(1,1,1)
-TitleBar.Font = Enum.Font.SourceSansBold
-TitleBar.TextSize = 22
-TitleBar.Parent = MainFrame
-
--- Close Button
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 40, 0, 30)
-CloseBtn.Position = UDim2.new(1, -40, 0, 0)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(180, 50, 50)
-CloseBtn.Text = "X"
-CloseBtn.TextColor3 = Color3.new(1,1,1)
-CloseBtn.Font = Enum.Font.SourceSansBold
-CloseBtn.TextSize = 20
-CloseBtn.Parent = MainFrame
-
--- Open Button (hidden by default)
-local OpenBtn = Instance.new("TextButton")
-OpenBtn.Size = UDim2.new(0, 120, 0, 30)
-OpenBtn.Position = UDim2.new(0, 10, 0.5, -15)  -- Left side, vertically centered
-OpenBtn.BackgroundColor3 = Color3.fromRGB(35,35,35)
-OpenBtn.BorderSizePixel = 0
-OpenBtn.Text = "Open FEXS GUI"
-OpenBtn.TextColor3 = Color3.new(1,1,1)
-OpenBtn.Font = Enum.Font.SourceSansBold
-OpenBtn.TextSize = 18
-OpenBtn.Visible = false
-OpenBtn.Parent = ScreenGui
-
--- Speed Button
-local SpeedBtn = Instance.new("TextButton")
-SpeedBtn.Size = UDim2.new(0, 240, 0, 45)
-SpeedBtn.Position = UDim2.new(0, 20, 0, 50)
-SpeedBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-SpeedBtn.BorderSizePixel = 0
-SpeedBtn.TextColor3 = Color3.new(1,1,1)
-SpeedBtn.Font = Enum.Font.SourceSans
-SpeedBtn.TextSize = 20
-SpeedBtn.Parent = MainFrame
-
--- ESP Button
-local ESPBtn = Instance.new("TextButton")
-ESPBtn.Size = UDim2.new(0, 240, 0, 45)
-ESPBtn.Position = UDim2.new(0, 20, 0, 105)
-ESPBtn.BackgroundColor3 = Color3.fromRGB(55, 55, 55)
-ESPBtn.BorderSizePixel = 0
-ESPBtn.TextColor3 = Color3.new(1,1,1)
-ESPBtn.Font = Enum.Font.SourceSans
-ESPBtn.TextSize = 20
-ESPBtn.Parent = MainFrame
-
--- Speed states
-local speeds = {"Normal", "Fast", "Very Fast"}
-local speedValues = {
-    Normal = 16,
-    Fast = 40,
-    ["Very Fast"] = 80,
-}
-local currentSpeedIndex = 1
-
-local function updateSpeed()
-    local speedName = speeds[currentSpeedIndex]
-    SpeedBtn.Text = "Speed: " .. speedName
-    local humanoid = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if humanoid then
-        humanoid.WalkSpeed = speedValues[speedName]
-    end
-end
-
-SpeedBtn.MouseButton1Click:Connect(function()
-    currentSpeedIndex = currentSpeedIndex + 1
-    if currentSpeedIndex > #speeds then
-        currentSpeedIndex = 1
-    end
-    updateSpeed()
-end)
-
--- Initialize speed button text and value
-updateSpeed()
-
--- ESP setup using BillboardGui for boxes visible through walls with rainbow color, smaller size
-local espEnabled = false
-local espBoxes = {}
-local espHue = 0
-
 local function createESPBox(player)
     local character = player.Character
     if not character then return end
@@ -125,65 +7,50 @@ local function createESPBox(player)
     local billboard = Instance.new("BillboardGui")
     billboard.Name = "FEXS_ESP"
     billboard.Adornee = hrp
-    billboard.Size = UDim2.new(0, 20, 0, 50)       -- Smaller size here
-    billboard.StudsOffset = Vector3.new(0, 1.5, 0) -- Adjusted offset for smaller box
+    billboard.Size = UDim2.new(0, 40, 0, 120)   -- slightly bigger for outline
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
     billboard.AlwaysOnTop = true
     billboard.Parent = PlayerGui
 
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(1, 0, 1, 0)
-    frame.BackgroundTransparency = 0.6
-    frame.BorderSizePixel = 2
-    frame.Parent = billboard
+    local container = Instance.new("Frame")
+    container.BackgroundTransparency = 1
+    container.Size = UDim2.new(1, 0, 1, 0)
+    container.Parent = billboard
 
-    espBoxes[player] = frame
+    local borderThickness = 2
+
+    -- Create the 4 border frames (top, bottom, left, right)
+    local topBorder = Instance.new("Frame")
+    topBorder.Name = "Top"
+    topBorder.BackgroundColor3 = Color3.fromHSV(0,1,1)
+    topBorder.BorderSizePixel = 0
+    topBorder.Size = UDim2.new(1, 0, 0, borderThickness)
+    topBorder.Position = UDim2.new(0, 0, 0, 0)
+    topBorder.Parent = container
+
+    local bottomBorder = Instance.new("Frame")
+    bottomBorder.Name = "Bottom"
+    bottomBorder.BackgroundColor3 = Color3.fromHSV(0,1,1)
+    bottomBorder.BorderSizePixel = 0
+    bottomBorder.Size = UDim2.new(1, 0, 0, borderThickness)
+    bottomBorder.Position = UDim2.new(0, 0, 1, -borderThickness)
+    bottomBorder.Parent = container
+
+    local leftBorder = Instance.new("Frame")
+    leftBorder.Name = "Left"
+    leftBorder.BackgroundColor3 = Color3.fromHSV(0,1,1)
+    leftBorder.BorderSizePixel = 0
+    leftBorder.Size = UDim2.new(0, borderThickness, 1, 0)
+    leftBorder.Position = UDim2.new(0, 0, 0, 0)
+    leftBorder.Parent = container
+
+    local rightBorder = Instance.new("Frame")
+    rightBorder.Name = "Right"
+    rightBorder.BackgroundColor3 = Color3.fromHSV(0,1,1)
+    rightBorder.BorderSizePixel = 0
+    rightBorder.Size = UDim2.new(0, borderThickness, 1, 0)
+    rightBorder.Position = UDim2.new(1, -borderThickness, 0, 0)
+    rightBorder.Parent = container
+
+    espBoxes[player] = {top = topBorder, bottom = bottomBorder, left = leftBorder, right = rightBorder, billboard = billboard}
 end
-
-local function removeESPBox(player)
-    if espBoxes[player] then
-        espBoxes[player].Parent:Destroy()
-        espBoxes[player] = nil
-    end
-end
-
-local function createBoxesForPlayers()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and not espBoxes[player] then
-            createESPBox(player)
-        end
-    end
-end
-
-local function removeAllBoxes()
-    for player, frame in pairs(espBoxes) do
-        if frame and frame.Parent then
-            frame.Parent:Destroy()
-        end
-    end
-    espBoxes = {}
-end
-
-ESPBtn.Text = "Box ESP: Off"
-
-ESPBtn.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    ESPBtn.Text = "Box ESP: " .. (espEnabled and "On" or "Off")
-
-    if espEnabled then
-        createBoxesForPlayers()
-    else
-        removeAllBoxes()
-    end
-end)
-
-RunService.RenderStepped:Connect(function(dt)
-    if espEnabled then
-        espHue = (espHue + dt * 0.7) % 1
-        for _, frame in pairs(espBoxes) do
-            frame.BorderColor3 = Color3.fromHSV(espHue, 1, 1)
-            frame.BackgroundColor3 = Color3.fromHSV(espHue, 0.7, 0.8)
-        end
-    end
-end)
-
--- (rest of your code, player joins/leaves, open/close GUI, speed setting, etc., stay the same)
