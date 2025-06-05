@@ -1,116 +1,137 @@
--- FEX Hub GUI Script
-
+-- Create GUI
 local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
-local char = player.Character or player.CharacterAdded:Wait()
-local humanoid = char:WaitForChild("Humanoid")
-local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "FEXHub"
 
--- UI Setup
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "FEXHub"
-screenGui.ResetOnSpawn = false
+-- UI Elements
+local openBtn = Instance.new("TextButton")
+openBtn.Size = UDim2.new(0, 100, 0, 40)
+openBtn.Position = UDim2.new(0, 10, 0, 10)
+openBtn.Text = "Open FEX Hub"
+openBtn.Parent = gui
 
--- Draggable Frame
-local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 300, 0, 300)
-mainFrame.Position = UDim2.new(0.3, 0, 0.3, 0)
-mainFrame.BackgroundColor3 = Color3.new(1, 1, 1)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+mainFrame.Visible = false
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
-mainFrame.Visible = false
+mainFrame.Parent = gui
 
--- Rainbow UI
-RunService.RenderStepped:Connect(function()
-	local t = tick()
-	local r = math.sin(t) * 0.5 + 0.5
-	local g = math.sin(t + 2) * 0.5 + 0.5
-	local b = math.sin(t + 4) * 0.5 + 0.5
-	mainFrame.BackgroundColor3 = Color3.new(r, g, b)
-end)
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size = UDim2.new(0, 60, 0, 30)
+closeBtn.Position = UDim2.new(1, -70, 0, 10)
+closeBtn.Text = "Close"
+closeBtn.Parent = mainFrame
 
--- Open / Close Buttons
-local openButton = Instance.new("TextButton", screenGui)
-openButton.Size = UDim2.new(0, 100, 0, 40)
-openButton.Position = UDim2.new(0, 10, 0, 10)
-openButton.Text = "Open FEX Hub"
-
-local closeButton = Instance.new("TextButton", mainFrame)
-closeButton.Size = UDim2.new(0, 100, 0, 40)
-closeButton.Position = UDim2.new(1, -110, 0, 10)
-closeButton.Text = "Close"
-
-openButton.MouseButton1Click:Connect(function()
+-- Toggle menu
+openBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = true
+	openBtn.Visible = false
 end)
 
-closeButton.MouseButton1Click:Connect(function()
+closeBtn.MouseButton1Click:Connect(function()
 	mainFrame.Visible = false
+	openBtn.Visible = true
 end)
 
--- Buttons for features
-local function createButton(name, posY, callback)
-	local button = Instance.new("TextButton", mainFrame)
-	button.Size = UDim2.new(0, 280, 0, 30)
-	button.Position = UDim2.new(0, 10, 0, posY)
-	button.Text = name
-	button.MouseButton1Click:Connect(callback)
-	return button
-end
+-- RGB ESP Function (Self)
+local function updateRGBESP()
+	while wait(0.1) do
+		local hue = tick() % 5 / 5
+		local color = Color3.fromHSV(hue, 1, 1)
 
--- RGB Self
-local selfRGBEnabled = false
-createButton("RGB Self", 60, function()
-	selfRGBEnabled = not selfRGBEnabled
-end)
-
--- RGB Chams
-local chamsEnabled = false
-createButton("RGB Chams (Others)", 100, function()
-	chamsEnabled = not chamsEnabled
-end)
-
--- Jump Power Buttons
-createButton("Jump Power: Normal", 140, function()
-	humanoid.JumpPower = 50
-end)
-
-createButton("Jump Power: High", 180, function()
-	humanoid.JumpPower = 100
-end)
-
-createButton("Jump Power: Really High", 220, function()
-	humanoid.JumpPower = 200
-end)
-
--- RGB Effects Logic
-RunService.RenderStepped:Connect(function()
-	local t = tick()
-	local r = math.sin(t) * 0.5 + 0.5
-	local g = math.sin(t + 2) * 0.5 + 0.5
-	local b = math.sin(t + 4) * 0.5 + 0.5
-	local rainbow = Color3.new(r, g, b)
-
-	if selfRGBEnabled and char then
-		for _, part in pairs(char:GetDescendants()) do
+		for _, part in pairs(player.Character:GetDescendants()) do
 			if part:IsA("BasePart") then
-				part.Color = rainbow
-				part.Material = Enum.Material.Neon
+				part.BrickColor = BrickColor.new(color)
 			end
 		end
 	end
+end
 
-	if chamsEnabled then
+-- RGB Chams Function
+local function applyChams()
+	while wait(0.1) do
+		local hue = tick() % 5 / 5
+		local color = Color3.fromHSV(hue, 1, 1)
+
 		for _, plr in pairs(game.Players:GetPlayers()) do
 			if plr ~= player and plr.Character then
 				for _, part in pairs(plr.Character:GetDescendants()) do
 					if part:IsA("BasePart") then
-						part.Color = rainbow
-						part.Material = Enum.Material.Neon
+						part.Material = Enum.Material.ForceField
+						part.Transparency = 0.5
+						part.Color = color
 					end
 				end
 			end
 		end
+	end
+end
+
+-- Buttons
+local espBtn = Instance.new("TextButton")
+espBtn.Size = UDim2.new(0, 200, 0, 30)
+espBtn.Position = UDim2.new(0, 50, 0, 60)
+espBtn.Text = "Enable RGB Self ESP"
+espBtn.Parent = mainFrame
+
+espBtn.MouseButton1Click:Connect(function()
+	coroutine.wrap(updateRGBESP)()
+end)
+
+local chamsBtn = Instance.new("TextButton")
+chamsBtn.Size = UDim2.new(0, 200, 0, 30)
+chamsBtn.Position = UDim2.new(0, 50, 0, 100)
+chamsBtn.Text = "Enable RGB Chams"
+chamsBtn.Parent = mainFrame
+
+chamsBtn.MouseButton1Click:Connect(function()
+	coroutine.wrap(applyChams)()
+end)
+
+-- Jump Power Slider
+local jumpLabel = Instance.new("TextLabel")
+jumpLabel.Size = UDim2.new(0, 200, 0, 30)
+jumpLabel.Position = UDim2.new(0, 50, 0, 150)
+jumpLabel.Text = "Jump Power"
+jumpLabel.TextColor3 = Color3.new(1,1,1)
+jumpLabel.BackgroundTransparency = 1
+jumpLabel.Parent = mainFrame
+
+local jumpSlider = Instance.new("TextBox")
+jumpSlider.Size = UDim2.new(0, 200, 0, 30)
+jumpSlider.Position = UDim2.new(0, 50, 0, 180)
+jumpSlider.Text = "50"
+jumpSlider.Parent = mainFrame
+
+jumpSlider.FocusLost:Connect(function()
+	local jp = tonumber(jumpSlider.Text)
+	if jp then
+		player.Character.Humanoid.JumpPower = jp
+	end
+end)
+
+-- Walk Speed Slider
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0, 200, 0, 30)
+speedLabel.Position = UDim2.new(0, 50, 0, 230)
+speedLabel.Text = "Walk Speed"
+speedLabel.TextColor3 = Color3.new(1,1,1)
+speedLabel.BackgroundTransparency = 1
+speedLabel.Parent = mainFrame
+
+local speedSlider = Instance.new("TextBox")
+speedSlider.Size = UDim2.new(0, 200, 0, 30)
+speedSlider.Position = UDim2.new(0, 50, 0, 260)
+speedSlider.Text = "16"
+speedSlider.Parent = mainFrame
+
+speedSlider.FocusLost:Connect(function()
+	local spd = tonumber(speedSlider.Text)
+	if spd then
+		player.Character.Humanoid.WalkSpeed = spd
 	end
 end)
