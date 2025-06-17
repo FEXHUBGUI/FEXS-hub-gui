@@ -1,110 +1,45 @@
--- Place this script in a LocalScript inside the ScreenGui
-
 local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
-local flying = false
-local flySpeed = 50  -- Change fly speed if needed
-local screenGuiVisible = true
+local playerGui = player:WaitForChild("PlayerGui")
 
--- Create the GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui", playerGui)
+screenGui.Name = "CoreExecutor"
 
--- Create the Fly Button
-local flyButton = Instance.new("TextButton")
-flyButton.Size = UDim2.new(0, 200, 0, 50)
-flyButton.Position = UDim2.new(0.5, -100, 0.8, -25)
-flyButton.Text = "Fly"
-flyButton.Parent = screenGui
+-- Create main frame
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 400, 0, 250)
+frame.Position = UDim2.new(0.5, -200, 0.5, -125)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
 
--- Create the Open Button
-local openButton = Instance.new("TextButton")
-openButton.Size = UDim2.new(0, 200, 0, 50)
-openButton.Position = UDim2.new(0.5, -100, 0.9, -25)
-openButton.Text = "Open GUI"
-openButton.Parent = screenGui
+-- Create TextBox for script input
+local scriptBox = Instance.new("TextBox", frame)
+scriptBox.Size = UDim2.new(0, 380, 0, 150)
+scriptBox.Position = UDim2.new(0, 10, 0, 10)
+scriptBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+scriptBox.TextColor3 = Color3.new(1, 1, 1)
+scriptBox.Font = Enum.Font.Code
+scriptBox.Text = "-- Enter your Lua script here"
+scriptBox.MultiLine = true
+scriptBox.ClearTextOnFocus = false
 
--- Create the Close Button
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 200, 0, 50)
-closeButton.Position = UDim2.new(0.5, -100, 0.9, -25)
-closeButton.Text = "Close GUI"
-closeButton.Parent = screenGui
-closeButton.Visible = false  -- Initially, the Close button is hidden
+-- Create Execute button
+local execButton = Instance.new("TextButton", frame)
+execButton.Size = UDim2.new(0, 100, 0, 40)
+execButton.Position = UDim2.new(0, 150, 0, 170)
+execButton.Text = "Execute"
+execButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
+execButton.TextColor3 = Color3.new(1, 1, 1)
+execButton.Font = Enum.Font.SourceSansBold
 
--- Function to toggle flying
-local function toggleFly()
-    if flying then
-        flying = false
-        player.Character.Humanoid.PlatformStand = false  -- Disable flying
+-- Execute the script on button click (caution)
+execButton.MouseButton1Click:Connect(function()
+    local success, err = pcall(function()
+        loadstring(scriptBox.Text)()
+    end)
+    if success then
+        print("Script executed successfully")
     else
-        flying = true
-        player.Character.Humanoid.PlatformStand = true  -- Enable flying
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(100000, 100000, 100000)  -- Max force to keep flying
-        bodyVelocity.Velocity = Vector3.new(0, flySpeed, 0)  -- Set flying speed
-        bodyVelocity.Parent = player.Character.HumanoidRootPart
-
-        -- Handle flying movement (WASD + space for up and shift for down)
-        game:GetService("RunService").Heartbeat:Connect(function()
-            if flying and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local bodyVelocity = player.Character.HumanoidRootPart:FindFirstChildOfClass("BodyVelocity")
-                if bodyVelocity then
-                    local velocity = Vector3.new()
-
-                    -- Basic controls (WASD + Space and Shift)
-                    if userInputService:IsKeyDown(Enum.KeyCode.W) then
-                        velocity = velocity + player.Character.HumanoidRootPart.CFrame.LookVector * flySpeed
-                    end
-                    if userInputService:IsKeyDown(Enum.KeyCode.A) then
-                        velocity = velocity - player.Character.HumanoidRootPart.CFrame.RightVector * flySpeed
-                    end
-                    if userInputService:IsKeyDown(Enum.KeyCode.S) then
-                        velocity = velocity - player.Character.HumanoidRootPart.CFrame.LookVector * flySpeed
-                    end
-                    if userInputService:IsKeyDown(Enum.KeyCode.D) then
-                        velocity = velocity + player.Character.HumanoidRootPart.CFrame.RightVector * flySpeed
-                    end
-                    if userInputService:IsKeyDown(Enum.KeyCode.Space) then
-                        velocity = velocity + Vector3.new(0, flySpeed, 0)
-                    end
-                    if userInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
-                        velocity = velocity - Vector3.new(0, flySpeed, 0)
-                    end
-
-                    -- Apply the new velocity
-                    bodyVelocity.Velocity = velocity
-                end
-            end
-        end)
+        warn("Error executing script:", err)
     end
-end
-
--- Connect the Fly button to the toggle function
-flyButton.MouseButton1Click:Connect(function()
-    toggleFly()
-end)
-
--- Function to open the GUI
-local function openGui()
-    screenGui.Visible = true
-    openButton.Visible = false
-    closeButton.Visible = true
-end
-
--- Function to close the GUI
-local function closeGui()
-    screenGui.Visible = false
-    openButton.Visible = true
-    closeButton.Visible = false
-end
-
--- Connect Open Button to open the GUI
-openButton.MouseButton1Click:Connect(function()
-    openGui()
-end)
-
--- Connect Close Button to close the GUI
-closeButton.MouseButton1Click:Connect(function()
-    closeGui()
 end)
