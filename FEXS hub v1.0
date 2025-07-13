@@ -1,101 +1,51 @@
+ -- LocalScript inside the TextButton
+
+local button = script.Parent
 local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+local mouse = player:GetMouse()
 
--- Create ScreenGui
-local screenGui = Instance.new("ScreenGui", playerGui)
-screenGui.Name = "CoreExecutor"
+-- For making the button moveable
+local dragSpeed = 2 -- Adjust for faster/slower movement
+local dragStart, startPos
 
--- Create main frame
-local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 400, 0, 250)
-frame.Position = UDim2.new(0.5, -200, 0.5, -125)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-frame.Visible = false -- Start hidden
+button.MouseButton1Down:Connect(function(input)
+    dragStart = input.Position
+    startPos = button.Position
 
--- Create TextBox for script input
-local scriptBox = Instance.new("TextBox", frame)
-scriptBox.Size = UDim2.new(0, 380, 0, 150)
-scriptBox.Position = UDim2.new(0, 10, 0, 10)
-scriptBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-scriptBox.TextColor3 = Color3.new(1, 1, 1)
-scriptBox.Font = Enum.Font.Code
-scriptBox.Text = "-- Enter your Lua script here"
-scriptBox.MultiLine = true
-scriptBox.ClearTextOnFocus = false
+    local function updateDrag(input)
+        local delta = input.Position - dragStart
+        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
 
--- Create Execute button
-local execButton = Instance.new("TextButton", frame)
-execButton.Size = UDim2.new(0, 100, 0, 40)
-execButton.Position = UDim2.new(0, 150, 0, 170)
-execButton.Text = "Execute"
-execButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
-execButton.TextColor3 = Color3.new(1, 1, 1)
-execButton.Font = Enum.Font.SourceSansBold
+    local function stopDrag()
+        button.MouseMove:Disconnect()
+        button.MouseButton1Up:Disconnect()
+    end
 
-execButton.MouseButton1Click:Connect(function()
-    local success, err = pcall(function()
-        loadstring(scriptBox.Text)()
-    end)
-    if success then
-        print("Script executed successfully")
-    else
-        warn("Error executing script:", err)
+    button.MouseMove:Connect(updateDrag)
+    button.MouseButton1Up:Connect(stopDrag)
+end)
+
+-- Invisibility function when touched
+button.MouseButton1Click:Connect(function()
+    if player.Character then
+        local character = player.Character
+        local humanoid = character:FindFirstChild("Humanoid")
+
+        -- Ensure the player has a humanoid to work with
+        if humanoid then
+            -- Toggle invisibility
+            local currentTransparency = character:FindFirstChild("Head"):Transparency
+            local targetTransparency = currentTransparency == 0 and 1 or 0
+
+            -- Set parts to invisible
+            for _, part in ipairs(character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = targetTransparency
+                end
+            end
+        end
     end
 end)
 
--- Create toggle button (open/close)
-local toggleButton = Instance.new("TextButton", screenGui)
-toggleButton.Size = UDim2.new(0, 80, 0, 30)
-toggleButton.Position = UDim2.new(1, -90, 0, 10) -- top right corner
-toggleButton.Text = "Open Core"
-toggleButton.BackgroundColor3 = Color3.fromRGB(70, 130, 180)
-toggleButton.TextColor3 = Color3.new(1, 1, 1)
-toggleButton.Font = Enum.Font.SourceSansBold
 
--- Tween service for animation
-local TweenService = game:GetService("TweenService")
-
-local function bounceIn(target)
-    -- Start frame smaller and off-center vertically
-    frame.Position = UDim2.new(0.5, -200, 0.3, -125)
-    frame.Size = UDim2.new(0, 0, 0, 0)
-    frame.Visible = true
-    
-    -- First tween: grow size quickly
-    local tween1 = TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 420, 0, 280),
-        Position = UDim2.new(0.5, -210, 0.5, -140),
-    })
-    
-    -- Second tween: shrink a bit to final size (bounce effect)
-    local tween2 = TweenService:Create(frame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.InOut), {
-        Size = UDim2.new(0, 400, 0, 250),
-        Position = UDim2.new(0.5, -200, 0.5, -125),
-    })
-    
-    tween1:Play()
-    tween1.Completed:Wait()
-    tween2:Play()
-end
-
-local function close()
-    -- Tween to shrink and hide
-    local tween = TweenService:Create(frame, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 0, 0, 0),
-        Position = UDim2.new(0.5, 0, 0.5, 0),
-    })
-    tween:Play()
-    tween.Completed:Wait()
-    frame.Visible = false
-end
-
-toggleButton.MouseButton1Click:Connect(function()
-    if frame.Visible then
-        close()
-        toggleButton.Text = "Open Core"
-    else
-        bounceIn()
-        toggleButton.Text = "Close Core"
-    end
-end)
