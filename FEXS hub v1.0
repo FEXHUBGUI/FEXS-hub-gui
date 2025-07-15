@@ -1,51 +1,47 @@
- -- LocalScript inside the TextButton
-
-local button = script.Parent
+-- Create ScreenGui
 local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
+local playerGui = player:WaitForChild("PlayerGui")
 
--- For making the button moveable
-local dragSpeed = 2 -- Adjust for faster/slower movement
-local dragStart, startPos
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "ESPGui"
+screenGui.Parent = playerGui
 
-button.MouseButton1Down:Connect(function(input)
-    dragStart = input.Position
-    startPos = button.Position
+-- Create Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 300, 0, 150)
+frame.Position = UDim2.new(0.05, 0, 0.2, 0)
+frame.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Gold color
+frame.BackgroundTransparency = 0.3 -- Slightly invisible
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
 
-    local function updateDrag(input)
-        local delta = input.Position - dragStart
-        button.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+-- Create Button
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0.6, 0, 0.3, 0)
+button.Position = UDim2.new(0.2, 0, 0.35, 0)
+button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+button.BackgroundTransparency = 0.2
+button.TextColor3 = Color3.new(1, 1, 1)
+button.Font = Enum.Font.SourceSansBold
+button.TextSize = 24
+button.Text = "ESP: OFF"
+button.Parent = frame
+
+-- ESP Toggle Logic
+local espEnabled = false
+
+local function toggleESP()
+    espEnabled = not espEnabled
+    button.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
+    
+    -- ESP logic goes here:
+    if espEnabled then
+        print("ESP ENABLED")
+        -- Insert your ESP enabling code here
+    else
+        print("ESP DISABLED")
+        -- Insert your ESP disabling code here
     end
+end
 
-    local function stopDrag()
-        button.MouseMove:Disconnect()
-        button.MouseButton1Up:Disconnect()
-    end
-
-    button.MouseMove:Connect(updateDrag)
-    button.MouseButton1Up:Connect(stopDrag)
-end)
-
--- Invisibility function when touched
-button.MouseButton1Click:Connect(function()
-    if player.Character then
-        local character = player.Character
-        local humanoid = character:FindFirstChild("Humanoid")
-
-        -- Ensure the player has a humanoid to work with
-        if humanoid then
-            -- Toggle invisibility
-            local currentTransparency = character:FindFirstChild("Head"):Transparency
-            local targetTransparency = currentTransparency == 0 and 1 or 0
-
-            -- Set parts to invisible
-            for _, part in ipairs(character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = targetTransparency
-                end
-            end
-        end
-    end
-end)
-
-
+button.MouseButton1Click:Connect(toggleESP)
