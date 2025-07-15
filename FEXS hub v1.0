@@ -1,47 +1,149 @@
--- Create ScreenGui
-local player = game.Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
+-- LocalScript inside StarterPlayerScripts
 
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "Murder Town ULTIMATE Gui(0.1)"
-screenGui.Parent = playerGui
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
 
--- Create Frame
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 150)
-frame.Position = UDim2.new(0.05, 0, 0.2, 0)
-frame.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Gold color
-frame.BackgroundTransparency = 0.3 -- Slightly invisible
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
+-- GUI creation
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "M.Hub v0.1"
 
--- Create Button
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0.6, 0, 0.3, 0)
-button.Position = UDim2.new(0.2, 0, 0.35, 0)
-button.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-button.BackgroundTransparency = 0.2
-button.TextColor3 = Color3.new(1, 1, 1)
-button.Font = Enum.Font.SourceSansBold
-button.TextSize = 24
-button.Text = "ESP: OFF"
-button.Parent = frame
+local toggleFrame = Instance.new("Frame", screenGui)
+toggleFrame.Size = UDim2.new(0, 120, 0, 40)
+toggleFrame.Position = UDim2.new(0, 0, 0.5, -20)
+toggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleFrame.BorderSizePixel = 0
 
--- ESP Toggle Logic
+local toggleButton = Instance.new("TextButton", toggleFrame)
+toggleButton.Size = UDim2.new(1, 0, 1, 0)
+toggleButton.Text = "Open"
+toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+toggleButton.TextColor3 = Color3.new(1, 1, 1)
+
+local mainFrame = Instance.new("Frame", screenGui)
+mainFrame.Size = UDim2.new(0, 200, 0, 150)
+mainFrame.Position = UDim2.new(0, 125, 0.5, -75)
+mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+mainFrame.Visible = false
+
+local espButton = Instance.new("TextButton", mainFrame)
+espButton.Size = UDim2.new(1, -20, 0, 40)
+espButton.Position = UDim2.new(0, 10, 0, 10)
+espButton.Text = "Toggle ESP"
+espButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+espButton.TextColor3 = Color3.new(1, 1, 1)
+
+local heliButton = Instance.new("TextButton", mainFrame)
+heliButton.Size = UDim2.new(1, -20, 0, 40)
+heliButton.Position = UDim2.new(0, 10, 0, 60)
+heliButton.Text = "Helicopter"
+heliButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+heliButton.TextColor3 = Color3.new(1, 1, 1)
+
+local statsLabel = Instance.new("TextLabel", toggleFrame)
+statsLabel.Size = UDim2.new(1, 0, 0, 20)
+statsLabel.Position = UDim2.new(0, 0, 1, 0)
+statsLabel.BackgroundTransparency = 1
+statsLabel.TextColor3 = Color3.new(1, 1, 1)
+statsLabel.TextScaled = true
+statsLabel.Text = "FPS: -- | Ping: --"
+
+-- FPS & Ping updater
+local lastTime = tick()
+local frameCount = 0
+
+RunService.RenderStepped:Connect(function()
+	frameCount = frameCount + 1
+	local now = tick()
+	if now - lastTime >= 1 then
+		local fps = frameCount
+		local ping = math.floor(Players:GetPlayers()[1]:GetNetworkPing() * 1000)
+		statsLabel.Text = "FPS: " .. fps .. " | Ping: " .. ping .. "ms"
+		frameCount = 0
+		lastTime = now
+	end
+end)
+
+-- Toggle menu
+toggleButton.MouseButton1Click:Connect(function()
+	mainFrame.Visible = not mainFrame.Visible
+	toggleButton.Text = mainFrame.Visible and "Close" or "Open"
+end)
+
+-- ESP Toggle
 local espEnabled = false
+local espBoxes = {}
 
-local function toggleESP()
-    espEnabled = not espEnabled
-    button.Text = "ESP: " .. (espEnabled and "ON" or "OFF")
-    
-    -- ESP logic goes here:
-    if espEnabled then
-        print("ESP ENABLED")
-        -- Insert your ESP enabling code here
-    else
-        print("ESP DISABLED")
-        -- Insert your ESP disabling code here
-    end
+local function createESP(part)
+	local box = Instance.new("BoxHandleAdornment")
+	box.Adornee = part
+	box.AlwaysOnTop = true
+	box.ZIndex = 5
+	box.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
+	box.Color3 = Color3.new(1, 0, 0)
+	box.Transparency = 0.5
+	box.Parent = part
+	return box
 end
 
-button.MouseButton1Click:Connect(toggleESP)
+local function toggleESP()
+	espEnabled = not espEnabled
+	if espEnabled then
+		for _, p in pairs(Players:GetPlayers()) do
+			if p ~= player and p.Character then
+				for _, part in pairs(p.Character:GetChildren()) do
+					if part:IsA("BasePart") then
+						table.insert(espBoxes, createESP(part))
+					end
+				end
+			end
+		end
+	else
+		for _, box in pairs(espBoxes) do
+			box:Destroy()
+		end
+		espBoxes = {}
+	end
+end
+
+espButton.MouseButton1Click:Connect(toggleESP)
+
+-- Helicopter effect
+local heliActive = false
+local function toggleHeli()
+	if heliActive then return end
+	heliActive = true
+
+	local char = player.Character
+	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+
+	local hrp = char.HumanoidRootPart
+	local spinSpeed = 10
+	local liftForce = 100
+
+	local bodyGyro = Instance.new("BodyGyro", hrp)
+	bodyGyro.D = 500
+	bodyGyro.P = 3000
+	bodyGyro.MaxTorque = Vector3.new(0, math.huge, 0)
+
+	local bodyVelocity = Instance.new("BodyVelocity", hrp)
+	bodyVelocity.Velocity = Vector3.new(0, liftForce, 0)
+	bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+
+	local spinTime = 3
+	local startTime = tick()
+
+	RunService.RenderStepped:Connect(function()
+		if tick() - startTime < spinTime then
+			hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
+		end
+	end)
+
+	task.delay(spinTime, function()
+		bodyGyro:Destroy()
+		bodyVelocity:Destroy()
+		heliActive = false
+	end)
+end
+
+heliButton.MouseButton1Click:Connect(toggleHeli)
