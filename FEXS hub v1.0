@@ -3,7 +3,7 @@ local player = game.Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "ESPGui"
+screenGui.Name = "Murder Town ULTIMATE Gui(0.1)"
 screenGui.Parent = playerGui
 
 -- Create Frame
