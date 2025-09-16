@@ -1,149 +1,615 @@
--- LocalScript inside StarterPlayerScripts
+-- Finished Universal Orion UI LocalScript
+-- Place as a LocalScript in StarterPlayerScripts (requires an Orion ModuleScript in ReplicatedStorage/StarterGui)
+-- Features:
+--   - Auto-locates Orion module
+--   - Tabs: Main, Movement, Utility, Visuals, Player
+--   - Movement: WalkSpeed, JumpPower, Fly (WASD + Space/LeftShift)
+--   - Utility: Teleport to selected player, Teleport to spawn, Anti-AFK (toggleable)
+--   - Visuals: ESP with distance limit
+--   - Player: Heal, Respawn, Copy UserId
+--   - Extra: Noclip toggle, clean connection handling
+-- Notes:
+--   - Client-side only. Some features won't work in server-protected games.
+--   - Use responsibly and follow Roblox ToS / game rules.
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local LocalPlayer = Players.LocalPlayer
 
--- GUI creation
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "M.Hub v0.1"
+-- ======================
+-- Helper: find Orion lib
+-- ======================
+local function findOrion()
+    local tries = {
+        ReplicatedStorage:FindFirstChild("Orion"),
+        StarterGui:FindFirstChild("Orion"),
+        ReplicatedStorage:FindFirstChild("OrionLib"),
+        StarterGui:FindFirstChild("OrionLib"),
+        _G and _G.Orion or nil,
+    }
+    for _, candidate in ipairs(tries) do
+        if candidate then
+            if type(candidate) == "table" then
+                return candidate
+            elseif candidate:IsA("ModuleScript") then
+                local ok, mod = pcall(require, candidate)
+                if ok and mod then
+                    return mod
+                end
+            end
+        end
+    end
+    return nil
+end
 
-local toggleFrame = Instance.new("Frame", screenGui)
-toggleFrame.Size = UDim2.new(0, 120, 0, 40)
-toggleFrame.Position = UDim2.new(0, 0, 0.5, -20)
-toggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-toggleFrame.BorderSizePixel = 0
+local Orion = findOrion()
+if not Orion then
+    warn("[Orion UI] Could not find Orion module. Place ModuleScript named 'Orion' or 'OrionLib' in ReplicatedStorage or StarterGui.")
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = "Orion not found";
+            Text = "Place an Orion ModuleScript in ReplicatedStorage or StarterGui named 'Orion' or 'OrionLib'.";
+            Duration = 6;
+        })
+    end)
+    return
+end
 
-local toggleButton = Instance.new("TextButton", toggleFrame)
-toggleButton.Size = UDim2.new(1, 0, 1, 0)
-toggleButton.Text = "Open"
-toggleButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-toggleButton.TextColor3 = Color3.new(1, 1, 1)
+-- ======================
+-- Utility functions
+-- ======================
+local function getCharacter(player)
+    if not player then return nil end
+    return player.Character or player.CharacterAdded:Wait()
+end
 
-local mainFrame = Instance.new("Frame", screenGui)
-mainFrame.Size = UDim2.new(0, 200, 0, 150)
-mainFrame.Position = UDim2.new(0, 125, 0.5, -75)
-mainFrame.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-mainFrame.Visible = false
+local function getHumanoid(player)
+    local char = player and (player.Character or player.CharacterAdded:Wait())
+    if not char then return nil end
+    return char:FindFirstChildWhichIsA("Humanoid")
+end
 
-local espButton = Instance.new("TextButton", mainFrame)
-espButton.Size = UDim2.new(1, -20, 0, 40)
-espButton.Position = UDim2.new(0, 10, 0, 10)
-espButton.Text = "Toggle ESP"
-espButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-espButton.TextColor3 = Color3.new(1, 1, 1)
+local function getRootPart(player)
+    local char = player and (player.Character or player.CharacterAdded:Wait())
+    if not char then return nil end
+    return char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+end
 
-local heliButton = Instance.new("TextButton", mainFrame)
-heliButton.Size = UDim2.new(1, -20, 0, 40)
-heliButton.Position = UDim2.new(0, 10, 0, 60)
-heliButton.Text = "Helicopter"
-heliButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-heliButton.TextColor3 = Color3.new(1, 1, 1)
+local function safeSetWalkSpeed(value)
+    local hum = getHumanoid(LocalPlayer)
+    if hum then
+        pcall(function() hum.WalkSpeed = value end)
+    end
+end
 
-local statsLabel = Instance.new("TextLabel", toggleFrame)
-statsLabel.Size = UDim2.new(1, 0, 0, 20)
-statsLabel.Position = UDim2.new(0, 0, 1, 0)
-statsLabel.BackgroundTransparency = 1
-statsLabel.TextColor3 = Color3.new(1, 1, 1)
-statsLabel.TextScaled = true
-statsLabel.Text = "FPS: -- | Ping: --"
+local function safeSetJumpPower(value)
+    local hum = getHumanoid(LocalPlayer)
+    if hum then
+        pcall(function() hum.JumpPower = value end)
+    end
+end
 
--- FPS & Ping updater
-local lastTime = tick()
-local frameCount = 0
+-- ======================
+-- Make the window
+-- ======================
+local Window = Orion:MakeWindow({
+    Name = "Universal Toolkit",
+    HidePremium = true,
+    IntroEnabled = true,
+    IntroText = "Universal Orion Toolkit - client utilities",
+})
 
-RunService.RenderStepped:Connect(function()
-	frameCount = frameCount + 1
-	local now = tick()
-	if now - lastTime >= 1 then
-		local fps = frameCount
-		local ping = math.floor(Players:GetPlayers()[1]:GetNetworkPing() * 1000)
-		statsLabel.Text = "FPS: " .. fps .. " | Ping: " .. ping .. "ms"
-		frameCount = 0
-		lastTime = now
-	end
+-- ======================
+-- Tabs & UI
+-- ======================
+local mainTab = Window:MakeTab({ Name = "Main", Icon = "rbxassetid://6023426915", PremiumOnly = false })
+local movementTab = Window:MakeTab({ Name = "Movement", Icon = "rbxassetid://6023426915", PremiumOnly = false })
+local utilTab = Window:MakeTab({ Name = "Utility", Icon = "rbxassetid://6023426915", PremiumOnly = false })
+local visualTab = Window:MakeTab({ Name = "Visuals", Icon = "rbxassetid://6023426915", PremiumOnly = false })
+local playerTab = Window:MakeTab({ Name = "Player", Icon = "rbxassetid://6023426915", PremiumOnly = false })
+
+-- ======================
+-- Main Tab
+-- ======================
+mainTab:AddSection({ Name = "Quick Actions" })
+
+mainTab:AddButton({
+    Name = "Teleport to Spawn",
+    Callback = function()
+        local root = getRootPart(LocalPlayer)
+        if root then
+            pcall(function()
+                local spawn = workspace:FindFirstChild("SpawnLocation") or workspace:FindFirstChild("Spawn")
+                if spawn and spawn:IsA("BasePart") then
+                    root.CFrame = spawn.CFrame + Vector3.new(0,3,0)
+                else
+                    for _, v in ipairs(workspace:GetDescendants()) do
+                        if v:IsA("SpawnLocation") then
+                            root.CFrame = v.CFrame + Vector3.new(0,3,0)
+                            return
+                        end
+                    end
+                    root.CFrame = CFrame.new(0,10,0)
+                end
+            end)
+        end
+    end
+})
+
+mainTab:AddButton({ Name = "Respawn", Callback = function() LocalPlayer:LoadCharacter() end })
+
+mainTab:AddButton({
+    Name = "Copy UserId",
+    Callback = function()
+        if setclipboard then
+            setclipboard(tostring(LocalPlayer.UserId))
+            Orion:MakeNotification({ Name = "Copied", Content = "UserId copied to clipboard.", Image = "rbxassetid://4483345998", Time = 3 })
+        else
+            Orion:MakeNotification({ Name = "Clipboard unavailable", Content = "Your UserId: "..tostring(LocalPlayer.UserId), Time = 6 })
+        end
+    end
+})
+
+-- ======================
+-- Movement Tab
+-- ======================
+movementTab:AddSection({ Name = "Walk / Jump" })
+local defaultWalk = 16
+movementTab:AddSlider({
+    Name = "WalkSpeed",
+    Min = 8,
+    Max = 500,
+    Default = defaultWalk,
+    Color = Color3.fromRGB(0,170,255),
+    Increment = 1,
+    ValueName = "WS",
+    Callback = function(v) safeSetWalkSpeed(v) end
+})
+
+movementTab:AddSlider({
+    Name = "JumpPower",
+    Min = 0,
+    Max = 300,
+    Default = 50,
+    Increment = 1,
+    Callback = function(v) safeSetJumpPower(v) end
+})
+
+-- = Fly Implementation (with proper connect/disconnect) =
+movementTab:AddSection({ Name = "Fly" })
+
+local flying = false
+local flySpeed = 100
+local flyBV = nil
+local flyBG = nil
+local control = {F = 0, B = 0, L = 0, R = 0}
+local upDown = 0
+local inputConnections = {} -- store connections so we can disconnect
+
+local function clearFlyConnections()
+    for _, c in ipairs(inputConnections) do
+        if c and c.Disconnect then
+            pcall(function() c:Disconnect() end)
+        else
+            -- older API compatibility
+            pcall(function() if c then UserInputService.InputBegan:Disconnect(c) end end)
+        end
+    end
+    inputConnections = {}
+end
+
+local function startFly()
+    if flying then return end
+    local char = getCharacter(LocalPlayer)
+    if not char then return end
+    local root = getRootPart(LocalPlayer)
+    if not root then return end
+
+    flying = true
+    flyBV = Instance.new("BodyVelocity")
+    flyBV.MaxForce = Vector3.new(9e9,9e9,9e9)
+    flyBV.P = 1250
+    flyBV.Velocity = Vector3.new(0,0,0)
+    flyBV.Parent = root
+
+    flyBG = Instance.new("BodyGyro")
+    flyBG.MaxTorque = Vector3.new(9e9,9e9,9e9)
+    flyBG.P = 3000
+    flyBG.CFrame = root.CFrame
+    flyBG.Parent = root
+
+    -- Input began
+    table.insert(inputConnections, UserInputService.InputBegan:Connect(function(input, gp)
+        if gp then return end
+        local k = input.KeyCode
+        if k == Enum.KeyCode.W then control.F = 1 end
+        if k == Enum.KeyCode.S then control.B = -1 end
+        if k == Enum.KeyCode.A then control.L = -1 end
+        if k == Enum.KeyCode.D then control.R = 1 end
+        if k == Enum.KeyCode.Space then upDown = 1 end
+        if k == Enum.KeyCode.LeftShift then upDown = -1 end
+    end))
+
+    -- Input ended
+    table.insert(inputConnections, UserInputService.InputEnded:Connect(function(input)
+        local k = input.KeyCode
+        if k == Enum.KeyCode.W then control.F = 0 end
+        if k == Enum.KeyCode.S then control.B = 0 end
+        if k == Enum.KeyCode.A then control.L = 0 end
+        if k == Enum.KeyCode.D then control.R = 0 end
+        if k == Enum.KeyCode.Space then upDown = 0 end
+        if k == Enum.KeyCode.LeftShift then upDown = 0 end
+    end))
+
+    spawn(function()
+        while flying and flyBV and flyBG and root and root.Parent do
+            RunService.Heartbeat:Wait()
+            local cam = workspace.CurrentCamera
+            local moveDirection = Vector3.new(control.L + control.R, 0, control.F + control.B)
+            local cameraCFrame = cam and cam.CFrame or root.CFrame
+            local camX = cameraCFrame:VectorToWorldSpace(Vector3.new(moveDirection.X, 0, moveDirection.Z))
+            local vy = 0
+            if upDown == 1 then vy = flySpeed/2 elseif upDown == -1 then vy = -flySpeed/2 end
+            local newVel
+            if moveDirection.Magnitude > 0 then
+                newVel = (camX.Unit * (moveDirection.Magnitude * flySpeed)) + Vector3.new(0, vy, 0)
+            else
+                newVel = Vector3.new(0, vy, 0)
+            end
+            flyBV.Velocity = newVel
+            flyBG.CFrame = CFrame.new(root.Position, root.Position + cameraCFrame.LookVector)
+        end
+        -- cleanup
+        if flyBV then pcall(function() flyBV:Destroy() end) end
+        if flyBG then pcall(function() flyBG:Destroy() end) end
+        clearFlyConnections()
+    end)
+end
+
+local function stopFly()
+    flying = false
+    if flyBV then pcall(function() flyBV:Destroy() end) end
+    if flyBG then pcall(function() flyBG:Destroy() end) end
+    clearFlyConnections()
+end
+
+movementTab:AddSlider({
+    Name = "Fly Speed",
+    Min = 10,
+    Max = 1000,
+    Default = 100,
+    Increment = 5,
+    Callback = function(v) flySpeed = v end
+})
+
+movementTab:AddToggle({
+    Name = "Enable Fly (WASD + Space/Shift)",
+    Default = false,
+    Callback = function(val)
+        if val then startFly() else stopFly() end
+    end
+})
+
+-- ======================
+-- Utility Tab
+-- ======================
+utilTab:AddSection({ Name = "Teleportation & AFK" })
+
+local function makePlayerList()
+    local list = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then table.insert(list, p.Name) end
+    end
+    if #list == 0 then table.insert(list, "No players") end
+    return list
+end
+
+local selectedPlayer = nil
+-- create dropdown and keep ref
+local playerDropdown = utilTab:AddDropdown({
+    Name = "Select Player",
+    Default = "Choose...",
+    Options = makePlayerList(),
+    Callback = function(choice)
+        if choice == "No players" then selectedPlayer = nil else selectedPlayer = choice end
+    end
+})
+
+-- helper to refresh dropdown safely (Orion's API may differ between versions; pcall to avoid errors)
+local function refreshPlayerDropdown()
+    local success, _ = pcall(function()
+        if playerDropdown and playerDropdown.Refresh then
+            playerDropdown:Refresh(makePlayerList())
+        else
+            -- fallback: attempt to call MakeDropdown again (some Orion versions differ)
+            -- can't fully reconstruct here without knowing exact API version; attempt best-effort
+        end
+    end)
+end
+
+Players.PlayerAdded:Connect(function()
+    refreshPlayerDropdown()
+end)
+Players.PlayerRemoving:Connect(function()
+    refreshPlayerDropdown()
 end)
 
--- Toggle menu
-toggleButton.MouseButton1Click:Connect(function()
-	mainFrame.Visible = not mainFrame.Visible
-	toggleButton.Text = mainFrame.Visible and "Close" or "Open"
-end)
+utilTab:AddButton({
+    Name = "Teleport to Selected Player",
+    Callback = function()
+        if not selectedPlayer then
+            Orion:MakeNotification({ Name = "Teleport", Content = "No player selected!", Time = 3 })
+            return
+        end
+        local target = Players:FindFirstChild(selectedPlayer)
+        if not target then Orion:MakeNotification({ Name = "Teleport", Content = "Player not found", Time = 3 }); return end
+        local targetRoot = getRootPart(target)
+        local myRoot = getRootPart(LocalPlayer)
+        if targetRoot and myRoot then
+            pcall(function() myRoot.CFrame = targetRoot.CFrame + Vector3.new(0,3,0) end)
+        else
+            Orion:MakeNotification({ Name = "Teleport", Content = "Could not teleport (character missing)", Time = 4 })
+        end
+    end
+})
 
--- ESP Toggle
+utilTab:AddButton({
+    Name = "Toggle Teleport to Spawn (quick)",
+    Callback = function()
+        local root = getRootPart(LocalPlayer)
+        if root then
+            pcall(function()
+                local spawn = workspace:FindFirstChild("SpawnLocation") or workspace:FindFirstChild("Spawn")
+                if spawn and spawn:IsA("BasePart") then
+                    root.CFrame = spawn.CFrame + Vector3.new(0,3,0)
+                else
+                    for _, v in ipairs(workspace:GetDescendants()) do
+                        if v:IsA("SpawnLocation") then
+                            root.CFrame = v.CFrame + Vector3.new(0,3,0)
+                            return
+                        end
+                    end
+                    root.CFrame = CFrame.new(0,10,0)
+                end
+            end)
+        end
+    end
+})
+
+-- Anti-AFK implementation: toggled
+local antiafkEnabled = false
+local antiafkThread = nil
+
+utilTab:AddButton({
+    Name = "Toggle Anti-AFK",
+    Callback = function()
+        antiafkEnabled = not antiafkEnabled
+        if antiafkEnabled then
+            Orion:MakeNotification({ Name = "Anti-AFK", Content = "Enabled (simple jiggle).", Time = 3 })
+            antiafkThread = spawn(function()
+                while antiafkEnabled do
+                    local root = getRootPart(LocalPlayer)
+                    if root then
+                        local orig = root.CFrame
+                        -- small vertical jiggle
+                        pcall(function() root.CFrame = orig * CFrame.new(0, 0.1, 0) end)
+                        wait(3 + math.random() * 2)
+                        pcall(function() root.CFrame = orig end)
+                    end
+                    wait(6)
+                end
+            end)
+        else
+            Orion:MakeNotification({ Name = "Anti-AFK", Content = "Disabled.", Time = 2 })
+            antiafkThread = nil
+        end
+    end
+})
+
+-- ======================
+-- Visuals Tab: ESP
+-- ======================
+visualTab:AddSection({ Name = "ESP" })
+
+local espFolder = workspace:FindFirstChild("UniversalESP_Local") or Instance.new("Folder", workspace)
+espFolder.Name = "UniversalESP_Local"
+
 local espEnabled = false
+local espDistance = 1000
 local espBoxes = {}
 
-local function createESP(part)
-	local box = Instance.new("BoxHandleAdornment")
-	box.Adornee = part
-	box.AlwaysOnTop = true
-	box.ZIndex = 5
-	box.Size = part.Size + Vector3.new(0.1, 0.1, 0.1)
-	box.Color3 = Color3.new(1, 0, 0)
-	box.Transparency = 0.5
-	box.Parent = part
-	return box
+local function createBillboardFor(p)
+    -- don't create for local player
+    if p == LocalPlayer then return end
+    if espBoxes[p] and espBoxes[p].Parent then return end
+
+    local char = p.Character
+    if not char then
+        p.CharacterAdded:Wait()
+        char = p.Character
+        if not char then return end
+    end
+    local head = char:FindFirstChild("Head") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+    if not head then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "ESP_"..p.Name
+    bb.Adornee = head
+    bb.Size = UDim2.new(0,140,0,40)
+    bb.StudsOffset = Vector3.new(0, 2.5, 0)
+    bb.AlwaysOnTop = true
+
+    local frame = Instance.new("Frame", bb)
+    frame.Size = UDim2.new(1,0,1,0)
+    frame.BackgroundTransparency = 0.5
+    frame.BackgroundColor3 = Color3.fromRGB(0,0,0)
+
+    local label = Instance.new("TextLabel", frame)
+    label.Size = UDim2.new(1,0,1,0)
+    label.BackgroundTransparency = 1
+    label.TextScaled = true
+    label.Font = Enum.Font.SourceSansBold
+    label.Text = p.Name
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+
+    bb.Parent = espFolder
+    espBoxes[p] = bb
 end
 
-local function toggleESP()
-	espEnabled = not espEnabled
-	if espEnabled then
-		for _, p in pairs(Players:GetPlayers()) do
-			if p ~= player and p.Character then
-				for _, part in pairs(p.Character:GetChildren()) do
-					if part:IsA("BasePart") then
-						table.insert(espBoxes, createESP(part))
-					end
-				end
-			end
-		end
-	else
-		for _, box in pairs(espBoxes) do
-			box:Destroy()
-		end
-		espBoxes = {}
-	end
+local function removeBillboardFor(p)
+    if espBoxes[p] then
+        pcall(function() espBoxes[p]:Destroy() end)
+        espBoxes[p] = nil
+    end
 end
 
-espButton.MouseButton1Click:Connect(toggleESP)
+visualTab:AddToggle({
+    Name = "Enable ESP",
+    Default = false,
+    Callback = function(val)
+        espEnabled = val
+        if not val then
+            for p,_ in pairs(espBoxes) do removeBillboardFor(p) end
+        else
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer then createBillboardFor(p) end
+            end
+        end
+    end
+})
 
--- Helicopter effect
-local heliActive = false
-local function toggleHeli()
-	if heliActive then return end
-	heliActive = true
+visualTab:AddSlider({
+    Name = "ESP Max Distance",
+    Min = 50,
+    Max = 5000,
+    Default = 1000,
+    Increment = 10,
+    Callback = function(v) espDistance = v end
+})
 
-	local char = player.Character
-	if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+Players.PlayerAdded:Connect(function(p)
+    if espEnabled and p ~= LocalPlayer then createBillboardFor(p) end
+end)
+Players.PlayerRemoving:Connect(function(p)
+    removeBillboardFor(p)
+end)
 
-	local hrp = char.HumanoidRootPart
-	local spinSpeed = 10
-	local liftForce = 100
+-- Update loop for ESP
+spawn(function()
+    while true do
+        RunService.RenderStepped:Wait()
+        if espEnabled then
+            local myRoot = getRootPart(LocalPlayer)
+            local myPos = myRoot and myRoot.Position or Vector3.new(0,0,0)
+            for _, p in pairs(Players:GetPlayers()) do
+                if p == LocalPlayer then continue end
+                local bb = espBoxes[p]
+                if not bb then
+                    createBillboardFor(p)
+                    bb = espBoxes[p]
+                end
+                local root = p.Character and (p.Character:FindFirstChild("HumanoidRootPart") or p.Character:FindFirstChild("Torso") or p.Character:FindFirstChild("UpperTorso"))
+                if root and bb then
+                    local dist = (root.Position - myPos).Magnitude
+                    bb.Enabled = dist <= espDistance
+                    local frame = bb:FindFirstChildOfClass("Frame")
+                    if frame then
+                        local label = frame:FindFirstChildOfClass("TextLabel")
+                        if label then label.Text = p.Name.." ("..tostring(math.floor(dist)).." studs)" end
+                    end
+                else
+                    if bb then bb.Enabled = false end
+                end
+            end
+        end
+    end
+end)
 
-	local bodyGyro = Instance.new("BodyGyro", hrp)
-	bodyGyro.D = 500
-	bodyGyro.P = 3000
-	bodyGyro.MaxTorque = Vector3.new(0, math.huge, 0)
+-- ======================
+-- Player Tab: Self actions & Noclip
+-- ======================
+playerTab:AddSection({ Name = "Self" })
 
-	local bodyVelocity = Instance.new("BodyVelocity", hrp)
-	bodyVelocity.Velocity = Vector3.new(0, liftForce, 0)
-	bodyVelocity.MaxForce = Vector3.new(0, math.huge, 0)
+playerTab:AddButton({
+    Name = "Heal (set to full)",
+    Callback = function()
+        local hum = getHumanoid(LocalPlayer)
+        if hum then pcall(function() hum.Health = hum.MaxHealth end) end
+    end
+})
 
-	local spinTime = 3
-	local startTime = tick()
+playerTab:AddButton({
+    Name = "Safe Respawn",
+    Callback = function() LocalPlayer:LoadCharacter() end
+})
 
-	RunService.RenderStepped:Connect(function()
-		if tick() - startTime < spinTime then
-			hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
-		end
-	end)
+playerTab:AddToggle({
+    Name = "Noclip (client)",
+    Default = false,
+    Callback = function(val)
+        local noclipConn = nil
+        if val then
+            noclipConn = RunService.Stepped:Connect(function()
+                local char = LocalPlayer.Character
+                if char then
+                    for _, part in ipairs(char:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                            pcall(function() part.CanCollide = false end)
+                        end
+                    end
+                end
+            end)
+            -- store connection on character for cleanup when character removes
+            LocalPlayer.CharacterRemoving:Connect(function()
+                if noclipConn and noclipConn.Disconnect then pcall(function() noclipConn:Disconnect() end) end
+            end)
+            -- store on window closure to stop it later
+            playerTab.NoclipConnection = noclipConn
+        else
+            if playerTab.NoclipConnection and playerTab.NoclipConnection.Disconnect then
+                pcall(function() playerTab.NoclipConnection:Disconnect() end)
+            end
+            playerTab.NoclipConnection = nil
+            -- try reset collisions
+            local char = LocalPlayer.Character
+            if char then
+                for _, part in ipairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+                        pcall(function() part.CanCollide = true end)
+                    end
+                end
+            end
+        end
+    end
+})
 
-	task.delay(spinTime, function()
-		bodyGyro:Destroy()
-		bodyVelocity:Destroy()
-		heliActive = false
-	end)
-end
+-- ======================
+-- Window cleanup
+-- ======================
+Window:OnClose(function()
+    -- reset walk/jump
+    safeSetWalkSpeed(16)
+    safeSetJumpPower(50)
+    -- stop fly
+    stopFly()
+    -- disable anti-afk
+    antiafkEnabled = false
+    -- disable ESP
+    espEnabled = false
+    for p,_ in pairs(espBoxes) do removeBillboardFor(p) end
+    -- noclip cleanup
+    if playerTab.NoclipConnection and playerTab.NoclipConnection.Disconnect then
+        pcall(function() playerTab.NoclipConnection:Disconnect() end)
+    end
+end)
 
-heliButton.MouseButton1Click:Connect(toggleHeli)
+-- Final notification
+Orion:MakeNotification({
+    Name = "Universal Toolkit",
+    Content = "Loaded successfully. Use the tabs to configure features.",
+    Image = "rbxassetid://4483345998",
+    Time = 4
+})
