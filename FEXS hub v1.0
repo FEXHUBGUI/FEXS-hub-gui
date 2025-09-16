@@ -18,12 +18,27 @@ local Window = OrionLib:MakeWindow({
     IntroEnabled = false
 })
 
+--// Tabs
+local MovementTab = Window:MakeTab({
+    Name = "Movement",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+local VisualsTab = Window:MakeTab({
+    Name = "Visuals",
+    Icon = "rbxassetid://4483345998",
+    PremiumOnly = false
+})
+
+--// Init GUI (must stay or else nothing appears)
+OrionLib:Init()
+
 --// Variables
 local isFlying = false
 local flySpeed = 50
 local bodyVelocity = nil
 local bodyGyro = nil
-
 local noclip = false
 
 --// Flying Functions
@@ -103,19 +118,6 @@ RunService.Stepped:Connect(function()
     end
 end)
 
---// Tabs
-local MovementTab = Window:MakeTab({
-    Name = "Movement",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
-local VisualsTab = Window:MakeTab({
-    Name = "Visuals",
-    Icon = "rbxassetid://4483345998",
-    PremiumOnly = false
-})
-
 --// Movement Controls
 MovementTab:AddToggle({
     Name = "Fly",
@@ -154,9 +156,6 @@ VisualsTab:AddToggle({
     Name = "ESP (Name Tags)",
     Default = false,
     Callback = function(state)
-        -- placeholder, can expand later
+        -- placeholder for ESP
     end
 })
-
---// Init
-OrionLib:Init()
