@@ -1,4 +1,4 @@
---// Universal GUI Script with Tabs, Open/Close, Animations
+--// Universal GUI Script with Tabs, Open/Close, Animations + Fixed Fly
 
 -- Create ScreenGui
 local gui = Instance.new("ScreenGui")
@@ -128,23 +128,71 @@ game:GetService("RunService").Stepped:Connect(function()
     end
 end)
 
+-- Fly System
 local flying = false
-local flySpeed = 50
+local flySpeed = 60
+local flyConnection
+
 createButton(playerTab,"Toggle Fly",function()
     flying = not flying
     local plr = game.Players.LocalPlayer
     local char = plr.Character
     local hrp = char:WaitForChild("HumanoidRootPart")
-    local bv = Instance.new("BodyVelocity",hrp)
-    bv.MaxForce = Vector3.new()
-    game:GetService("RunService").Heartbeat:Connect(function()
-        if flying then
-            bv.MaxForce = Vector3.new(1e5,1e5,1e5)
-            bv.Velocity = (workspace.CurrentCamera.CFrame.LookVector * ((game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.W) and flySpeed) or (game:GetService("UserInputService"):IsKeyDown(Enum.KeyCode.S) and -flySpeed) or 0))
-        else
-            bv.MaxForce = Vector3.new()
+
+    if flying then
+        local bv = Instance.new("BodyVelocity", hrp)
+        bv.Name = "FlyVelocity"
+        bv.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+        bv.Velocity = Vector3.new()
+
+        flyConnection = game:GetService("RunService").Heartbeat:Connect(function()
+            local cam = workspace.CurrentCamera
+            local move = Vector3.new()
+            local uis = game:GetService("UserInputService")
+
+            if uis:IsKeyDown(Enum.KeyCode.W) then
+                move += cam.CFrame.LookVector
+            end
+            if uis:IsKeyDown(Enum.KeyCode.S) then
+                move -= cam.CFrame.LookVector
+            end
+            if uis:IsKeyDown(Enum.KeyCode.A) then
+                move -= cam.CFrame.RightVector
+            end
+            if uis:IsKeyDown(Enum.KeyCode.D) then
+                move += cam.CFrame.RightVector
+            end
+            if uis:IsKeyDown(Enum.KeyCode.Space) then
+                move += Vector3.new(0,1,0)
+            end
+            if uis:IsKeyDown(Enum.KeyCode.LeftShift) then
+                move -= Vector3.new(0,1,0)
+            end
+
+            if move.Magnitude > 0 then
+                bv.Velocity = move.Unit * flySpeed
+            else
+                bv.Velocity = Vector3.new()
+            end
+        end)
+
+        -- arrow key speed control
+        game:GetService("UserInputService").InputBegan:Connect(function(input,gp)
+            if gp then return end
+            if input.KeyCode == Enum.KeyCode.Up then
+                flySpeed += 10
+            elseif input.KeyCode == Enum.KeyCode.Down then
+                flySpeed = math.max(10, flySpeed - 10)
+            end
+        end)
+    else
+        if hrp:FindFirstChild("FlyVelocity") then
+            hrp.FlyVelocity:Destroy()
         end
-    end)
+        if flyConnection then
+            flyConnection:Disconnect()
+        end
+    end
 end)
 
 createButton(playerTab,"WalkSpeed +",function()
