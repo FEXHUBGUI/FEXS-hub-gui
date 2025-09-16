@@ -1,70 +1,382 @@
---! Strict
-local player = game.Players.LocalPlayer
-local repStorage = game:GetService("ReplicatedStorage")
-local gunsFolder = repStorage:WaitForChild("Guns")
+--// Universal GUI Script with Tabs, Open/Close, Animations + Lock-On Camera + ESP + Settings + Search Tabs
+
+-- Services
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local player = Players.LocalPlayer
 
 -- Create ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "GunMenuGUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+local gui = Instance.new("ScreenGui")
+gui.Name = "UniversalUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- Create Open Button
-local openButton = Instance.new("TextButton")
-openButton.Name = "OpenButton"
-openButton.Size = UDim2.new(0, 120, 0, 40)
-openButton.Position = UDim2.new(0, 10, 0, 10)
-openButton.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
-openButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-openButton.Text = "Open Menu"
-openButton.Font = Enum.Font.SourceSansBold
-openButton.TextScaled = true
-openButton.Parent = screenGui
-
--- Create Main Frame
+-- Main Frame
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 200, 0, 150)
-mainFrame.Position = UDim2.new(0, 10, 0, 60)
-mainFrame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-mainFrame.Visible = false
-mainFrame.Parent = screenGui
+mainFrame.Size = UDim2.new(0, 500, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -250, 0.5, -150)
+mainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+mainFrame.Visible = true
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = gui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 
--- Create Title
-local title = Instance.new("TextLabel")
-title.Name = "Title"
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Position = UDim2.new(0, 0, 0, 0)
-title.BackgroundTransparency = 1
-title.Text = "Gun Menu"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Font = Enum.Font.SourceSansBold
-title.TextScaled = true
-title.Parent = mainFrame
+-- Search Bar
+local searchBar = Instance.new("TextBox", mainFrame)
+searchBar.Size = UDim2.new(1, -20, 0, 25)
+searchBar.Position = UDim2.new(0, 10, 0, 5)
+searchBar.PlaceholderText = "Search Tabs..."
+searchBar.Text = ""
+searchBar.Font = Enum.Font.Gotham
+searchBar.TextSize = 14
+searchBar.TextColor3 = Color3.fromRGB(255,255,255)
+searchBar.BackgroundColor3 = Color3.fromRGB(40,40,40)
+Instance.new("UICorner", searchBar).CornerRadius = UDim.new(0,6)
 
--- Create Give Guns Button
-local giveGunsButton = Instance.new("TextButton")
-giveGunsButton.Name = "GiveGunsButton"
-giveGunsButton.Size = UDim2.new(0, 180, 0, 50)
-giveGunsButton.Position = UDim2.new(0, 10, 0, 50)
-giveGunsButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-giveGunsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-giveGunsButton.Text = "Give Guns"
-giveGunsButton.Font = Enum.Font.SourceSansBold
-giveGunsButton.TextScaled = true
-giveGunsButton.Parent = mainFrame
+-- Tab Holder
+local tabHolder = Instance.new("ScrollingFrame", mainFrame)
+tabHolder.Size = UDim2.new(1, -20, 0, 40)
+tabHolder.Position = UDim2.new(0, 10, 0, 35)
+tabHolder.CanvasSize = UDim2.new(0,0,0,0)
+tabHolder.ScrollBarThickness = 4
+tabHolder.AutomaticCanvasSize = Enum.AutomaticSize.X
+tabHolder.BackgroundTransparency = 1
+local tabLayout = Instance.new("UIListLayout", tabHolder)
+tabLayout.FillDirection = Enum.FillDirection.Horizontal
+tabLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+tabLayout.Padding = UDim.new(0, 8)
 
--- Open/Close toggle
-openButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = not mainFrame.Visible
+-- Content Container
+local contentFrame = Instance.new("Frame", mainFrame)
+contentFrame.Size = UDim2.new(1, -20, 1, -80)
+contentFrame.Position = UDim2.new(0, 10, 0, 80)
+contentFrame.BackgroundTransparency = 1
+
+-- Create Tabs
+local Tabs = {}
+local function createTab(name)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 100, 1, 0)
+    button.Text = name
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 14
+    button.TextColor3 = Color3.fromRGB(220,220,220)
+    button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    button.Parent = tabHolder
+    Instance.new("UICorner", button).CornerRadius = UDim.new(0, 8)
+
+    local tabFrame = Instance.new("ScrollingFrame", contentFrame)
+    tabFrame.Size = UDim2.new(1,0,1,0)
+    tabFrame.Visible = false
+    tabFrame.BackgroundTransparency = 1
+    tabFrame.CanvasSize = UDim2.new(0,0,0,0)
+    tabFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    local layout = Instance.new("UIListLayout", tabFrame)
+    layout.Padding = UDim.new(0,6)
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    button.MouseButton1Click:Connect(function()
+        for _,t in pairs(Tabs) do
+            t.Frame.Visible = false
+            t.Button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+        end
+        tabFrame.Visible = true
+        button.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    end)
+
+    local tabData = {Button = button, Frame = tabFrame, Name = name}
+    table.insert(Tabs, tabData)
+    if #Tabs == 1 then
+        tabFrame.Visible = true
+        button.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    end
+    return tabFrame
+end
+
+-- Search Filter
+searchBar:GetPropertyChangedSignal("Text"):Connect(function()
+    local query = string.lower(searchBar.Text)
+    for _,tab in ipairs(Tabs) do
+        tab.Button.Visible = query == "" or string.find(string.lower(tab.Name), query)
+    end
 end)
 
--- Give tools when button clicked
-giveGunsButton.MouseButton1Click:Connect(function()
-    for _, gun in pairs(gunsFolder:GetChildren()) do
-        if gun:IsA("Tool") then
-            local toolClone = gun:Clone()
-            toolClone.Parent = player.Backpack
+-- Tabs
+local mainTab = createTab("Main")
+local playerTab = createTab("Player")
+local visualTab = createTab("Visuals")
+local settingsTab = createTab("Settings")
+local funTab = createTab("Fun")
+
+-- Button Utility
+local function createButton(tab, text, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.9,0,0,30)
+    btn.Text = text
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    btn.Parent = tab
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,6)
+
+    btn.MouseEnter:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(80,80,80)
+    end)
+    btn.MouseLeave:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    end)
+
+    btn.MouseButton1Click:Connect(callback)
+end
+
+--// MAIN TAB
+createButton(mainTab,"Rejoin",function()
+    TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, player)
+end)
+createButton(mainTab,"Server Hop",function()
+    local servers = HttpService:JSONDecode(game:HttpGetAsync("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
+    for _,s in pairs(servers.data) do
+        if s.playing < s.maxPlayers then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id)
+            break
         end
     end
+end)
+
+--// PLAYER TAB
+local noclip = false
+createButton(playerTab,"Toggle Noclip",function()
+    noclip = not noclip
+end)
+RunService.Stepped:Connect(function()
+    if noclip and player.Character then
+        for _,v in pairs(player.Character:GetDescendants()) do
+            if v:IsA("BasePart") and v.CanCollide then
+                v.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Lock-On Camera
+local lockOnEnabled = false
+local lockOnHead = false
+local camera = workspace.CurrentCamera
+local function getClosestPlayer()
+    local closest, dist = nil, math.huge
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local mag = (plr.Character.HumanoidRootPart.Position - player.Character.HumanoidRootPart.Position).Magnitude
+            if mag < dist then
+                closest = plr
+                dist = mag
+            end
+        end
+    end
+    return closest
+end
+
+createButton(playerTab,"Lock-On (BODY)",function(btn)
+    lockOnEnabled = not lockOnEnabled
+    lockOnHead = false
+    btn.Text = lockOnEnabled and "Lock-On (BODY ON)" or "Lock-On (BODY OFF)"
+end)
+createButton(playerTab,"Lock-On (HEAD)",function(btn)
+    lockOnEnabled = not lockOnEnabled
+    lockOnHead = true
+    btn.Text = lockOnEnabled and "Lock-On (HEAD ON)" or "Lock-On (HEAD OFF)"
+end)
+
+RunService.RenderStepped:Connect(function()
+    if lockOnEnabled then
+        local closest = getClosestPlayer()
+        if closest and closest.Character then
+            local targetPart = lockOnHead and closest.Character:FindFirstChild("Head") or closest.Character:FindFirstChild("HumanoidRootPart")
+            if targetPart then
+                camera.CameraSubject = player.Character:FindFirstChild("Humanoid")
+                camera.CFrame = CFrame.new(camera.CFrame.Position, targetPart.Position)
+            end
+        end
+    end
+end)
+
+createButton(playerTab,"WalkSpeed +",function()
+    player.Character:WaitForChild("Humanoid").WalkSpeed += 5
+end)
+createButton(playerTab,"JumpPower +",function()
+    player.Character:WaitForChild("Humanoid").JumpPower += 10
+end)
+
+--// VISUAL TAB (ESP + Crosshair)
+local espEnabled = false
+local function applyESP(plr)
+    if plr ~= player and plr.Character then
+        if not plr.Character:FindFirstChild("ESP_Highlight") then
+            local highlight = Instance.new("Highlight")
+            highlight.Name = "ESP_Highlight"
+            highlight.FillTransparency = 0.7
+            highlight.OutlineTransparency = 0
+            highlight.FillColor = Color3.fromRGB(255,0,0)
+            highlight.Adornee = plr.Character
+            highlight.Parent = plr.Character
+        end
+        if plr.Character:FindFirstChild("Head") and not plr.Character.Head:FindFirstChild("ESP_Tag") then
+            local billboard = Instance.new("BillboardGui",plr.Character.Head)
+            billboard.Name = "ESP_Tag"
+            billboard.Size = UDim2.new(0,100,0,20)
+            billboard.StudsOffset = Vector3.new(0,2,0)
+            billboard.AlwaysOnTop = true
+            local label = Instance.new("TextLabel",billboard)
+            label.Size = UDim2.new(1,0,1,0)
+            label.Text = plr.Name
+            label.TextColor3 = Color3.fromRGB(255,255,255)
+            label.Font = Enum.Font.GothamBold
+            label.TextSize = 12
+            label.BackgroundTransparency = 1
+        end
+    end
+end
+
+createButton(visualTab,"Toggle ESP",function()
+    espEnabled = not espEnabled
+    if not espEnabled then
+        for _,plr in pairs(Players:GetPlayers()) do
+            if plr.Character then
+                if plr.Character:FindFirstChild("ESP_Highlight") then plr.Character.ESP_Highlight:Destroy() end
+                if plr.Character:FindFirstChild("Head") and plr.Character.Head:FindFirstChild("ESP_Tag") then
+                    plr.Character.Head.ESP_Tag:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if espEnabled then
+        for _,plr in pairs(Players:GetPlayers()) do
+            applyESP(plr)
+        end
+    end
+end)
+
+-- Crosshair
+local crosshairV = Instance.new("Frame", gui)
+crosshairV.Size = UDim2.new(0, 2, 0, 20)
+crosshairV.AnchorPoint = Vector2.new(0.5,0.5)
+crosshairV.Position = UDim2.new(0.5,0,0.5,0)
+crosshairV.BackgroundColor3 = Color3.new(1,1,1)
+crosshairV.Visible = false
+local crosshairH = Instance.new("Frame", gui)
+crosshairH.Size = UDim2.new(0, 20, 0, 2)
+crosshairH.AnchorPoint = Vector2.new(0.5,0.5)
+crosshairH.Position = UDim2.new(0.5,0,0.5,0)
+crosshairH.BackgroundColor3 = Color3.new(1,1,1)
+crosshairH.Visible = false
+
+createButton(visualTab,"Toggle Crosshair",function()
+    local state = not crosshairV.Visible
+    crosshairV.Visible = state
+    crosshairH.Visible = state
+end)
+
+for _, colorName in ipairs({"Rainbow","Red","Green","Blue"}) do
+    createButton(settingsTab,"Crosshair Color: "..colorName,function()
+        if colorName == "Rainbow" then
+            RunService.RenderStepped:Connect(function()
+                if crosshairV.Visible then
+                    local t = tick() * 2
+                    crosshairV.BackgroundColor3 = Color3.fromHSV(t % 1,1,1)
+                    crosshairH.BackgroundColor3 = Color3.fromHSV(t % 1,1,1)
+                end
+            end)
+        else
+            local col = {Red=Color3.new(1,0,0), Green=Color3.new(0,1,0), Blue=Color3.new(0,0,1)}
+            crosshairV.BackgroundColor3 = col[colorName]
+            crosshairH.BackgroundColor3 = col[colorName]
+        end
+    end)
+end
+
+--// SETTINGS TAB ADDITIONS
+-- Rainbow Background
+createButton(settingsTab,"Rainbow Background",function()
+    while task.wait(0.1) do
+        mainFrame.BackgroundColor3 = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+        if not settingsTab.Visible then break end
+    end
+end)
+-- Invisible Background
+createButton(settingsTab,"Invisible Background",function()
+    mainFrame.BackgroundTransparency = (mainFrame.BackgroundTransparency == 0) and 1 or 0
+end)
+-- Button Colors
+local buttonColorPresets = {Default=Color3.fromRGB(50,50,50), Dark=Color3.fromRGB(30,30,30), Light=Color3.fromRGB(200,200,200), Blue=Color3.fromRGB(50,100,200)}
+for preset, color in pairs(buttonColorPresets) do
+    createButton(settingsTab,"Button Color: "..preset,function()
+        for _,tab in ipairs(Tabs) do
+            for _,child in ipairs(tab.Frame:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child.BackgroundColor3 = color
+                end
+            end
+        end
+    end)
+end
+-- Font Selection
+local fonts = {Gotham=Enum.Font.Gotham, Arial=Enum.Font.Arial, SourceSans=Enum.Font.SourceSans, Code=Enum.Font.Code}
+for fontName, fontEnum in pairs(fonts) do
+    createButton(settingsTab,"Font: "..fontName,function()
+        for _,tab in ipairs(Tabs) do
+            for _,child in ipairs(tab.Frame:GetChildren()) do
+                if child:IsA("TextButton") then
+                    child.Font = fontEnum
+                end
+            end
+        end
+        searchBar.Font = fontEnum
+    end)
+end
+-- Save Settings
+local settingsModule = game.ReplicatedStorage:FindFirstChild("GUISettings") or Instance.new("ModuleScript", game.ReplicatedStorage)
+settingsModule.Name = "GUISettings"
+settingsModule.Source = "return {}"
+createButton(settingsTab,"Save Settings",function()
+    local settings = {MainBG=mainFrame.BackgroundColor3, ButtonColor=buttonColorPresets.Default, Font=searchBar.Font.Name}
+    settingsModule.Source = "return "..HttpService:JSONEncode(settings)
+    print("Settings Saved!")
+end)
+
+--// FUN TAB
+createButton(funTab,"Spin Character",function()
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        task.spawn(function()
+            for i=1,100 do
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0,math.rad(15),0)
+                task.wait(0.05)
+            end
+        end)
+    end
+end)
+
+--// OPEN/CLOSE BUTTON
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.new(0,40,0,40)
+toggleBtn.Position = UDim2.new(0,10,0.5,-20)
+toggleBtn.Text = "☰"
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 20
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,8)
+
+local open = true
+toggleBtn.MouseButton1Click:Connect(function()
+    open = not open
+    mainFrame.Visible = open
 end)
