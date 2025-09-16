@@ -1,4 +1,4 @@
---// Universal GUI Script with Tabs, Open/Close, Animations + Fixed Fly
+--// Universal GUI Script with Tabs, Open/Close, Animations + New Fly System
 
 -- Create ScreenGui
 local gui = Instance.new("ScreenGui")
@@ -119,94 +119,103 @@ createButton(playerTab,"Toggle Noclip",function()
     noclip = not noclip
 end)
 game:GetService("RunService").Stepped:Connect(function()
-    if noclip and game.Players.LocalPlayer.Character then
+    if noclip then
         for _,v in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
-            if v:IsA("BasePart") then
-                v.CanCollide = not noclip
+            if v:IsA("BasePart") and v.CanCollide then
+                v.CanCollide = false
             end
         end
     end
 end)
 
--- Fly System (from your script)
-local isFlying = false
-local flySpeed = 50
-local bodyVelocity, bodyGyro
-local flyConnection
+--// NEW FLY SYSTEM
+do
+    local UserInputService = game:GetService("UserInputService")
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
 
-local function startFlying()
-    local player = game.Players.LocalPlayer
+    local player = Players.LocalPlayer
     local character = player.Character or player.CharacterAdded:Wait()
     local humanoid = character:WaitForChild("Humanoid")
     local rootPart = character:WaitForChild("HumanoidRootPart")
 
-    if not isFlying then
-        isFlying = true
-        humanoid.PlatformStand = true
+    local isFlying = false
+    local flySpeed = 50
+    local bodyVelocity = nil
+    local bodyGyro = nil
 
-        bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-        bodyVelocity.Parent = rootPart
+    local function startFlying()
+        if not isFlying then
+            isFlying = true
+            humanoid.PlatformStand = true
 
-        bodyGyro = Instance.new("BodyGyro")
-        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        bodyGyro.CFrame = rootPart.CFrame
-        bodyGyro.Parent = rootPart
+            bodyVelocity = Instance.new("BodyVelocity")
+            bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+            bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+            bodyVelocity.Parent = rootPart
 
-        flyConnection = game:GetService("RunService").RenderStepped:Connect(function()
-            if isFlying and bodyVelocity and bodyGyro then
-                local camera = workspace.CurrentCamera
-                local moveDirection = Vector3.new(0, 0, 0)
-                local uis = game:GetService("UserInputService")
+            bodyGyro = Instance.new("BodyGyro")
+            bodyGyro.MaxTorque = Vector3.new(4000, 4000, 4000)
+            bodyGyro.CFrame = rootPart.CFrame
+            bodyGyro.Parent = rootPart
+        end
+    end
 
-                if uis:IsKeyDown(Enum.KeyCode.W) then
-                    moveDirection += camera.CFrame.LookVector
-                end
-                if uis:IsKeyDown(Enum.KeyCode.S) then
-                    moveDirection -= camera.CFrame.LookVector
-                end
-                if uis:IsKeyDown(Enum.KeyCode.A) then
-                    moveDirection -= camera.CFrame.RightVector
-                end
-                if uis:IsKeyDown(Enum.KeyCode.D) then
-                    moveDirection += camera.CFrame.RightVector
-                end
-                if uis:IsKeyDown(Enum.KeyCode.Space) then
-                    moveDirection += Vector3.new(0,1,0)
-                end
-                if uis:IsKeyDown(Enum.KeyCode.LeftShift) then
-                    moveDirection -= Vector3.new(0,1,0)
-                end
+    local function stopFlying()
+        if isFlying then
+            isFlying = false
+            humanoid.PlatformStand = false
+            if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
+            if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
+        end
+    end
 
-                bodyVelocity.Velocity = moveDirection * flySpeed
-                bodyGyro.CFrame = camera.CFrame
+    createButton(playerTab,"Toggle Fly (F)",function()
+        if isFlying then
+            stopFlying()
+        else
+            startFlying()
+        end
+    end)
+
+    UserInputService.InputBegan:Connect(function(input,gp)
+        if not gp and input.KeyCode == Enum.KeyCode.F then
+            if isFlying then
+                stopFlying()
+            else
+                startFlying()
             end
-        end)
-    end
+        end
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if isFlying and bodyVelocity and bodyGyro and workspace.CurrentCamera then
+            local camera = workspace.CurrentCamera
+            local moveDirection = Vector3.new()
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then moveDirection += camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then moveDirection -= camera.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then moveDirection -= camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then moveDirection += camera.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then moveDirection += Vector3.new(0,1,0) end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then moveDirection -= Vector3.new(0,1,0) end
+
+            if moveDirection.Magnitude > 0 then
+                moveDirection = moveDirection.Unit * flySpeed
+            end
+            bodyVelocity.Velocity = moveDirection
+            bodyGyro.CFrame = camera.CFrame
+        end
+    end)
+
+    player.CharacterAdded:Connect(function(newCharacter)
+        character = newCharacter
+        humanoid = newCharacter:WaitForChild("Humanoid")
+        rootPart = newCharacter:WaitForChild("HumanoidRootPart")
+        if isFlying then
+            startFlying()
+        end
+    end)
 end
-
-local function stopFlying()
-    local player = game.Players.LocalPlayer
-    local character = player.Character or player.CharacterAdded:Wait()
-    local humanoid = character:FindFirstChild("Humanoid")
-
-    if isFlying then
-        isFlying = false
-        if humanoid then humanoid.PlatformStand = false end
-        if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
-        if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
-        if flyConnection then flyConnection:Disconnect() flyConnection = nil end
-    end
-end
-
-createButton(playerTab,"Toggle Fly",function()
-    if isFlying then
-        stopFlying()
-    else
-        startFlying()
-    end
-end)
 
 --// VISUAL TAB (ESP)
 local espEnabled = false
@@ -214,7 +223,7 @@ createButton(visualTab,"Toggle ESP",function()
     espEnabled = not espEnabled
     if espEnabled then
         for _,plr in pairs(game.Players:GetPlayers()) do
-            if plr ~= game.Players.LocalPlayer and plr.Character then
+            if plr ~= game.Players.LocalPlayer then
                 local highlight = Instance.new("Highlight")
                 highlight.Name = "ESP_Highlight"
                 highlight.FillTransparency = 0.7
@@ -225,7 +234,7 @@ createButton(visualTab,"Toggle ESP",function()
 
                 local billboard = Instance.new("BillboardGui",plr.Character:WaitForChild("Head"))
                 billboard.Name = "ESP_Tag"
-                billboard.Size = UDim2.new(0,80,0,15)
+                billboard.Size = UDim2.new(0,100,0,20)
                 billboard.StudsOffset = Vector3.new(0,2,0)
                 billboard.AlwaysOnTop = true
 
@@ -234,7 +243,7 @@ createButton(visualTab,"Toggle ESP",function()
                 label.Text = plr.Name
                 label.TextColor3 = Color3.fromRGB(255,255,255)
                 label.Font = Enum.Font.GothamBold
-                label.TextSize = 10
+                label.TextSize = 12
                 label.BackgroundTransparency = 1
             end
         end
