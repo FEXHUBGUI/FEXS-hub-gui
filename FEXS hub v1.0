@@ -1,806 +1,208 @@
--- Universal Hub (self-contained)
--- Place as a LocalScript under StarterGui (or inside a ScreenGui in StarterGui)
--- Features:
---  - Modern sliding window with side open/close button
---  - Tabs: Main / Player / Visuals (fixed)
---  - Rejoin, Server Hop, Teleport to Player, Teleport to Spawn
---  - Fly (WASD + Space/Shift), Fly speed adjust
---  - Noclip toggle
---  - WalkSpeed & JumpPower +/- controls
---  - Anti-AFK toggle
---  - ESP: Highlight (chams) + small nametags; updates on join/respawn
---  - Smooth tweens, rounded corners, auto layout
+-- // Universal Hub (Fixed Tabs + Features + Side Toggle)
+-- Put this in StarterGui > LocalScript
 
--- Services & player
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
 
--- Parent GUI to PlayerGui (works in Studio and live)
-local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+local lp = Players.LocalPlayer
 
--- Remove old instances if any (ease reloading)
-for _,g in ipairs(playerGui:GetChildren()) do
-    if g.Name == "UniversalHubGUI_v2" then pcall(function() g:Destroy() end) end
-end
+-- // ScreenGui
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "UniversalHub"
+gui.ResetOnSpawn = false
 
--- ===== UI creation helpers =====
-local function makeUICorner(inst, radius)
-    local c = Instance.new("UICorner")
-    c.CornerRadius = UDim.new(0, radius or 8)
-    c.Parent = inst
-    return c
-end
-local function makeUIStroke(inst, thickness, color, transparency)
-    local s = Instance.new("UIStroke")
-    s.Thickness = thickness or 1
-    s.Color = color or Color3.fromRGB(0,0,0)
-    s.Transparency = transparency or 0.6
-    s.Parent = inst
-    return s
-end
+-- // Toggle Button (side of screen)
+local ToggleBtn = Instance.new("TextButton", gui)
+ToggleBtn.Size = UDim2.new(0,40,0,40)
+ToggleBtn.Position = UDim2.new(0,10,0.5,-20)
+ToggleBtn.Text = "≡"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+ToggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 18
+ToggleBtn.AutoButtonColor = true
 
-local function notify(msg, time)
-    time = time or 3
-    local notif = Instance.new("Frame")
-    notif.Size = UDim2.new(0, 300, 0, 40)
-    notif.Position = UDim2.new(0.5, -150, 0.85, 0)
-    notif.AnchorPoint = Vector2.new(0.5, 0)
-    notif.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    notif.Parent = playerGui
-    makeUICorner(notif, 10)
-    makeUIStroke(notif, 1, Color3.fromRGB(0,0,0), 0.7)
+-- // Main Window
+local Window = Instance.new("Frame", gui)
+Window.Size = UDim2.new(0,500,0,320)
+Window.Position = UDim2.new(0.5,-250,0.5,-160)
+Window.BackgroundColor3 = Color3.fromRGB(25,25,25)
+Window.Visible = true
+Window.ClipsDescendants = true
 
-    local lbl = Instance.new("TextLabel", notif)
-    lbl.Size = UDim2.new(1, -16, 1, 0)
-    lbl.Position = UDim2.new(0, 8, 0, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.Text = msg
-    lbl.TextColor3 = Color3.fromRGB(220,220,220)
-    lbl.Font = Enum.Font.Gotham
-    lbl.TextSize = 14
-    lbl.TextXAlignment = Enum.TextXAlignment.Left
+local UICorner = Instance.new("UICorner", Window)
+UICorner.CornerRadius = UDim.new(0,12)
 
-    notif.LayoutOrder = 1
-    notif.Visible = true
+-- // Tab buttons container
+local TabBar = Instance.new("Frame", Window)
+TabBar.Size = UDim2.new(1,0,0,30)
+TabBar.BackgroundColor3 = Color3.fromRGB(35,35,35)
 
-    local tweenOut = TweenService:Create(notif, TweenInfo.new(0.25), {Position = notif.Position + UDim2.new(0,0,0,10), BackgroundTransparency = 1})
-    delay(time, function()
-        tweenOut:Play()
-        tweenOut.Completed:Wait()
-        pcall(function() notif:Destroy() end)
-    end)
-end
+-- // Pages container
+local Pages = Instance.new("Frame", Window)
+Pages.Size = UDim2.new(1,0,1,-30)
+Pages.Position = UDim2.new(0,0,0,30)
+Pages.BackgroundTransparency = 0
+Pages.BackgroundColor3 = Color3.fromRGB(40,40,40)
 
--- ===== create ScreenGui + side toggle button + main window =====
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UniversalHubGUI_v2"
-ScreenGui.Parent = playerGui
-ScreenGui.ResetOnSpawn = false
+-- Utility
+local Tabs = {}
+local CurrentPage
 
--- Side open/close button
-local sideBtn = Instance.new("TextButton")
-sideBtn.Name = "SideToggle"
-sideBtn.Size = UDim2.new(0, 36, 0, 90)
-sideBtn.Position = UDim2.new(0, 8, 0.5, -45)
-sideBtn.AnchorPoint = Vector2.new(0, 0)
-sideBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-sideBtn.Text = "☰"
-sideBtn.Font = Enum.Font.GothamBold
-sideBtn.TextSize = 20
-sideBtn.TextColor3 = Color3.fromRGB(220,220,220)
-sideBtn.Parent = ScreenGui
-makeUICorner(sideBtn, 10)
-makeUIStroke(sideBtn, 1, Color3.fromRGB(0,0,0), 0.6)
-sideBtn.ZIndex = 10
+local function MakeTab(name)
+    local Btn = Instance.new("TextButton", TabBar)
+    Btn.Size = UDim2.new(0,120,1,0)
+    Btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+    Btn.Text = name
+    Btn.TextColor3 = Color3.fromRGB(200,200,200)
+    Btn.Font = Enum.Font.Gotham
+    Btn.TextSize = 14
 
--- Main window (initially visible)
-local window = Instance.new("Frame")
-window.Name = "Window"
-window.Size = UDim2.new(0, 520, 0, 360)
--- show window near left when open (we'll tween positions)
-window.Position = UDim2.new(0, 56, 0.5, -180)
-window.AnchorPoint = Vector2.new(0, 0.5)
-window.BackgroundColor3 = Color3.fromRGB(22,22,22)
-window.Parent = ScreenGui
-makeUICorner(window, 14)
-makeUIStroke(window, 1, Color3.fromRGB(0,0,0), 0.6)
-window.ZIndex = 5
+    local Page = Instance.new("ScrollingFrame", Pages)
+    Page.Size = UDim2.new(1,0,1,0)
+    Page.Visible = false
+    Page.BackgroundTransparency = 1
+    Page.CanvasSize = UDim2.new(0,0,0,600)
 
--- header
-local header = Instance.new("Frame", window)
-header.Size = UDim2.new(1, 0, 0, 38)
-header.Position = UDim2.new(0,0,0,0)
-header.BackgroundColor3 = Color3.fromRGB(28,28,28)
-makeUICorner(header, 14)
-local title = Instance.new("TextLabel", header)
-title.Text = "Universal Hub"
-title.Size = UDim2.new(0.5, 0, 1, 0)
-title.BackgroundTransparency = 1
-title.Position = UDim2.new(0, 12, 0, 0)
-title.TextColor3 = Color3.fromRGB(240,240,240)
-title.Font = Enum.Font.GothamBold
-title.TextSize = 16
-title.TextXAlignment = Enum.TextXAlignment.Left
-
--- close button inside header
-local headerClose = Instance.new("TextButton", header)
-headerClose.Size = UDim2.new(0, 32, 0, 24)
-headerClose.Position = UDim2.new(1, -44, 0.5, -12)
-headerClose.Text = "✕"
-headerClose.Font = Enum.Font.Gotham
-headerClose.TextSize = 18
-headerClose.BackgroundTransparency = 1
-headerClose.TextColor3 = Color3.fromRGB(200,200,200)
-
--- left tab panel
-local tabPanel = Instance.new("Frame", window)
-tabPanel.Size = UDim2.new(0, 120, 1, -38)
-tabPanel.Position = UDim2.new(0, 0, 0, 38)
-tabPanel.BackgroundColor3 = Color3.fromRGB(30,30,30)
-makeUICorner(tabPanel, 12)
-
-local tabLayout = Instance.new("UIListLayout", tabPanel)
-tabLayout.SortOrder = Enum.SortOrder.LayoutOrder
-tabLayout.Padding = UDim.new(0, 6)
-local tabPadding = Instance.new("UIPadding", tabPanel)
-tabPadding.PaddingTop = UDim.new(0, 8)
-tabPadding.PaddingLeft = UDim.new(0, 8)
-tabPadding.PaddingRight = UDim.new(0, 8)
-
--- right content panel
-local contentPanel = Instance.new("Frame", window)
-contentPanel.Size = UDim2.new(1, -120, 1, -38)
-contentPanel.Position = UDim2.new(0, 120, 0, 38)
-contentPanel.BackgroundTransparency = 1
-
--- Utility to create pages with UIListLayout for auto layout
-local pages = {}
-local function CreateTab(name, order)
-    local btn = Instance.new("TextButton", tabPanel)
-    btn.Size = UDim2.new(1, 0, 0, 36)
-    btn.LayoutOrder = order or (#tabPanel:GetChildren() + 1)
-    btn.Text = name
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 14
-    btn.TextColor3 = Color3.fromRGB(220,220,220)
-    btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    makeUICorner(btn, 8)
-
-    local page = Instance.new("ScrollingFrame", contentPanel)
-    page.Size = UDim2.new(1, -12, 1, -12)
-    page.Position = UDim2.new(0, 8, 0, 8)
-    page.CanvasSize = UDim2.new(0, 0, 2, 0)
-    page.ScrollBarThickness = 8
-    page.BackgroundTransparency = 1
-    page.Visible = false
-    page.Name = name .. "_Page"
-
-    local layout = Instance.new("UIListLayout", page)
-    layout.Padding = UDim.new(0, 8)
-    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-    local padding = Instance.new("UIPadding", page)
-    padding.PaddingTop = UDim.new(0, 6)
-    padding.PaddingLeft = UDim.new(0, 12)
-    padding.PaddingRight = UDim.new(0, 12)
-    padding.PaddingBottom = UDim.new(0, 8)
-
-    -- clicking the tab shows its page and hides others
-    btn.MouseButton1Click:Connect(function()
-        for _,p in pairs(contentPanel:GetChildren()) do
-            if p:IsA("ScrollingFrame") then p.Visible = false end
-        end
-        page.Visible = true
-        -- visual feedback
-        for _,b in pairs(tabPanel:GetChildren()) do
-            if b:IsA("TextButton") then
-                b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-            end
-        end
-        btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    Btn.MouseButton1Click:Connect(function()
+        if CurrentPage then CurrentPage.Visible = false end
+        Page.Visible = true
+        CurrentPage = Page
     end)
 
-    table.insert(pages, {button = btn, page = page})
-    -- if first, show by default
-    if #pages == 1 then
-        page.Visible = true
-        btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    if not CurrentPage then
+        Page.Visible = true
+        CurrentPage = Page
     end
-    return page
+
+    table.insert(Tabs,{Btn=Btn,Page=Page})
+    return Page
 end
 
--- element helpers (buttons, toggles, +/- numeric control)
-local function AddButton(page, text, cb)
-    local container = Instance.new("Frame", page)
-    container.Size = UDim2.new(1, 0, 0, 44)
-    container.BackgroundTransparency = 1
-    local btn = Instance.new("TextButton", container)
-    btn.Size = UDim2.new(1, 0, 1, 0)
-    btn.Text = text
-    btn.Font = Enum.Font.GothamBold
-    btn.TextSize = 14
-    btn.TextColor3 = Color3.fromRGB(245,245,245)
-    btn.BackgroundColor3 = Color3.fromRGB(55,55,55)
-    makeUICorner(btn, 8)
-    btn.MouseButton1Click:Connect(function() pcall(cb) end)
-    return btn
+local function AddButton(tab,text,callback)
+    local Btn = Instance.new("TextButton", tab)
+    Btn.Size = UDim2.new(1,-20,0,35)
+    Btn.Position = UDim2.new(0,10,0,#tab:GetChildren()*40)
+    Btn.Text = text
+    Btn.BackgroundColor3 = Color3.fromRGB(60,60,60)
+    Btn.TextColor3 = Color3.fromRGB(255,255,255)
+    Btn.Font = Enum.Font.Gotham
+    Btn.TextSize = 14
+    Btn.MouseButton1Click:Connect(callback)
 end
 
-local function AddToggle(page, text, default, cb)
-    default = default and true or false
-    local container = Instance.new("Frame", page)
-    container.Size = UDim2.new(1, 0, 0, 40)
-    container.BackgroundTransparency = 1
-    local label = Instance.new("TextLabel", container)
-    label.Size = UDim2.new(0.7, 0, 1, 0)
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(230,230,230)
-    label.BackgroundTransparency = 1
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
+-- // Tabs
+local MainTab = MakeTab("Main")
+local PlayerTab = MakeTab("Player")
+local VisualsTab = MakeTab("Visuals")
 
-    local toggle = Instance.new("TextButton", container)
-    toggle.Size = UDim2.new(0.26, 0, 0.7, 0)
-    toggle.Position = UDim2.new(0.72, 0, 0.15, 0)
-    toggle.Text = default and "ON" or "OFF"
-    toggle.Font = Enum.Font.GothamBold
-    toggle.TextSize = 13
-    toggle.TextColor3 = default and Color3.fromRGB(20,20,20) or Color3.fromRGB(240,240,240)
-    toggle.BackgroundColor3 = default and Color3.fromRGB(120, 235, 170) or Color3.fromRGB(70,70,70)
-    makeUICorner(toggle, 8)
-    local state = default
-    toggle.MouseButton1Click:Connect(function()
-        state = not state
-        toggle.Text = state and "ON" or "OFF"
-        toggle.BackgroundColor3 = state and Color3.fromRGB(120,235,170) or Color3.fromRGB(70,70,70)
-        toggle.TextColor3 = state and Color3.fromRGB(20,20,20) or Color3.fromRGB(240,240,240)
-        if cb then pcall(cb, state) end
-    end)
-    return {
-        container = container,
-        get = function() return state end,
-        set = function(v)
-            state = v
-            toggle.Text = state and "ON" or "OFF"
-            toggle.BackgroundColor3 = state and Color3.fromRGB(120,235,170) or Color3.fromRGB(70,70,70)
-            toggle.TextColor3 = state and Color3.fromRGB(20,20,20) or Color3.fromRGB(240,240,240)
-            if cb then pcall(cb, state) end
-        end
-    }
-end
-
-local function AddNumberStepper(page, text, minVal, maxVal, default, step, cb)
-    step = step or 1
-    minVal = minVal or -9999
-    maxVal = maxVal or 9999
-    default = default or minVal
-    local container = Instance.new("Frame", page)
-    container.Size = UDim2.new(1, 0, 0, 40)
-    container.BackgroundTransparency = 1
-    local label = Instance.new("TextLabel", container)
-    label.Size = UDim2.new(0.5, 0, 1, 0)
-    label.Text = text
-    label.TextColor3 = Color3.fromRGB(230,230,230)
-    label.BackgroundTransparency = 1
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-
-    local minus = Instance.new("TextButton", container)
-    minus.Size = UDim2.new(0, 34, 0, 30)
-    minus.Position = UDim2.new(0.55, 0, 0.1, 0)
-    minus.Text = "−"
-    minus.Font = Enum.Font.GothamBold
-    minus.TextSize = 18
-    minus.BackgroundColor3 = Color3.fromRGB(65,65,65)
-    makeUICorner(minus, 8)
-
-    local valLabel = Instance.new("TextLabel", container)
-    valLabel.Size = UDim2.new(0, 86, 0, 30)
-    valLabel.Position = UDim2.new(0.68, 0, 0.1, 0)
-    valLabel.Text = tostring(default)
-    valLabel.TextColor3 = Color3.fromRGB(240,240,240)
-    valLabel.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    valLabel.Font = Enum.Font.GothamBold
-    valLabel.TextSize = 14
-    makeUICorner(valLabel, 8)
-
-    local plus = Instance.new("TextButton", container)
-    plus.Size = UDim2.new(0, 34, 0, 30)
-    plus.Position = UDim2.new(0.92, -34, 0.1, 0)
-    plus.Text = "+"
-    plus.Font = Enum.Font.GothamBold
-    plus.TextSize = 16
-    plus.BackgroundColor3 = Color3.fromRGB(65,65,65)
-    makeUICorner(plus, 8)
-
-    local current = default
-    local function update()
-        valLabel.Text = tostring(current)
-        if cb then pcall(cb, current) end
-    end
-    minus.MouseButton1Click:Connect(function()
-        current = math.clamp(current - step, minVal, maxVal)
-        update()
-    end)
-    plus.MouseButton1Click:Connect(function()
-        current = math.clamp(current + step, minVal, maxVal)
-        update()
-    end)
-    return {
-        get = function() return current end,
-        set = function(v) current = math.clamp(v, minVal, maxVal); update() end
-    }
-end
-
--- ===== build tabs and UI elements =====
-local mainPage = CreateTab("Main", 1)
-local playerPage = CreateTab("Player", 2)
-local visualPage = CreateTab("Visuals", 3)
-
--- ---------- Main Tab ----------
-AddButton(mainPage, "Rejoin", function()
-    pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
+-- // Features
+AddButton(MainTab,"Rejoin",function()
+    TeleportService:Teleport(game.PlaceId,lp)
 end)
 
-AddButton(mainPage, "Server Hop (find public server)", function()
-    -- tries to fetch servers; if Http is disabled will notify failure
-    notify("Searching for servers...", 2)
-    local succ, res = pcall(function()
-        local url = "https://games.roblox.com/v1/games/" .. tostring(game.PlaceId) .. "/servers/Public?sortOrder=Asc&limit=100"
-        local raw = game:HttpGet(url)
-        return HttpService:JSONDecode(raw)
-    end)
-    if not succ or not res or not res.data then
-        notify("Server hop failed (Http requests disabled or no servers).", 3)
-        return
-    end
-    for _,s in ipairs(res.data) do
-        if s.playing < s.maxPlayers and s.id then
-            notify("Teleporting to server...", 2)
-            pcall(function() TeleportService:TeleportToPlaceInstance(game.PlaceId, s.id, LocalPlayer) end)
-            return
+AddButton(MainTab,"Server Hop",function()
+    local servers = HttpService:JSONDecode(game:HttpGet(
+        "https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"
+    ))
+    for _,s in pairs(servers.data) do
+        if s.playing < s.maxPlayers then
+            TeleportService:TeleportToPlaceInstance(game.PlaceId,s.id,lp)
+            break
         end
     end
-    notify("No suitable server found.", 3)
 end)
 
--- Teleport to player selector (dropdown)
-local selectedTarget = nil
-do
-    local dropdown = Instance.new("Frame", mainPage)
-    dropdown.Size = UDim2.new(1, 0, 0, 44)
-    dropdown.BackgroundTransparency = 1
-
-    local label = Instance.new("TextLabel", dropdown)
-    label.Size = UDim2.new(0.5, 0, 1, 0)
-    label.BackgroundTransparency = 1
-    label.Text = "Teleport to player"
-    label.TextColor3 = Color3.fromRGB(230,230,230)
-    label.Font = Enum.Font.Gotham
-    label.TextSize = 14
-    label.TextXAlignment = Enum.TextXAlignment.Left
-
-    local selBtn = Instance.new("TextButton", dropdown)
-    selBtn.Size = UDim2.new(0.46, 0, 0.75, 0)
-    selBtn.Position = UDim2.new(0.52, 0, 0.1, 0)
-    selBtn.Text = "Select..."
-    selBtn.Font = Enum.Font.GothamBold
-    selBtn.TextSize = 13
-    selBtn.BackgroundColor3 = Color3.fromRGB(65,65,65)
-    makeUICorner(selBtn, 8)
-
-    local listFrame = Instance.new("Frame", selBtn)
-    listFrame.Size = UDim2.new(1, 0, 0, 0)
-    listFrame.Position = UDim2.new(0, 0, 1, 4)
-    listFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    listFrame.Visible = false
-    makeUICorner(listFrame, 8)
-    local listLayout = Instance.new("UIListLayout", listFrame)
-    listLayout.Padding = UDim.new(0, 4)
-
-    local function refreshList()
-        for i,v in pairs(listFrame:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
-        local players = Players:GetPlayers()
-        for _,plr in ipairs(players) do
-            if plr ~= LocalPlayer then
-                local b = Instance.new("TextButton", listFrame)
-                b.Size = UDim2.new(1, -8, 0, 28)
-                b.Position = UDim2.new(0, 4, 0, 0)
-                b.Text = plr.Name
-                b.Font = Enum.Font.Gotham
-                b.TextSize = 13
-                b.TextColor3 = Color3.fromRGB(230,230,230)
-                b.BackgroundColor3 = Color3.fromRGB(55,55,55)
-                makeUICorner(b, 6)
-                b.MouseButton1Click:Connect(function()
-                    selectedTarget = plr.Name
-                    selBtn.Text = plr.Name
-                    listFrame.Visible = false
-                end)
-            end
-        end
-        -- adjust size
-        local amt = 0
-        for _,c in ipairs(listFrame:GetChildren()) do if c:IsA("TextButton") then amt = amt + 1 end end
-        listFrame.Size = UDim2.new(1, 0, 0, math.clamp(amt * 32, 0, 220))
-    end
-
-    selBtn.MouseButton1Click:Connect(function()
-        refreshList()
-        listFrame.Visible = not listFrame.Visible
-    end)
-
-    Players.PlayerAdded:Connect(refreshList)
-    Players.PlayerRemoving:Connect(function()
-        if selectedTarget and not Players:FindFirstChild(selectedTarget) then
-            selectedTarget = nil
-            selBtn.Text = "Select..."
-        end
-        refreshList()
-    end)
-
-    AddButton(mainPage, "Teleport to Selected Player", function()
-        if not selectedTarget then notify("No player selected", 2); return end
-        local target = Players:FindFirstChild(selectedTarget)
-        if not target or not target.Character then notify("Target not available", 2); return end
-        local tr = target.Character:FindFirstChild("HumanoidRootPart") or target.Character:FindFirstChild("Torso") or target.Character:FindFirstChild("UpperTorso")
-        local meRoot = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChild("Torso") or LocalPlayer.Character:FindFirstChild("UpperTorso"))
-        if tr and meRoot then
-            pcall(function() meRoot.CFrame = tr.CFrame + Vector3.new(0,3,0) end)
-            notify("Teleported to " .. target.Name, 2)
-        else
-            notify("Could not teleport (character missing)", 2)
-        end
-    end)
-end
-
-AddButton(mainPage, "Teleport to Spawn", function()
-    local spawn = workspace:FindFirstChild("SpawnLocation") or workspace:FindFirstChild("Spawn")
-    local root = LocalPlayer.Character and (LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or LocalPlayer.Character:FindFirstChild("Torso") or LocalPlayer.Character:FindFirstChild("UpperTorso"))
-    if spawn and spawn:IsA("BasePart") and root then
-        pcall(function() root.CFrame = spawn.CFrame + Vector3.new(0,3,0) end)
-        notify("Teleported to spawn", 2)
+AddButton(PlayerTab,"Toggle Noclip",function()
+    if _G.Noclip then
+        _G.Noclip:Disconnect()
+        _G.Noclip=nil
     else
-        notify("Spawn or character missing", 2)
-    end
-end)
-
--- ---------- Player Tab ----------
--- WalkSpeed & JumpPower steppers
-local walkStepper = AddNumberStepper(playerPage, "WalkSpeed", 8, 500, 16, 1, function(v)
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if hum then pcall(function() hum.WalkSpeed = v end) end
-end)
-
-local jumpStepper = AddNumberStepper(playerPage, "JumpPower", 0, 300, 50, 1, function(v)
-    local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-    if hum then pcall(function() hum.JumpPower = v end) end
-end)
-
--- Noclip toggle
-local noclipOn = false
-local noclipConn = nil
-AddToggle(playerPage, "Noclip (client)", false, function(state)
-    noclipOn = state
-    if state then
-        noclipConn = RunService.Stepped:Connect(function()
-            local char = LocalPlayer.Character
-            if char then
-                for _,part in ipairs(char:GetDescendants()) do
-                    if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                        pcall(function() part.CanCollide = false end)
-                    end
+        _G.Noclip=RunService.Stepped:Connect(function()
+            if lp.Character then
+                for _,v in pairs(lp.Character:GetDescendants()) do
+                    if v:IsA("BasePart") then v.CanCollide=false end
                 end
             end
         end)
-    else
-        if noclipConn and noclipConn.Connected then noclipConn:Disconnect() end
-        noclipConn = nil
-        -- try reset collisions
-        local char = LocalPlayer.Character
-        if char then
-            for _,part in ipairs(char:GetDescendants()) do
-                if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
-                    pcall(function() part.CanCollide = true end)
-                end
-            end
-        end
     end
 end)
 
--- Anti-AFK toggle
-local antiAFKConn = nil
-AddToggle(playerPage, "Anti-AFK (simple jiggle)", false, function(state)
-    if state then
-        antiAFKConn = spawn(function()
-            while true do
-                if not Players.LocalPlayer.Character then wait(4) else
-                    local root = Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                    if root then
-                        local orig = root.CFrame
-                        pcall(function() root.CFrame = orig * CFrame.new(0,0.1,0) end)
-                        wait(3)
-                        pcall(function() root.CFrame = orig end)
-                    end
-                    wait(10)
-                end
-                if not getfenv() then break end -- safe termination path
-            end
+AddButton(PlayerTab,"Fly (toggle)",function()
+    _G.Flying = not _G.Flying
+    local char = lp.Character or lp.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local hum = char:WaitForChild("Humanoid")
+
+    if _G.Flying then
+        local bg = Instance.new("BodyGyro",hrp)
+        local bv = Instance.new("BodyVelocity",hrp)
+        bg.MaxTorque = Vector3.new(9e9,9e9,9e9)
+        bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+
+        _G.FlyLoop = RunService.RenderStepped:Connect(function()
+            if not _G.Flying then bg:Destroy() bv:Destroy() _G.FlyLoop:Disconnect() return end
+            local move = hum.MoveDirection
+            bv.Velocity = Vector3.new(move.X*50,
+                (UIS:IsKeyDown(Enum.KeyCode.Space) and 50 or (UIS:IsKeyDown(Enum.KeyCode.LeftControl) and -50 or 0)),
+                move.Z*50)
         end)
-    else
-        antiAFKConn = nil
     end
 end)
 
--- Fly: proper implementation
-local flying = false
-local flyBV, flyBG = nil, nil
-local flyConns = {}
-local flySpeed = 80
-local control = {F = 0, B = 0, L = 0, R = 0}
-local vertical = 0
-
-local function clearFlyConnections()
-    for _,c in ipairs(flyConns) do
-        if c and c.Disconnect then pcall(function() c:Disconnect() end) end
+AddButton(PlayerTab,"WalkSpeed 50",function()
+    if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
+        lp.Character:FindFirstChildOfClass("Humanoid").WalkSpeed=50
     end
-    flyConns = {}
-end
+end)
 
-local function startFly()
-    if flying then return end
-    local char = LocalPlayer.Character
-    if not char then char = LocalPlayer.CharacterAdded:Wait() end
-    local root = char:FindFirstChild("HumanoidRootPart")
-    if not root then root = char:WaitForChild("HumanoidRootPart") end
-    flying = true
-    flyBV = Instance.new("BodyVelocity")
-    flyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    flyBV.P = 1250
-    flyBV.Velocity = Vector3.new(0,0,0)
-    flyBV.Parent = root
+AddButton(PlayerTab,"JumpPower 100",function()
+    if lp.Character and lp.Character:FindFirstChildOfClass("Humanoid") then
+        lp.Character:FindFirstChildOfClass("Humanoid").JumpPower=100
+    end
+end)
 
-    flyBG = Instance.new("BodyGyro")
-    flyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-    flyBG.P = 3000
-    flyBG.CFrame = root.CFrame
-    flyBG.Parent = root
+AddButton(VisualsTab,"ESP (Chams + Name)",function()
+    _G.ESP = not _G.ESP
+    for _,plr in pairs(Players:GetPlayers()) do
+        if plr~=lp and plr.Character then
+            if _G.ESP then
+                local hl = Instance.new("Highlight",plr.Character)
+                hl.FillTransparency=0.8
+                hl.OutlineColor=Color3.fromRGB(0,255,0)
+                hl.DepthMode=Enum.HighlightDepthMode.AlwaysOnTop
 
-    table.insert(flyConns, UIS.InputBegan:Connect(function(input, gp)
-        if gp then return end
-        if input.KeyCode == Enum.KeyCode.W then control.F = 1 end
-        if input.KeyCode == Enum.KeyCode.S then control.B = -1 end
-        if input.KeyCode == Enum.KeyCode.A then control.L = -1 end
-        if input.KeyCode == Enum.KeyCode.D then control.R = 1 end
-        if input.KeyCode == Enum.KeyCode.Space then vertical = 1 end
-        if input.KeyCode == Enum.KeyCode.LeftShift then vertical = -1 end
-    end))
-    table.insert(flyConns, UIS.InputEnded:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.W then control.F = 0 end
-        if input.KeyCode == Enum.KeyCode.S then control.B = 0 end
-        if input.KeyCode == Enum.KeyCode.A then control.L = 0 end
-        if input.KeyCode == Enum.KeyCode.D then control.R = 0 end
-        if input.KeyCode == Enum.KeyCode.Space then vertical = 0 end
-        if input.KeyCode == Enum.KeyCode.LeftShift then vertical = 0 end
-    end))
-
-    spawn(function()
-        while flying and flyBV and flyBG and root and root.Parent do
-            RunService.Heartbeat:Wait()
-            local cam = workspace.CurrentCamera
-            local moveDirection = Vector3.new(control.L + control.R, 0, control.F + control.B)
-            local cameraCFrame = cam and cam.CFrame or root.CFrame
-            local camX = cameraCFrame:VectorToWorldSpace(Vector3.new(moveDirection.X, 0, moveDirection.Z))
-            local vy = 0
-            if vertical == 1 then vy = flySpeed/2 elseif vertical == -1 then vy = -flySpeed/2 end
-            local newVel
-            if moveDirection.Magnitude > 0 then
-                newVel = (camX.Unit * (moveDirection.Magnitude * flySpeed)) + Vector3.new(0, vy, 0)
+                local head=plr.Character:FindFirstChild("Head")
+                if head and not head:FindFirstChild("ESPTag") then
+                    local bb=Instance.new("BillboardGui",head)
+                    bb.Name="ESPTag"
+                    bb.Size=UDim2.new(0,100,0,20)
+                    bb.AlwaysOnTop=true
+                    bb.StudsOffset=Vector3.new(0,2,0)
+                    local lbl=Instance.new("TextLabel",bb)
+                    lbl.Size=UDim2.new(1,0,1,0)
+                    lbl.BackgroundTransparency=1
+                    lbl.Text=plr.Name
+                    lbl.TextSize=12
+                    lbl.Font=Enum.Font.GothamBold
+                    lbl.TextColor3=Color3.fromRGB(0,255,0)
+                end
             else
-                newVel = Vector3.new(0, vy, 0)
+                if plr.Character:FindFirstChildOfClass("Highlight") then plr.Character:FindFirstChildOfClass("Highlight"):Destroy() end
+                if plr.Character:FindFirstChild("Head") and plr.Character.Head:FindFirstChild("ESPTag") then
+                    plr.Character.Head.ESPTag:Destroy()
+                end
             end
-            flyBV.Velocity = newVel
-            flyBG.CFrame = CFrame.new(root.Position, root.Position + cameraCFrame.LookVector)
-        end
-        if flyBV then pcall(function() flyBV:Destroy() end) end
-        if flyBG then pcall(function() flyBG:Destroy() end) end
-        clearFlyConnections()
-    end)
-end
-
-local function stopFly()
-    flying = false
-    if flyBV then pcall(function() flyBV:Destroy() end) end
-    if flyBG then pcall(function() flyBG:Destroy() end) end
-    clearFlyConnections()
-end
-
--- fly toggle + speed control UI
-local flyToggle = AddToggle(playerPage, "Fly (WASD + Space/Shift)", false, function(state)
-    if state then startFly() else stopFly() end
-end)
-local flySpeedStepper = AddNumberStepper(playerPage, "Fly Speed", 10, 1000, 80, 5, function(v) flySpeed = v end)
-
--- ---------- Visuals Tab ----------
--- ESP controls & management
-local espEnabled = false
-local espChams = true
-local espTags = true
-local espHighlights = {}   -- player -> highlight instance
-local espTagsGui = {}     -- player -> billboard
-
-local function createESPFor(p)
-    if p == LocalPlayer then return end
-    local char = p.Character
-    if not char then return end
-    -- highlight (chams)
-    if espChams then
-        local h = char:FindFirstChildOfClass("Highlight")
-        if not h then
-            h = Instance.new("Highlight")
-            h.Name = "UH_Highlight"
-            h.Parent = char
-        end
-        h.FillColor = Color3.fromRGB(0, 200, 120)
-        h.FillTransparency = 0.75
-        h.OutlineTransparency = 1
-        h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        espHighlights[p] = h
-    end
-    -- small name tag
-    if espTags then
-        local head = char:FindFirstChild("Head") or char:FindFirstChildWhichIsA("BasePart")
-        if head then
-            local bb = Instance.new("BillboardGui")
-            bb.Name = "UH_Tag"
-            bb.Parent = head
-            bb.AlwaysOnTop = true
-            bb.Size = UDim2.new(0, 96, 0, 18)
-            bb.StudsOffset = Vector3.new(0, 1.9, 0)
-            local label = Instance.new("TextLabel", bb)
-            label.Size = UDim2.new(1, 0, 1, 0)
-            label.BackgroundTransparency = 0.6
-            label.BackgroundColor3 = Color3.fromRGB(16,16,16)
-            label.Text = p.Name
-            label.Font = Enum.Font.GothamBold
-            label.TextSize = 12
-            label.TextColor3 = Color3.fromRGB(180,255,200)
-            label.BorderSizePixel = 0
-            makeUICorner(label, 6)
-            espTagsGui[p] = bb
-        end
-    end
-end
-
-local function removeESPFor(p)
-    if espHighlights[p] then pcall(function() espHighlights[p]:Destroy() end); espHighlights[p] = nil end
-    if espTagsGui[p] then pcall(function() espTagsGui[p]:Destroy() end); espTagsGui[p] = nil end
-    -- try to clean any leftover UH_Highlight or UH_Tag inside character
-    if p.Character then
-        local h = p.Character:FindFirstChildOfClass("Highlight")
-        if h and h.Name == "UH_Highlight" then pcall(function() h:Destroy() end) end
-        local head = p.Character:FindFirstChild("Head")
-        if head then
-            local bb = head:FindFirstChild("UH_Tag")
-            if bb then pcall(function() bb:Destroy() end) end
-        end
-    end
-end
-
--- keep esp in sync on join/leave/respawn
-Players.PlayerAdded:Connect(function(p)
-    if espEnabled then
-        -- wait for char
-        p.CharacterAdded:Connect(function()
-            if espEnabled then
-                createESPFor(p)
-            end
-        end)
-    end
-end)
-Players.PlayerRemoving:Connect(function(p)
-    removeESPFor(p)
-end)
-
--- Visual toggles
-local espToggle = AddToggle(visualPage, "ESP (Chams + Nametags)", false, function(state)
-    espEnabled = state
-    if not state then
-        for plr,_ in pairs(espHighlights) do removeESPFor(plr) end
-        for plr,_ in pairs(espTagsGui) do removeESPFor(plr) end
-    else
-        for _,plr in pairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and plr.Character then createESPFor(plr) end
-            -- hook respawn for existing players
-            plr.CharacterAdded:Connect(function() if espEnabled then createESPFor(plr) end end)
         end
     end
 end)
 
-AddToggle(visualPage, "Chams (Fill)", true, function(state)
-    espChams = state
-    if not espChams then
-        for plr,_ in pairs(espHighlights) do removeESPFor(plr) end
-        espHighlights = {}
-    else
-        for _,plr in pairs(Players:GetPlayers()) do if plr ~= LocalPlayer and plr.Character then createESPFor(plr) end end
-    end
-end)
-
-AddToggle(visualPage, "Name Tags", true, function(state)
-    espTags = state
-    if not espTags then
-        for plr,_ in pairs(espTagsGui) do removeESPFor(plr) end
-        espTagsGui = {}
-    else
-        for _,plr in pairs(Players:GetPlayers()) do if plr ~= LocalPlayer and plr.Character then createESPFor(plr) end end
-    end
-end)
-
--- attempt to keep tags updated for players that join later
-for _,plr in pairs(Players:GetPlayers()) do
-    if plr ~= LocalPlayer then
-        plr.CharacterAdded:Connect(function()
-            if espEnabled then createESPFor(plr) end
-        end)
-    end
-end
-
--- ===== side toggle & header close behavior (tween for slide) =====
+-- // Toggle open/close
 local open = true
-local hiddenPos = UDim2.new(-0.7, 0, 0.5, -180)
-local shownPos = UDim2.new(0, 56, 0.5, -180)
--- initialize hidden state off-screen if you want hidden by default, but we'll keep open true
-window.Position = shownPos
-
-local tweenInfo = TweenInfo.new(0.28, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
-sideBtn.MouseButton1Click:Connect(function()
+ToggleBtn.MouseButton1Click:Connect(function()
     open = not open
-    if open then
-        TweenService:Create(window, tweenInfo, {Position = shownPos}):Play()
-        sideBtn.Text = "☰"
-    else
-        TweenService:Create(window, tweenInfo, {Position = hiddenPos}):Play()
-        sideBtn.Text = "▶"
-    end
+    Window.Visible = open
 end)
-
--- header close toggles visibility (collapses)
-headerClose.MouseButton1Click:Connect(function()
-    open = not open
-    if open then
-        TweenService:Create(window, tweenInfo, {Position = shownPos}):Play()
-        sideBtn.Text = "☰"
-    else
-        TweenService:Create(window, tweenInfo, {Position = hiddenPos}):Play()
-        sideBtn.Text = "▶"
-    end
-end)
-
--- ===== cleanup when character respawns: restore walk/jump if needed =====
-LocalPlayer.CharacterAdded:Connect(function(char)
-    -- apply current walk/jump requested values after respawn
-    local hum = char:WaitForChild("Humanoid", 5)
-    if hum then
-        pcall(function() hum.WalkSpeed = walkStepper.get() end)
-        pcall(function() hum.JumpPower = jumpStepper.get() end)
-    end
-    -- reapply noclip if enabled
-    if noclipOn then
-        -- nothing - noclip loop will catch it next Stepped tick
-    end
-    -- reapply fly state: if flying, restart for new char
-    if flyToggle and flyToggle.get and flyToggle.get() then
-        stopFly()
-        startFly()
-    end
-end)
-
--- final success notif
-notify("Universal Hub loaded. Use the side button to hide/show.", 3)
