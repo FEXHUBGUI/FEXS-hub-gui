@@ -1,6 +1,9 @@
--- YvHs.
+-- Domer
 
 local player = game.Players.LocalPlayer
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
+
 local gui = Instance.new("ScreenGui")
 gui.Name = "mHUB_YouVsHomer"
 gui.Parent = player:WaitForChild("PlayerGui")
@@ -9,13 +12,17 @@ gui.ResetOnSpawn = false
 -- Main Frame
 local mainFrame = Instance.new("Frame")
 mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 300, 0, 200)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+mainFrame.Size = UDim2.new(0, 400, 0, 250)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -125)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
 mainFrame.Draggable = true
 mainFrame.Parent = gui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
 
 -- Title Bar
 local titleBar = Instance.new("Frame")
@@ -23,6 +30,10 @@ titleBar.Name = "TitleBar"
 titleBar.Size = UDim2.new(1, 0, 0, 30)
 titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = titleBar
 
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, 0, 1, 0)
@@ -33,128 +44,271 @@ titleLabel.Font = Enum.Font.SourceSansBold
 titleLabel.TextSize = 18
 titleLabel.Parent = titleBar
 
--- Tab Buttons
-local tabsFrame = Instance.new("Frame")
-tabsFrame.Name = "TabsFrame"
-tabsFrame.Size = UDim2.new(1, 0, 0, 30)
-tabsFrame.Position = UDim2.new(0, 0, 0, 30)
-tabsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-tabsFrame.Parent = mainFrame
+-- Sidebar
+local sidebar = Instance.new("Frame")
+sidebar.Name = "Sidebar"
+sidebar.Size = UDim2.new(0, 120, 1, -30)
+sidebar.Position = UDim2.new(0, 0, 0, 30)
+sidebar.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+sidebar.Parent = mainFrame
+
+local sidebarList = Instance.new("UIListLayout")
+sidebarList.SortOrder = Enum.SortOrder.LayoutOrder
+sidebarList.Padding = UDim.new(0, 5)
+sidebarList.Parent = sidebar
 
 local mainTabButton = Instance.new("TextButton")
-mainTabButton.Size = UDim2.new(0.5, 0, 1, 0)
+mainTabButton.Size = UDim2.new(1, 0, 0, 40)
 mainTabButton.Text = "Main"
 mainTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 mainTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-mainTabButton.Parent = tabsFrame
+mainTabButton.Parent = sidebar
 
 local settingsTabButton = Instance.new("TextButton")
-settingsTabButton.Size = UDim2.new(0.5, 0, 1, 0)
-settingsTabButton.Position = UDim2.new(0.5, 0, 0, 0)
+settingsTabButton.Size = UDim2.new(1, 0, 0, 40)
 settingsTabButton.Text = "Settings"
 settingsTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 settingsTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-settingsTabButton.Parent = tabsFrame
+settingsTabButton.Parent = sidebar
 
--- Content Frames
-local mainContent = Instance.new("Frame")
+-- Content Frame
+local contentFrame = Instance.new("Frame")
+contentFrame.Name = "ContentFrame"
+contentFrame.Size = UDim2.new(1, -120, 1, -30)
+contentFrame.Position = UDim2.new(0, 120, 0, 30)
+contentFrame.BackgroundTransparency = 1
+contentFrame.Parent = mainFrame
+
+-- Main Content
+local mainContent = Instance.new("ScrollingFrame")
 mainContent.Name = "MainContent"
-mainContent.Size = UDim2.new(1, 0, 1, -60)
-mainContent.Position = UDim2.new(0, 0, 0, 60)
+mainContent.Size = UDim2.new(1, 0, 1, 0)
 mainContent.BackgroundTransparency = 1
 mainContent.Visible = true
-mainContent.Parent = mainFrame
+mainContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+mainContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
+mainContent.Parent = contentFrame
 
-local settingsContent = Instance.new("Frame")
-settingsContent.Name = "SettingsContent"
-settingsContent.Size = UDim2.new(1, 0, 1, -60)
-settingsContent.Position = UDim2.new(0, 0, 0, 60)
-settingsContent.BackgroundTransparency = 1
-settingsContent.Visible = false
-settingsContent.Parent = mainFrame
-
--- Tab Switching
-mainTabButton.MouseButton1Click:Connect(function()
-    mainContent.Visible = true
-    settingsContent.Visible = false
-    mainTabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    settingsTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-end)
-
-settingsTabButton.MouseButton1Click:Connect(function()
-    mainContent.Visible = false
-    settingsContent.Visible = true
-    mainTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-    settingsTabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-end)
+local mainList = Instance.new("UIListLayout")
+mainList.SortOrder = Enum.SortOrder.LayoutOrder
+mainList.Padding = UDim.new(0, 10)
+mainList.Parent = mainContent
 
 -- Settings Content
-local lockMovementToggle = Instance.new("TextButton")
-lockMovementToggle.Size = UDim2.new(1, 0, 0, 30)
-lockMovementToggle.Text = "Lock Movement: Off"
-lockMovementToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-lockMovementToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-lockMovementToggle.Parent = settingsContent
+local settingsContent = Instance.new("ScrollingFrame")
+settingsContent.Name = "SettingsContent"
+settingsContent.Size = UDim2.new(1, 0, 1, 0)
+settingsContent.BackgroundTransparency = 1
+settingsContent.Visible = false
+settingsContent.CanvasSize = UDim2.new(0, 0, 0, 0)
+settingsContent.AutomaticCanvasSize = Enum.AutomaticSize.Y
+settingsContent.Parent = contentFrame
 
-local isLocked = false
-lockMovementToggle.MouseButton1Click:Connect(function()
-    isLocked = not isLocked
-    mainFrame.Draggable = not isLocked
-    lockMovementToggle.Text = "Lock Movement: " .. (isLocked and "On" or "Off")
+local settingsList = Instance.new("UIListLayout")
+settingsList.SortOrder = Enum.SortOrder.LayoutOrder
+settingsList.Padding = UDim.new(0, 10)
+settingsList.Parent = settingsContent
+
+-- Tab Switching
+local function switchTab(showMain)
+    mainContent.Visible = showMain
+    settingsContent.Visible = not showMain
+    mainTabButton.BackgroundColor3 = showMain and Color3.fromRGB(60, 60, 60) or Color3.fromRGB(50, 50, 50)
+    settingsTabButton.BackgroundColor3 = not showMain and Color3.fromRGB(60, 60, 60) or Color3.fromRGB(50, 50, 50)
+end
+
+mainTabButton.MouseButton1Click:Connect(function() switchTab(true) end)
+settingsTabButton.MouseButton1Click:Connect(function() switchTab(false) end)
+
+-- Function to create toggle button
+local function createToggle(parent, text, callback)
+    local toggleButton = Instance.new("Frame")
+    toggleButton.Size = UDim2.new(1, 0, 0, 30)
+    toggleButton.BackgroundTransparency = 1
+    toggleButton.Parent = parent
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0.7, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(255, 255, 255)
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = toggleButton
+
+    local switchFrame = Instance.new("Frame")
+    switchFrame.Size = UDim2.new(0, 50, 0, 24)
+    switchFrame.Position = UDim2.new(1, -50, 0.5, -12)
+    switchFrame.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+    switchFrame.Parent = toggleButton
+
+    local switchCorner = Instance.new("UICorner")
+    switchCorner.CornerRadius = UDim.new(0, 12)
+    switchCorner.Parent = switchFrame
+
+    local knob = Instance.new("Frame")
+    knob.Size = UDim2.new(0, 24, 0, 24)
+    knob.Position = UDim2.new(0, 0, 0, 0)
+    knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    knob.Parent = switchFrame
+
+    local knobCorner = Instance.new("UICorner")
+    knobCorner.CornerRadius = UDim.new(0, 12)
+    knobCorner.Parent = knob
+
+    local isOn = false
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, 0, 1, 0)
+    button.BackgroundTransparency = 1
+    button.Text = ""
+    button.Parent = toggleButton
+
+    button.MouseButton1Click:Connect(function()
+        isOn = not isOn
+        local goalPos = isOn and UDim2.new(1, -24, 0, 0) or UDim2.new(0, 0, 0, 0)
+        TweenService:Create(knob, TweenInfo.new(0.2), {Position = goalPos}):Play()
+        switchFrame.BackgroundColor3 = isOn and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(80, 80, 80)
+        callback(isOn)
+    end)
+
+    return toggleButton, function(state) -- Setter
+        isOn = state
+        local goalPos = isOn and UDim2.new(1, -24, 0, 0) or UDim2.new(0, 0, 0, 0)
+        knob.Position = goalPos
+        switchFrame.BackgroundColor3 = isOn and Color3.fromRGB(0, 170, 255) or Color3.fromRGB(80, 80, 80)
+    end
+end
+
+-- Settings: Lock Movement
+local lockToggle, setLock = createToggle(settingsContent, "Lock Movement", function(on)
+    mainFrame.Draggable = not on
 end)
 
--- Account Info
+-- Settings: Profile Picture
+local profileFrame = Instance.new("Frame")
+profileFrame.Size = UDim2.new(1, 0, 0, 100)
+profileFrame.BackgroundTransparency = 1
+profileFrame.Parent = settingsContent
+
+local profileImage = Instance.new("ImageLabel")
+profileImage.Size = UDim2.new(0, 100, 0, 100)
+profileImage.Position = UDim2.new(0.5, -50, 0, 0)
+profileImage.BackgroundTransparency = 1
+profileImage.Parent = profileFrame
+
+local thumbnailContent, isReady = game.Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.Headshot, Enum.ThumbnailSize.Size150x150)
+profileImage.Image = thumbnailContent
+
+local profileCorner = Instance.new("UICorner")
+profileCorner.CornerRadius = UDim.new(1, 0) -- Circle
+profileCorner.Parent = profileImage
+
+-- Settings: Account Info
 local accountInfo = Instance.new("TextLabel")
-accountInfo.Size = UDim2.new(1, 0, 0, 90)
-accountInfo.Position = UDim2.new(0, 0, 0, 30)
+accountInfo.Size = UDim2.new(1, 0, 0, 60)
 accountInfo.BackgroundTransparency = 1
-accountInfo.TextColor3 = Color3.fromRGB(255, 255, 255)
 accountInfo.Text = "Username: " .. player.Name .. "\nDisplay Name: " .. player.DisplayName .. "\nAccount Age: " .. player.AccountAge .. " days"
+accountInfo.TextColor3 = Color3.fromRGB(255, 255, 255)
 accountInfo.TextWrapped = true
 accountInfo.Parent = settingsContent
 
--- Color Change (Simple example: Change text color)
-local colorChangeLabel = Instance.new("TextLabel")
-colorChangeLabel.Size = UDim2.new(1, 0, 0, 30)
-colorChangeLabel.Position = UDim2.new(0, 0, 0, 120)
-colorChangeLabel.BackgroundTransparency = 1
-colorChangeLabel.Text = "Change GUI Text Color:"
-colorChangeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-colorChangeLabel.Parent = settingsContent
+-- Settings: Color Changer
+local colorLabel = Instance.new("TextLabel")
+colorLabel.Size = UDim2.new(1, 0, 0, 30)
+colorLabel.BackgroundTransparency = 1
+colorLabel.Text = "GUI Text Color:"
+colorLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+colorLabel.Parent = settingsContent
 
-local colorInput = Instance.new("TextBox")
-colorInput.Size = UDim2.new(1, 0, 0, 30)
-colorInput.Position = UDim2.new(0, 0, 0, 150)
-colorInput.Text = "255,255,255"  -- RGB
-colorInput.Parent = settingsContent
+local colorOptionsFrame = Instance.new("Frame")
+colorOptionsFrame.Size = UDim2.new(1, 0, 0, 40)
+colorOptionsFrame.BackgroundTransparency = 1
+colorOptionsFrame.Parent = settingsContent
 
-colorInput.FocusLost:Connect(function()
-    local r, g, b = colorInput.Text:match("(%d+),(%d+),(%d+)")
-    if r and g and b then
-        local newColor = Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b))
-        -- Apply to all text elements (example)
-        titleLabel.TextColor3 = newColor
-        mainTabButton.TextColor3 = newColor
-        settingsTabButton.TextColor3 = newColor
-        lockMovementToggle.TextColor3 = newColor
-        accountInfo.TextColor3 = newColor
-        colorChangeLabel.TextColor3 = newColor
-        -- Add more as needed
+local colorGrid = Instance.new("UIGridLayout")
+colorGrid.CellSize = UDim2.new(0, 40, 0, 30)
+colorGrid.CellPadding = UDim2.new(0, 5, 0, 5)
+colorGrid.Parent = colorOptionsFrame
+
+local colors = {
+    ["Red"] = Color3.fromRGB(255, 0, 0),
+    ["Green"] = Color3.fromRGB(0, 255, 0),
+    ["Blue"] = Color3.fromRGB(0, 0, 255),
+    ["Purple"] = Color3.fromRGB(128, 0, 128),
+    ["Yellow"] = Color3.fromRGB(255, 255, 0),
+    ["Cyan"] = Color3.fromRGB(0, 255, 255),
+    ["Orange"] = Color3.fromRGB(255, 165, 0),
+    ["White"] = Color3.fromRGB(255, 255, 255)
+}
+
+local function applyColor(newColor)
+    -- Apply to all text elements
+    local texts = {titleLabel, mainTabButton, settingsTabButton, accountInfo, colorLabel}
+    -- Add more dynamically if needed
+    for _, item in ipairs(mainContent:GetDescendants()) do
+        if item:IsA("TextLabel") or item:IsA("TextButton") then
+            table.insert(texts, item)
+        end
+    end
+    for _, item in ipairs(settingsContent:GetDescendants()) do
+        if item:IsA("TextLabel") or item:IsA("TextButton") then
+            table.insert(texts, item)
+        end
+    end
+    for _, text in ipairs(texts) do
+        text.TextColor3 = newColor
+    end
+end
+
+for name, col in pairs(colors) do
+    local colorButton = Instance.new("TextButton")
+    colorButton.Text = name
+    colorButton.TextColor3 = col
+    colorButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    colorButton.Parent = colorOptionsFrame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 4)
+    btnCorner.Parent = colorButton
+
+    colorButton.MouseButton1Click:Connect(function()
+        applyColor(col)
+    end)
+end
+
+-- Main: ESP Toggle
+local espToggle, setEsp = createToggle(mainContent, "ESP [Homer and Bart's]", function(on)
+    espEnabled = on
+    if on then
+        updateESP()
+        espConnection = RunService.Heartbeat:Connect(function()
+            if tick() - lastUpdate >= 1 then
+                updateESP()
+                lastUpdate = tick()
+            end
+        end)
+    else
+        updateESP() -- Clear
+        if espConnection then
+            espConnection:Disconnect()
+        end
     end
 end)
 
--- Main Content: ESP Toggle
-local espToggle = Instance.new("TextButton")
-espToggle.Size = UDim2.new(1, 0, 0, 30)
-espToggle.Text = "ESP [Homer and Bart's]: Off"
-espToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
-espToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-espToggle.Parent = mainContent
-
 local espEnabled = false
-local espConnections = {}
+local espConnection
+local lastUpdate = 0
 local espHighlights = {}
 local espBillboards = {}
+local espSkeletons = {}
+
+local bones = {
+    {"Head", "UpperTorso"},
+    {"UpperTorso", "LowerTorso"},
+    {"UpperTorso", "RightUpperArm"}, {"RightUpperArm", "RightLowerArm"}, {"RightLowerArm", "RightHand"},
+    {"UpperTorso", "LeftUpperArm"}, {"LeftUpperArm", "LeftLowerArm"}, {"LeftLowerArm", "LeftHand"},
+    {"LowerTorso", "RightUpperLeg"}, {"RightUpperLeg", "RightLowerLeg"}, {"RightLowerLeg", "RightFoot"},
+    {"LowerTorso", "LeftUpperLeg"}, {"LeftUpperLeg", "LeftLowerLeg"}, {"LeftLowerLeg", "LeftFoot"}
+}
 
 local function updateESP()
     -- Clear existing ESP
@@ -164,16 +318,20 @@ local function updateESP()
     for _, billboard in pairs(espBillboards) do
         billboard:Destroy()
     end
+    for _, skeleton in pairs(espSkeletons) do
+        skeleton:Destroy()
+    end
     espHighlights = {}
     espBillboards = {}
+    espSkeletons = {}
     
     if not espEnabled then return end
     
     for _, plr in pairs(game.Players:GetPlayers()) do
         if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-            local team = plr.Team and plr.Team.Name or ""  -- Assume Team.Name is "Bart", "Homer", or role
-            local role = plr:FindFirstChild("Role") and plr.Role.Value or team  -- If there's a Role StringValue, use that
-            local color = Color3.fromRGB(255, 0, 0)  -- Default red
+            local team = plr.Team and plr.Team.Name or ""
+            local role = plr:FindFirstChild("Role") and plr.Role.Value or team
+            local color = Color3.fromRGB(255, 0, 0)  -- Default red for Homer
             local text = "HOMER"
             
             if role == "Bart" then
@@ -187,10 +345,10 @@ local function updateESP()
                 color = Color3.fromRGB(128, 128, 128)  -- Gray for dead
             end
             
-            -- Highlight
+            -- Highlight (Chams)
             local highlight = Instance.new("Highlight")
             highlight.OutlineColor = color
-            highlight.FillTransparency = 1  -- No fill, just outline
+            highlight.FillTransparency = 1
             highlight.Parent = plr.Character
             table.insert(espHighlights, highlight)
             
@@ -198,7 +356,7 @@ local function updateESP()
             local billboard = Instance.new("BillboardGui")
             billboard.Size = UDim2.new(0, 100, 0, 50)
             billboard.AlwaysOnTop = true
-            billboard.Adornee = plr.Character.Head
+            billboard.Adornee = plr.Character:FindFirstChild("Head")
             local textLabel = Instance.new("TextLabel")
             textLabel.Size = UDim2.new(1, 0, 1, 0)
             textLabel.BackgroundTransparency = 1
@@ -207,32 +365,41 @@ local function updateESP()
             textLabel.Font = Enum.Font.SourceSansBold
             textLabel.TextSize = 14
             textLabel.Parent = billboard
-            billboard.Parent = plr.Character.Head
+            billboard.Parent = plr.Character:FindFirstChild("Head")
             table.insert(espBillboards, billboard)
+            
+            -- Skeleton
+            local skeletonFolder = Instance.new("Folder")
+            skeletonFolder.Name = "ESPSkeleton"
+            skeletonFolder.Parent = plr.Character
+            table.insert(espSkeletons, skeletonFolder)
+            
+            for _, bone in pairs(bones) do
+                local part1 = plr.Character:FindFirstChild(bone[1])
+                local part2 = plr.Character:FindFirstChild(bone[2])
+                if part1 and part2 then
+                    local att0 = Instance.new("Attachment")
+                    att0.Parent = part1
+                    att0.Position = Vector3.new(0, 0, 0)  -- Center, approximate
+                    local att1 = Instance.new("Attachment")
+                    att1.Parent = part2
+                    att1.Position = Vector3.new(0, 0, 0)
+                    
+                    local beam = Instance.new("Beam")
+                    beam.Attachment0 = att0
+                    beam.Attachment1 = att1
+                    beam.Color = ColorSequence.new(color)
+                    beam.Transparency = NumberSequence.new(0)
+                    beam.Width0 = 0.1
+                    beam.Width1 = 0.1
+                    beam.FaceCamera = true
+                    beam.Parent = skeletonFolder
+                end
+            end
         end
     end
 end
 
-espToggle.MouseButton1Click:Connect(function()
-    espEnabled = not espEnabled
-    espToggle.Text = "ESP [Homer and Bart's]: " .. (espEnabled and "On" or "Off")
-    if espEnabled then
-        updateESP()  -- Initial update
-        local connection = game:GetService("RunService").Heartbeat:Connect(function()
-            -- Refresh every second (approx, using Heartbeat for efficiency, but throttle)
-            wait(1)  -- Simple wait for 1 second
-            updateESP()
-        end)
-        table.insert(espConnections, connection)
-    else
-        updateESP()  -- Clears ESP
-        for _, conn in pairs(espConnections) do
-            conn:Disconnect()
-        end
-        espConnections = {}
-    end
-end)
-
--- Handle team changes (Players added/removed, but since refresh every sec, it handles leaves/joins/changes)
-game.Players.PlayerAdded:Connect(updateESP)
-game.Players.PlayerRemoving:Connect(updateESP)
+-- Handle player changes
+game.Players.PlayerAdded:Connect(function() if espEnabled then updateESP() end end)
+game.Players.PlayerRemoving:Connect(function() if espEnabled then updateESP() end end)
