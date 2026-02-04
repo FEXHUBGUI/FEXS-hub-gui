@@ -1,226 +1,239 @@
---// SERVICES
+--------------------------------------------------
+-- SERVICES
+--------------------------------------------------
 local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 local Stats = game:GetService("Stats")
-local UIS = game:GetService("UserInputService")
-
+local Workspace = game:GetService("Workspace")
 local LocalPlayer = Players.LocalPlayer
 
---// COLORS
-local GREEN  = Color3.fromRGB(0,255,0)
-local BLUE   = Color3.fromRGB(0,170,255)
-local RED    = Color3.fromRGB(255,0,0)
-local PURPLE = Color3.fromRGB(170,0,255)
-
---// CONFIG
-local Config = {
-	PlayerESP = false,
-	GunESP = false,
-	Locked = false,
-	Theme = Color3.fromRGB(25,25,25),
-	Accent = Color3.fromRGB(170,0,255),
-	Scale = 1
+--------------------------------------------------
+-- COLORS
+--------------------------------------------------
+local COLORS = {
+	GREEN = Color3.fromRGB(0,255,0),
+	BLUE = Color3.fromRGB(0,170,255),
+	RED = Color3.fromRGB(255,0,0),
+	PURPLE = Color3.fromRGB(170,0,255),
+	THEME = Color3.fromRGB(25,25,25)
 }
 
 --------------------------------------------------
--- GUI
+-- GUI CREATION
 --------------------------------------------------
-
-local gui = Instance.new("ScreenGui", LocalPlayer.PlayerGui)
-gui.Name = "M.HUB[MM2]"
+local gui = Instance.new("ScreenGui")
+gui.Name = "MHUB_MM2"
 gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 -- Toggle Button
-local toggle = Instance.new("TextButton", gui)
-toggle.Size = UDim2.fromScale(0.08,0.06)
-toggle.Position = UDim2.fromScale(0.02,0.5)
-toggle.Text = "M.HUB"
-toggle.TextScaled = true
-toggle.BackgroundColor3 = Config.Accent
-toggle.TextColor3 = Color3.new(1,1,1)
-toggle.BorderSizePixel = 0
-Instance.new("UICorner", toggle)
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.fromOffset(110,35)
+toggleBtn.Position = UDim2.fromOffset(20,200)
+toggleBtn.Text = "M.HUB"
+toggleBtn.BackgroundColor3 = COLORS.THEME
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.BorderSizePixel = 0
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,10)
 
--- Main Frame
+-- Main Window
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.fromScale(0.42,0.52)
+main.Size = UDim2.fromOffset(420,320)
 main.Position = UDim2.fromScale(0.5,0.5)
 main.AnchorPoint = Vector2.new(0.5,0.5)
-main.BackgroundColor3 = Config.Theme
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,18)
+main.BackgroundColor3 = COLORS.THEME
+main.Visible = true
+main.BorderSizePixel = 0
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,14)
 
-local scale = Instance.new("UIScale", main)
-scale.Scale = Config.Scale
+-- Title
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1,0,0,40)
+title.Text = "M.HUB [MM2]"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
 
-toggle.MouseButton1Click:Connect(function()
+--------------------------------------------------
+-- TABS
+--------------------------------------------------
+local tabs = Instance.new("Frame", main)
+tabs.Position = UDim2.fromOffset(0,40)
+tabs.Size = UDim2.new(1,0,1,-40)
+tabs.BackgroundTransparency = 1
+
+local mainTab = Instance.new("ScrollingFrame", tabs)
+mainTab.Size = UDim2.fromScale(1,1)
+mainTab.CanvasSize = UDim2.fromOffset(0,300)
+mainTab.ScrollBarImageTransparency = 0.5
+mainTab.BackgroundTransparency = 1
+
+local settingsTab = mainTab:Clone()
+settingsTab.Parent = tabs
+settingsTab.Visible = false
+
+--------------------------------------------------
+-- TAB BUTTONS
+--------------------------------------------------
+local btnMain = Instance.new("TextButton", main)
+btnMain.Text = "MAIN"
+btnMain.Size = UDim2.fromOffset(60,30)
+btnMain.Position = UDim2.fromOffset(10,5)
+
+local btnSettings = btnMain:Clone()
+btnSettings.Text = "SETTINGS"
+btnSettings.Position = UDim2.fromOffset(80,5)
+btnSettings.Size = UDim2.fromOffset(90,30)
+
+--------------------------------------------------
+-- BUTTON CREATOR
+--------------------------------------------------
+local function createButton(parent,text,y)
+	local b = Instance.new("TextButton", parent)
+	b.Size = UDim2.new(1,-20,0,40)
+	b.Position = UDim2.fromOffset(10,y)
+	b.Text = text
+	b.BackgroundColor3 = Color3.fromRGB(35,35,35)
+	b.TextColor3 = Color3.new(1,1,1)
+	b.BorderSizePixel = 0
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
+	return b
+end
+
+--------------------------------------------------
+-- MAIN TAB BUTTONS
+--------------------------------------------------
+local espBtn = createButton(mainTab,"ESP [Players]",10)
+local gunDropBtn = createButton(mainTab,"Dropped Gun ESP",60)
+
+--------------------------------------------------
+-- SETTINGS INFO
+--------------------------------------------------
+local info = Instance.new("TextLabel", settingsTab)
+info.Size = UDim2.new(1,-20,0,120)
+info.Position = UDim2.fromOffset(10,10)
+info.TextWrapped = true
+info.TextYAlignment = Top
+info.TextColor3 = Color3.new(1,1,1)
+info.BackgroundTransparency = 1
+info.Font = Enum.Font.Gotham
+info.TextSize = 14
+
+--------------------------------------------------
+-- DRAG + LOCK
+--------------------------------------------------
+local dragging, locked = false, false
+main.InputBegan:Connect(function(i)
+	if locked then return end
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = true
+	end
+end)
+UserInputService.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		dragging = false
+	end
+end)
+UserInputService.InputChanged:Connect(function(i)
+	if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
+		main.Position += UDim2.fromOffset(i.Delta.X,i.Delta.Y)
+	end
+end)
+
+--------------------------------------------------
+-- FPS / PING UPDATE
+--------------------------------------------------
+RunService.RenderStepped:Connect(function(dt)
+	local fps = math.floor(1/dt)
+	local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+	info.Text =
+		"Name: "..LocalPlayer.Name..
+		"\nDisplay: "..LocalPlayer.DisplayName..
+		"\nFPS: "..fps..
+		"\nPing: "..ping
+end)
+
+--------------------------------------------------
+-- TAB SWITCH
+--------------------------------------------------
+btnMain.MouseButton1Click:Connect(function()
+	mainTab.Visible = true
+	settingsTab.Visible = false
+end)
+btnSettings.MouseButton1Click:Connect(function()
+	mainTab.Visible = false
+	settingsTab.Visible = true
+end)
+
+--------------------------------------------------
+-- HUB TOGGLE
+--------------------------------------------------
+toggleBtn.MouseButton1Click:Connect(function()
 	main.Visible = not main.Visible
 end)
 
--- Drag (lockable)
-do
-	local drag,start,pos
-	main.InputBegan:Connect(function(i)
-		if Config.Locked then return end
-		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-			drag = true
-			start = i.Position
-			pos = main.Position
-		end
-	end)
-	UIS.InputEnded:Connect(function(i)
-		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-			drag = false
-		end
-	end)
-	UIS.InputChanged:Connect(function(i)
-		if drag and not Config.Locked then
-			local delta = i.Position - start
-			main.Position = pos + UDim2.fromOffset(delta.X,delta.Y)
-		end
-	end)
-end
-
---------------------------------------------------
--- PLAYER ESP (YOUR SCRIPT, TOGGLE SAFE)
---------------------------------------------------
-
-local function removeHighlight(character)
-	local h = character:FindFirstChild("ToolHighlight")
-	if h then h:Destroy() end
-end
-
-local function getCharacterHighlight(character)
-	local highlight = character:FindFirstChild("ToolHighlight")
-	if not highlight then
-		highlight = Instance.new("Highlight")
-		highlight.Name = "ToolHighlight"
-		highlight.FillTransparency = 0.4
-		highlight.OutlineTransparency = 0
-		highlight.Parent = character
-	end
-	return highlight
-end
-
-local function updatePlayerHighlight(player)
-	if not Config.PlayerESP then
-		if player.Character then
-			removeHighlight(player.Character)
-		end
-		return
-	end
-
-	local character = player.Character
-	if not character then return end
-
-	local highlight = getCharacterHighlight(character)
-	local hasGun, hasKnife = false, false
-
-	for _,tool in ipairs(character:GetChildren()) do
-		if tool:IsA("Tool") then
-			if tool.Name == "Gun" then hasGun = true end
-			if tool.Name == "Knife" then hasKnife = true end
-		end
-	end
-
-	if player:FindFirstChild("Backpack") then
-		for _,tool in ipairs(player.Backpack:GetChildren()) do
-			if tool:IsA("Tool") then
-				if tool.Name == "Gun" then hasGun = true end
-				if tool.Name == "Knife" then hasKnife = true end
-			end
-		end
-	end
-
-	if hasGun then
-		highlight.FillColor = BLUE
-		highlight.OutlineColor = BLUE
-	elseif hasKnife then
-		highlight.FillColor = RED
-		highlight.OutlineColor = RED
-	else
-		highlight.FillColor = GREEN
-		highlight.OutlineColor = GREEN
-	end
-end
-
-local function setupPlayer(player)
-	player.CharacterAdded:Connect(function(char)
-		if Config.PlayerESP then
-			getCharacterHighlight(char)
-		end
-		updatePlayerHighlight(player)
-
-		char.ChildAdded:Connect(function()
-			updatePlayerHighlight(player)
-		end)
-		char.ChildRemoved:Connect(function()
-			updatePlayerHighlight(player)
-		end)
-	end)
-
-	if player:FindFirstChild("Backpack") then
-		player.Backpack.ChildAdded:Connect(function()
-			updatePlayerHighlight(player)
-		end)
-		player.Backpack.ChildRemoved:Connect(function()
-			updatePlayerHighlight(player)
-		end)
-	end
-end
-
-for _,p in ipairs(Players:GetPlayers()) do
-	setupPlayer(p)
-	if p.Character then
-		updatePlayerHighlight(p)
-	end
-end
-Players.PlayerAdded:Connect(setupPlayer)
-
---------------------------------------------------
--- DROPPED GUN ESP (PURPLE, STABLE)
---------------------------------------------------
-
-local function addGunHighlight(tool)
-	if not Config.GunESP then return end
-	if tool:FindFirstChild("GunHighlight") then return end
-
-	local highlight = Instance.new("Highlight")
-	highlight.Name = "GunHighlight"
-	highlight.FillColor = PURPLE
-	highlight.OutlineColor = PURPLE
-	highlight.FillTransparency = 0.3
-	highlight.Parent = tool
-end
-
-Workspace.ChildAdded:Connect(function(obj)
-	if obj:IsA("Tool") and obj.Name == "Gun" then
-		addGunHighlight(obj)
+UserInputService.InputBegan:Connect(function(i,gp)
+	if gp then return end
+	if i.KeyCode == Enum.KeyCode.RightShift then
+		main.Visible = not main.Visible
 	end
 end)
 
 --------------------------------------------------
--- SETTINGS (THEME + SCALE + LOCK)
+-- ESP LOGIC (YOUR FIXED VERSION)
 --------------------------------------------------
+local espEnabled = false
+local gunDropEnabled = false
 
--- Example theme buttons
-local function setTheme(bg, accent)
-	Config.Theme = bg
-	Config.Accent = accent
-	main.BackgroundColor3 = bg
-	toggle.BackgroundColor3 = accent
+local function updatePlayer(player)
+	if not espEnabled then return end
+	if not player.Character then return end
+
+	local h = player.Character:FindFirstChild("ToolHighlight") or Instance.new("Highlight",player.Character)
+	h.Name = "ToolHighlight"
+	h.FillTransparency = 0.4
+
+	local hasGun, hasKnife = false,false
+
+	for _,t in ipairs(player.Backpack:GetChildren()) do
+		if t.Name=="Gun" then hasGun=true end
+		if t.Name=="Knife" then hasKnife=true end
+	end
+
+	if hasGun then
+		h.FillColor = COLORS.BLUE
+	elseif hasKnife then
+		h.FillColor = COLORS.RED
+	else
+		h.FillColor = COLORS.GREEN
+	end
 end
 
--- You can add buttons like:
--- Dark, Purple, Red, Blue
--- Call setTheme(Color3.fromRGB(...), Color3.fromRGB(...))
+RunService.Heartbeat:Connect(function()
+	if not espEnabled then return end
+	for _,p in ipairs(Players:GetPlayers()) do
+		if p~=LocalPlayer then
+			updatePlayer(p)
+		end
+	end
+end)
 
 --------------------------------------------------
--- WHY THIS WILL NOT GLITCH ANYMORE
+-- BUTTON BINDS
 --------------------------------------------------
--- ✔ No Heartbeat ESP spam
--- ✔ CharacterAdded rebinding
--- ✔ Backpack event-driven updates
--- ✔ Highlights recreated after death
--- ✔ Toggles ACTUALLY remove highlights
--- ✔ MM2 round-safe
+espBtn.MouseButton1Click:Connect(function()
+	espEnabled = not espEnabled
+end)
+
+gunDropBtn.MouseButton1Click:Connect(function()
+	gunDropEnabled = not gunDropEnabled
+end)
+
+Workspace.ChildAdded:Connect(function(obj)
+	if gunDropEnabled and obj:IsA("Tool") and obj.Name=="Gun" then
+		local h = Instance.new("Highlight",obj)
+		h.FillColor = COLORS.PURPLE
+	end
+end)
