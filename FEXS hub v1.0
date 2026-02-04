@@ -9,34 +9,46 @@ local player = Players.LocalPlayer
 
 --// CONFIG
 local Config = {
-	Color = Color3.fromRGB(22,22,22),
-	Accent = Color3.fromRGB(255,60,60),
+	Theme = Color3.fromRGB(25,25,25),
+	Accent = Color3.fromRGB(170, 0, 255),
 	Scale = 1,
 	PlayerESP = false,
-	DroppedGunESP = false
+	GunESP = false,
+	Locked = false
 }
 
 --// GUI
-local gui = Instance.new("ScreenGui")
+local gui = Instance.new("ScreenGui", player.PlayerGui)
 gui.Name = "M.HUB[MM2]"
 gui.ResetOnSpawn = false
-gui.Parent = player.PlayerGui
+
+--// TOGGLE BUTTON
+local toggle = Instance.new("TextButton", gui)
+toggle.Size = UDim2.fromScale(0.08,0.06)
+toggle.Position = UDim2.fromScale(0.02,0.5)
+toggle.Text = "M.HUB"
+toggle.TextScaled = true
+toggle.BackgroundColor3 = Config.Accent
+toggle.TextColor3 = Color3.new(1,1,1)
+toggle.BorderSizePixel = 0
+Instance.new("UICorner", toggle)
 
 --// MAIN FRAME
 local main = Instance.new("Frame", gui)
 main.Size = UDim2.fromScale(0.42,0.52)
 main.Position = UDim2.fromScale(0.5,0.5)
 main.AnchorPoint = Vector2.new(0.5,0.5)
-main.BackgroundColor3 = Config.Color
+main.BackgroundColor3 = Config.Theme
 Instance.new("UICorner", main).CornerRadius = UDim.new(0,18)
 
-local uiScale = Instance.new("UIScale", main)
-uiScale.Scale = Config.Scale
+local scale = Instance.new("UIScale", main)
+scale.Scale = Config.Scale
 
---// DRAG
+--// DRAG (LOCKABLE)
 do
 	local drag, start, pos
 	main.InputBegan:Connect(function(i)
+		if Config.Locked then return end
 		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
 			drag = true
 			start = i.Position
@@ -49,19 +61,23 @@ do
 		end
 	end)
 	UIS.InputChanged:Connect(function(i)
-		if drag then
+		if drag and not Config.Locked then
 			local delta = i.Position - start
 			main.Position = pos + UDim2.fromOffset(delta.X, delta.Y)
 		end
 	end)
 end
 
+toggle.MouseButton1Click:Connect(function()
+	main.Visible = not main.Visible
+end)
+
 --// TITLE
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.fromScale(1,0.1)
-title.BackgroundTransparency = 1
 title.Text = "M.HUB [MM2]"
 title.TextScaled = true
+title.BackgroundTransparency = 1
 title.TextColor3 = Color3.new(1,1,1)
 
 --// SIDEBAR
@@ -69,7 +85,7 @@ local side = Instance.new("Frame", main)
 side.Position = UDim2.fromScale(0,0.1)
 side.Size = UDim2.fromScale(0.18,0.9)
 side.BackgroundColor3 = Config.Accent
-Instance.new("UICorner", side).CornerRadius = UDim.new(0,16)
+Instance.new("UICorner", side)
 
 --// CONTENT
 local content = Instance.new("Frame", main)
@@ -77,16 +93,15 @@ content.Position = UDim2.fromScale(0.2,0.1)
 content.Size = UDim2.fromScale(0.78,0.9)
 content.BackgroundTransparency = 1
 
---// TABS
 local mainTab = Instance.new("Frame", content)
 mainTab.Size = UDim2.fromScale(1,1)
 mainTab.BackgroundTransparency = 1
 
 local settingsTab = Instance.new("ScrollingFrame", content)
 settingsTab.Size = UDim2.fromScale(1,1)
-settingsTab.CanvasSize = UDim2.fromScale(0,1.6)
-settingsTab.ScrollBarImageTransparency = 0.4
+settingsTab.CanvasSize = UDim2.fromScale(0,2)
 settingsTab.Visible = false
+settingsTab.ScrollBarImageTransparency = 0.4
 settingsTab.BackgroundTransparency = 1
 
 --// SIDEBAR BUTTONS
@@ -96,9 +111,9 @@ local function sideBtn(text,y,cb)
 	b.Position = UDim2.fromScale(0.05,y)
 	b.Text = text
 	b.TextScaled = true
+	b.BackgroundTransparency = 0.3
+	b.BackgroundColor3 = Color3.new(0,0,0)
 	b.TextColor3 = Color3.new(1,1,1)
-	b.BackgroundColor3 = Color3.fromRGB(0,0,0)
-	b.BackgroundTransparency = 0.25
 	Instance.new("UICorner", b)
 	b.MouseButton1Click:Connect(cb)
 end
@@ -113,46 +128,46 @@ sideBtn("SETTINGS",0.22,function()
 	settingsTab.Visible = true
 end)
 
---// MAIN TAB BUTTONS
-local function mainButton(text,y)
+--// MAIN BUTTONS
+local function mainBtn(text,y)
 	local b = Instance.new("TextButton", mainTab)
 	b.Size = UDim2.fromScale(0.9,0.15)
 	b.Position = UDim2.fromScale(0.05,y)
 	b.Text = text
 	b.TextScaled = true
-	b.TextColor3 = Color3.new(1,1,1)
 	b.BackgroundColor3 = Config.Accent
+	b.TextColor3 = Color3.new(1,1,1)
 	Instance.new("UICorner", b)
 	return b
 end
 
-local espBtn = mainButton("PLAYER ESP [ OFF ]",0.1)
-local gunEspBtn = mainButton("DROPPED GUN ESP [ OFF ]",0.32)
+local playerEspBtn = mainBtn("PLAYER ESP [ OFF ]",0.1)
+local gunEspBtn = mainBtn("GUN MODEL ESP [ OFF ]",0.32)
 
---// PLAYER ESP
-local PlayerHighlights = {}
+--// PLAYER ESP (PERMA FIXED)
+local highlights = {}
 
-local function hasTool(plr,name)
+local function has(plr,name)
 	if plr.Character and plr.Character:FindFirstChild(name) then return true end
 	if plr:FindFirstChild("Backpack") and plr.Backpack:FindFirstChild(name) then return true end
 	return false
 end
 
-local function updatePlayerESP(plr)
+local function applyESP(plr)
 	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
-	if not PlayerHighlights[plr] then
+	if not highlights[plr] then
 		local h = Instance.new("Highlight")
-		h.FillTransparency = 0.45
+		h.FillTransparency = 0.4
 		h.Parent = plr.Character
-		PlayerHighlights[plr] = h
+		highlights[plr] = h
 	end
 
-	if hasTool(plr,"Knife") then
-		PlayerHighlights[plr].FillColor = Color3.fromRGB(255,0,0)
-	elseif hasTool(plr,"Gun") then
-		PlayerHighlights[plr].FillColor = Color3.fromRGB(0,120,255)
+	if has(plr,"Knife") then
+		highlights[plr].FillColor = Color3.fromRGB(255,0,0)
+	elseif has(plr,"Gun") then
+		highlights[plr].FillColor = Color3.fromRGB(0,120,255)
 	else
-		PlayerHighlights[plr].FillColor = Color3.fromRGB(0,255,0)
+		highlights[plr].FillColor = Color3.fromRGB(0,255,0)
 	end
 end
 
@@ -160,121 +175,92 @@ RunService.Heartbeat:Connect(function()
 	if not Config.PlayerESP then return end
 	for _,plr in ipairs(Players:GetPlayers()) do
 		if plr ~= player then
-			updatePlayerESP(plr)
+			applyESP(plr)
 		end
 	end
 end)
 
-espBtn.MouseButton1Click:Connect(function()
+playerEspBtn.MouseButton1Click:Connect(function()
 	Config.PlayerESP = not Config.PlayerESP
-	espBtn.Text = Config.PlayerESP and "PLAYER ESP [ ON ]" or "PLAYER ESP [ OFF ]"
-	if not Config.PlayerESP then
-		for _,h in pairs(PlayerHighlights) do h:Destroy() end
-		table.clear(PlayerHighlights)
-	end
+	playerEspBtn.Text = Config.PlayerESP and "PLAYER ESP [ ON ]" or "PLAYER ESP [ OFF ]"
 end)
 
---// DROPPED GUN ESP
-local GunESP = {}
-local hue = 0
+--// GUN MODEL ESP (PURPLE ALWAYS)
+local gunESPObjects = {}
 
-local function createGunESP(tool)
-	if GunESP[tool] then return end
-
-	local h = Instance.new("Highlight")
-	h.FillTransparency = 0.25
-	h.OutlineTransparency = 0
-	h.Parent = tool
-
-	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.fromScale(4,1)
-	bb.StudsOffset = Vector3.new(0,2.5,0)
-	bb.AlwaysOnTop = true
-	bb.Parent = tool
-
-	local txt = Instance.new("TextLabel", bb)
-	txt.Size = UDim2.fromScale(1,1)
-	txt.BackgroundTransparency = 1
-	txt.Text = "GUN HERE"
-	txt.TextScaled = true
-	txt.Font = Enum.Font.GothamBold
-	txt.TextStrokeTransparency = 0
-
-	GunESP[tool] = {Highlight=h, Text=txt}
-end
-
-local function removeGunESP(tool)
-	if GunESP[tool] then
-		for _,v in pairs(GunESP[tool]) do v:Destroy() end
-		GunESP[tool] = nil
-	end
-end
-
-RunService.RenderStepped:Connect(function(dt)
-	if not Config.DroppedGunESP then return end
-	hue = (hue + dt*0.3) % 1
-	local c = Color3.fromHSV(hue,1,1)
-
-	for tool,data in pairs(GunESP) do
-		if tool and tool.Parent then
-			data.Highlight.FillColor = c
-			data.Text.TextColor3 = c
-		else
-			removeGunESP(tool)
-		end
-	end
-end)
-
-RunService.Heartbeat:Connect(function()
-	if not Config.DroppedGunESP then return end
+local function updateGunESP()
+	if not Config.GunESP then return end
 	for _,obj in ipairs(workspace:GetDescendants()) do
-		if obj:IsA("Tool") and obj.Name == "Gun" and obj.Parent == workspace then
-			createGunESP(obj)
+		if obj:IsA("Model") and obj.Name == "Gun" and not gunESPObjects[obj] then
+			local h = Instance.new("Highlight", obj)
+			h.FillColor = Color3.fromRGB(170,0,255)
+			h.FillTransparency = 0.3
+
+			local bb = Instance.new("BillboardGui", obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart"))
+			bb.Size = UDim2.fromScale(4,1)
+			bb.StudsOffset = Vector3.new(0,3,0)
+			bb.AlwaysOnTop = true
+
+			local t = Instance.new("TextLabel", bb)
+			t.Size = UDim2.fromScale(1,1)
+			t.BackgroundTransparency = 1
+			t.Text = "GUN HERE"
+			t.TextScaled = true
+			t.TextColor3 = Color3.fromRGB(170,0,255)
+			t.TextStrokeTransparency = 0
+
+			gunESPObjects[obj] = {h,bb}
 		end
 	end
-end)
+end
+
+RunService.Heartbeat:Connect(updateGunESP)
 
 gunEspBtn.MouseButton1Click:Connect(function()
-	Config.DroppedGunESP = not Config.DroppedGunESP
-	gunEspBtn.Text = Config.DroppedGunESP and "DROPPED GUN ESP [ ON ]" or "DROPPED GUN ESP [ OFF ]"
-	if not Config.DroppedGunESP then
-		for tool,_ in pairs(GunESP) do removeGunESP(tool) end
-	end
+	Config.GunESP = not Config.GunESP
+	gunEspBtn.Text = Config.GunESP and "GUN MODEL ESP [ ON ]" or "GUN MODEL ESP [ OFF ]"
 end)
 
---// SETTINGS TAB CONTENT
+--// SETTINGS CONTENT
 local y = 0.03
-local function label(text,h)
+local function label(txt)
 	local l = Instance.new("TextLabel", settingsTab)
 	l.Position = UDim2.fromScale(0.05,y)
-	l.Size = UDim2.fromScale(0.9,h or 0.08)
-	l.Text = text
+	l.Size = UDim2.fromScale(0.9,0.08)
+	l.Text = txt
 	l.TextScaled = true
-	l.TextColor3 = Color3.new(1,1,1)
 	l.BackgroundTransparency = 1
-	y += (h or 0.08) + 0.02
+	l.TextColor3 = Color3.new(1,1,1)
+	y += 0.1
 	return l
 end
 
-local pfp = Instance.new("ImageLabel", settingsTab)
-pfp.Size = UDim2.fromScale(0.25,0.18)
-pfp.Position = UDim2.fromScale(0.05,y)
-pfp.BackgroundTransparency = 1
-pfp.Image = Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size420x420)
-y += 0.2
-
-label(player.Name.." ("..player.DisplayName..")")
+label("User: "..player.Name.." ("..player.DisplayName..")")
 label("Account Age: "..player.AccountAge.." days")
 
-local statsLabel = label("FPS: 0 | Ping: 0",0.1)
+local statsLabel = label("FPS: 0 | Ping: 0")
 
 local frames,last = 0,tick()
 RunService.RenderStepped:Connect(function()
 	frames += 1
 	if tick()-last >= 1 then
-		local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-		statsLabel.Text = "FPS: "..frames.." | Ping: "..ping.." ms"
+		statsLabel.Text = "FPS: "..frames.." | Ping: "..math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
 		frames = 0
 		last = tick()
 	end
+end)
+
+-- LOCK BUTTON
+local lockBtn = Instance.new("TextButton", settingsTab)
+lockBtn.Position = UDim2.fromScale(0.05,y)
+lockBtn.Size = UDim2.fromScale(0.9,0.1)
+lockBtn.Text = "LOCK GUI [ OFF ]"
+lockBtn.TextScaled = true
+lockBtn.BackgroundColor3 = Config.Accent
+lockBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", lockBtn)
+
+lockBtn.MouseButton1Click:Connect(function()
+	Config.Locked = not Config.Locked
+	lockBtn.Text = Config.Locked and "LOCK GUI [ ON ]" or "LOCK GUI [ OFF ]"
 end)
