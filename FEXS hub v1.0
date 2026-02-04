@@ -1,239 +1,238 @@
---------------------------------------------------
--- SERVICES111
---------------------------------------------------
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Stats = game:GetService("Stats")
-local Workspace = game:GetService("Workspace")
-local LocalPlayer = Players.LocalPlayer
+-- M.HUB FOR YVH
 
---------------------------------------------------
--- COLORS
---------------------------------------------------
-local COLORS = {
-	GREEN = Color3.fromRGB(0,255,0),
-	BLUE = Color3.fromRGB(0,170,255),
-	RED = Color3.fromRGB(255,0,0),
-	PURPLE = Color3.fromRGB(170,0,255),
-	THEME = Color3.fromRGB(25,25,25)
-}
-
---------------------------------------------------
--- GUI CREATION
---------------------------------------------------
+local player = game.Players.LocalPlayer
 local gui = Instance.new("ScreenGui")
-gui.Name = "MHUB_MM2"
+gui.Name = "mHUB_YouVsHomer"
+gui.Parent = player:WaitForChild("PlayerGui")
 gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
--- Toggle Button
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.fromOffset(110,35)
-toggleBtn.Position = UDim2.fromOffset(20,200)
-toggleBtn.Text = "M.HUB"
-toggleBtn.BackgroundColor3 = COLORS.THEME
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.BorderSizePixel = 0
-Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0,10)
+-- Main Frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 300, 0, 200)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -100)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = gui
 
--- Main Window
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.fromOffset(420,320)
-main.Position = UDim2.fromScale(0.5,0.5)
-main.AnchorPoint = Vector2.new(0.5,0.5)
-main.BackgroundColor3 = COLORS.THEME
-main.Visible = true
-main.BorderSizePixel = 0
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,14)
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+titleBar.Parent = mainFrame
 
--- Title
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1,0,0,40)
-title.Text = "M.HUB [MM2]"
-title.TextColor3 = Color3.new(1,1,1)
-title.BackgroundTransparency = 1
-title.Font = Enum.Font.GothamBold
-title.TextSize = 18
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 1, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "m.HUB [You Vs Homer]"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextSize = 18
+titleLabel.Parent = titleBar
 
---------------------------------------------------
--- TABS
---------------------------------------------------
-local tabs = Instance.new("Frame", main)
-tabs.Position = UDim2.fromOffset(0,40)
-tabs.Size = UDim2.new(1,0,1,-40)
-tabs.BackgroundTransparency = 1
+-- Tab Buttons
+local tabsFrame = Instance.new("Frame")
+tabsFrame.Name = "TabsFrame"
+tabsFrame.Size = UDim2.new(1, 0, 0, 30)
+tabsFrame.Position = UDim2.new(0, 0, 0, 30)
+tabsFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+tabsFrame.Parent = mainFrame
 
-local mainTab = Instance.new("ScrollingFrame", tabs)
-mainTab.Size = UDim2.fromScale(1,1)
-mainTab.CanvasSize = UDim2.fromOffset(0,300)
-mainTab.ScrollBarImageTransparency = 0.5
-mainTab.BackgroundTransparency = 1
+local mainTabButton = Instance.new("TextButton")
+mainTabButton.Size = UDim2.new(0.5, 0, 1, 0)
+mainTabButton.Text = "Main"
+mainTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+mainTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+mainTabButton.Parent = tabsFrame
 
-local settingsTab = mainTab:Clone()
-settingsTab.Parent = tabs
-settingsTab.Visible = false
+local settingsTabButton = Instance.new("TextButton")
+settingsTabButton.Size = UDim2.new(0.5, 0, 1, 0)
+settingsTabButton.Position = UDim2.new(0.5, 0, 0, 0)
+settingsTabButton.Text = "Settings"
+settingsTabButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+settingsTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+settingsTabButton.Parent = tabsFrame
 
---------------------------------------------------
--- TAB BUTTONS
---------------------------------------------------
-local btnMain = Instance.new("TextButton", main)
-btnMain.Text = "MAIN"
-btnMain.Size = UDim2.fromOffset(60,30)
-btnMain.Position = UDim2.fromOffset(10,5)
+-- Content Frames
+local mainContent = Instance.new("Frame")
+mainContent.Name = "MainContent"
+mainContent.Size = UDim2.new(1, 0, 1, -60)
+mainContent.Position = UDim2.new(0, 0, 0, 60)
+mainContent.BackgroundTransparency = 1
+mainContent.Visible = true
+mainContent.Parent = mainFrame
 
-local btnSettings = btnMain:Clone()
-btnSettings.Text = "SETTINGS"
-btnSettings.Position = UDim2.fromOffset(80,5)
-btnSettings.Size = UDim2.fromOffset(90,30)
+local settingsContent = Instance.new("Frame")
+settingsContent.Name = "SettingsContent"
+settingsContent.Size = UDim2.new(1, 0, 1, -60)
+settingsContent.Position = UDim2.new(0, 0, 0, 60)
+settingsContent.BackgroundTransparency = 1
+settingsContent.Visible = false
+settingsContent.Parent = mainFrame
 
---------------------------------------------------
--- BUTTON CREATOR
---------------------------------------------------
-local function createButton(parent,text,y)
-	local b = Instance.new("TextButton", parent)
-	b.Size = UDim2.new(1,-20,0,40)
-	b.Position = UDim2.fromOffset(10,y)
-	b.Text = text
-	b.BackgroundColor3 = Color3.fromRGB(35,35,35)
-	b.TextColor3 = Color3.new(1,1,1)
-	b.BorderSizePixel = 0
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
-	return b
-end
-
---------------------------------------------------
--- MAIN TAB BUTTONS
---------------------------------------------------
-local espBtn = createButton(mainTab,"ESP [Players]",10)
-local gunDropBtn = createButton(mainTab,"Dropped Gun ESP",60)
-
---------------------------------------------------
--- SETTINGS INFO
---------------------------------------------------
-local info = Instance.new("TextLabel", settingsTab)
-info.Size = UDim2.new(1,-20,0,120)
-info.Position = UDim2.fromOffset(10,10)
-info.TextWrapped = true
-info.TextYAlignment = Top
-info.TextColor3 = Color3.new(1,1,1)
-info.BackgroundTransparency = 1
-info.Font = Enum.Font.Gotham
-info.TextSize = 14
-
---------------------------------------------------
--- DRAG + LOCK
---------------------------------------------------
-local dragging, locked = false, false
-main.InputBegan:Connect(function(i)
-	if locked then return end
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = true
-	end
-end)
-UserInputService.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 then
-		dragging = false
-	end
-end)
-UserInputService.InputChanged:Connect(function(i)
-	if dragging and i.UserInputType == Enum.UserInputType.MouseMovement then
-		main.Position += UDim2.fromOffset(i.Delta.X,i.Delta.Y)
-	end
+-- Tab Switching
+mainTabButton.MouseButton1Click:Connect(function()
+    mainContent.Visible = true
+    settingsContent.Visible = false
+    mainTabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    settingsTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 end)
 
---------------------------------------------------
--- FPS / PING UPDATE
---------------------------------------------------
-RunService.RenderStepped:Connect(function(dt)
-	local fps = math.floor(1/dt)
-	local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-	info.Text =
-		"Name: "..LocalPlayer.Name..
-		"\nDisplay: "..LocalPlayer.DisplayName..
-		"\nFPS: "..fps..
-		"\nPing: "..ping
+settingsTabButton.MouseButton1Click:Connect(function()
+    mainContent.Visible = false
+    settingsContent.Visible = true
+    mainTabButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    settingsTabButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 end)
 
---------------------------------------------------
--- TAB SWITCH
---------------------------------------------------
-btnMain.MouseButton1Click:Connect(function()
-	mainTab.Visible = true
-	settingsTab.Visible = false
-end)
-btnSettings.MouseButton1Click:Connect(function()
-	mainTab.Visible = false
-	settingsTab.Visible = true
+-- Settings Content
+local lockMovementToggle = Instance.new("TextButton")
+lockMovementToggle.Size = UDim2.new(1, 0, 0, 30)
+lockMovementToggle.Text = "Lock Movement: Off"
+lockMovementToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+lockMovementToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+lockMovementToggle.Parent = settingsContent
+
+local isLocked = false
+lockMovementToggle.MouseButton1Click:Connect(function()
+    isLocked = not isLocked
+    mainFrame.Draggable = not isLocked
+    lockMovementToggle.Text = "Lock Movement: " .. (isLocked and "On" or "Off")
 end)
 
---------------------------------------------------
--- HUB TOGGLE
---------------------------------------------------
-toggleBtn.MouseButton1Click:Connect(function()
-	main.Visible = not main.Visible
+-- Account Info
+local accountInfo = Instance.new("TextLabel")
+accountInfo.Size = UDim2.new(1, 0, 0, 90)
+accountInfo.Position = UDim2.new(0, 0, 0, 30)
+accountInfo.BackgroundTransparency = 1
+accountInfo.TextColor3 = Color3.fromRGB(255, 255, 255)
+accountInfo.Text = "Username: " .. player.Name .. "\nDisplay Name: " .. player.DisplayName .. "\nAccount Age: " .. player.AccountAge .. " days"
+accountInfo.TextWrapped = true
+accountInfo.Parent = settingsContent
+
+-- Color Change (Simple example: Change text color)
+local colorChangeLabel = Instance.new("TextLabel")
+colorChangeLabel.Size = UDim2.new(1, 0, 0, 30)
+colorChangeLabel.Position = UDim2.new(0, 0, 0, 120)
+colorChangeLabel.BackgroundTransparency = 1
+colorChangeLabel.Text = "Change GUI Text Color:"
+colorChangeLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+colorChangeLabel.Parent = settingsContent
+
+local colorInput = Instance.new("TextBox")
+colorInput.Size = UDim2.new(1, 0, 0, 30)
+colorInput.Position = UDim2.new(0, 0, 0, 150)
+colorInput.Text = "255,255,255"  -- RGB
+colorInput.Parent = settingsContent
+
+colorInput.FocusLost:Connect(function()
+    local r, g, b = colorInput.Text:match("(%d+),(%d+),(%d+)")
+    if r and g and b then
+        local newColor = Color3.fromRGB(tonumber(r), tonumber(g), tonumber(b))
+        -- Apply to all text elements (example)
+        titleLabel.TextColor3 = newColor
+        mainTabButton.TextColor3 = newColor
+        settingsTabButton.TextColor3 = newColor
+        lockMovementToggle.TextColor3 = newColor
+        accountInfo.TextColor3 = newColor
+        colorChangeLabel.TextColor3 = newColor
+        -- Add more as needed
+    end
 end)
 
-UserInputService.InputBegan:Connect(function(i,gp)
-	if gp then return end
-	if i.KeyCode == Enum.KeyCode.RightShift then
-		main.Visible = not main.Visible
-	end
-end)
+-- Main Content: ESP Toggle
+local espToggle = Instance.new("TextButton")
+espToggle.Size = UDim2.new(1, 0, 0, 30)
+espToggle.Text = "ESP [Homer and Bart's]: Off"
+espToggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+espToggle.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+espToggle.Parent = mainContent
 
---------------------------------------------------
--- ESP LOGIC (YOUR FIXED VERSION)
---------------------------------------------------
 local espEnabled = false
-local gunDropEnabled = false
+local espConnections = {}
+local espHighlights = {}
+local espBillboards = {}
 
-local function updatePlayer(player)
-	if not espEnabled then return end
-	if not player.Character then return end
-
-	local h = player.Character:FindFirstChild("ToolHighlight") or Instance.new("Highlight",player.Character)
-	h.Name = "ToolHighlight"
-	h.FillTransparency = 0.4
-
-	local hasGun, hasKnife = false,false
-
-	for _,t in ipairs(player.Backpack:GetChildren()) do
-		if t.Name=="Gun" then hasGun=true end
-		if t.Name=="Knife" then hasKnife=true end
-	end
-
-	if hasGun then
-		h.FillColor = COLORS.BLUE
-	elseif hasKnife then
-		h.FillColor = COLORS.RED
-	else
-		h.FillColor = COLORS.GREEN
-	end
+local function updateESP()
+    -- Clear existing ESP
+    for _, highlight in pairs(espHighlights) do
+        highlight:Destroy()
+    end
+    for _, billboard in pairs(espBillboards) do
+        billboard:Destroy()
+    end
+    espHighlights = {}
+    espBillboards = {}
+    
+    if not espEnabled then return end
+    
+    for _, plr in pairs(game.Players:GetPlayers()) do
+        if plr ~= player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local team = plr.Team and plr.Team.Name or ""  -- Assume Team.Name is "Bart", "Homer", or role
+            local role = plr:FindFirstChild("Role") and plr.Role.Value or team  -- If there's a Role StringValue, use that
+            local color = Color3.fromRGB(255, 0, 0)  -- Default red
+            local text = "HOMER"
+            
+            if role == "Bart" then
+                color = Color3.fromRGB(0, 255, 0)
+                text = "BART"
+            elseif role == "Homer" then
+                color = Color3.fromRGB(255, 0, 0)
+                text = "HOMER"
+            elseif role == "Dead" then
+                text = "DEAD"
+                color = Color3.fromRGB(128, 128, 128)  -- Gray for dead
+            end
+            
+            -- Highlight
+            local highlight = Instance.new("Highlight")
+            highlight.OutlineColor = color
+            highlight.FillTransparency = 1  -- No fill, just outline
+            highlight.Parent = plr.Character
+            table.insert(espHighlights, highlight)
+            
+            -- Billboard Text
+            local billboard = Instance.new("BillboardGui")
+            billboard.Size = UDim2.new(0, 100, 0, 50)
+            billboard.AlwaysOnTop = true
+            billboard.Adornee = plr.Character.Head
+            local textLabel = Instance.new("TextLabel")
+            textLabel.Size = UDim2.new(1, 0, 1, 0)
+            textLabel.BackgroundTransparency = 1
+            textLabel.Text = text
+            textLabel.TextColor3 = color
+            textLabel.Font = Enum.Font.SourceSansBold
+            textLabel.TextSize = 14
+            textLabel.Parent = billboard
+            billboard.Parent = plr.Character.Head
+            table.insert(espBillboards, billboard)
+        end
+    end
 end
 
-RunService.Heartbeat:Connect(function()
-	if not espEnabled then return end
-	for _,p in ipairs(Players:GetPlayers()) do
-		if p~=LocalPlayer then
-			updatePlayer(p)
-		end
-	end
+espToggle.MouseButton1Click:Connect(function()
+    espEnabled = not espEnabled
+    espToggle.Text = "ESP [Homer and Bart's]: " .. (espEnabled and "On" or "Off")
+    if espEnabled then
+        updateESP()  -- Initial update
+        local connection = game:GetService("RunService").Heartbeat:Connect(function()
+            -- Refresh every second (approx, using Heartbeat for efficiency, but throttle)
+            wait(1)  -- Simple wait for 1 second
+            updateESP()
+        end)
+        table.insert(espConnections, connection)
+    else
+        updateESP()  -- Clears ESP
+        for _, conn in pairs(espConnections) do
+            conn:Disconnect()
+        end
+        espConnections = {}
+    end
 end)
 
---------------------------------------------------
--- BUTTON BINDS
---------------------------------------------------
-espBtn.MouseButton1Click:Connect(function()
-	espEnabled = not espEnabled
-end)
-
-gunDropBtn.MouseButton1Click:Connect(function()
-	gunDropEnabled = not gunDropEnabled
-end)
-
-Workspace.ChildAdded:Connect(function(obj)
-	if gunDropEnabled and obj:IsA("Tool") and obj.Name=="Gun" then
-		local h = Instance.new("Highlight",obj)
-		h.FillColor = COLORS.PURPLE
-	end
-end)
+-- Handle team changes (Players added/removed, but since refresh every sec, it handles leaves/joins/changes)
+game.Players.PlayerAdded:Connect(updateESP)
+game.Players.PlayerRemoving:Connect(updateESP)
