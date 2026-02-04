@@ -1,250 +1,336 @@
--- m.HUB [You Vs Homer]
--- LocalScript
+--// M.Hub YVH - FULL RELEASE
 
 local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
 
--------------------------------------------------
--- GUI SETUP
--------------------------------------------------
+local LP = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+-- CONFIG
+local CLICK_SOUND_ID = "rbxassetid://72208252449982"
+
+local ROLE_COLORS = {
+	Homer = Color3.fromRGB(255, 70, 70),
+	Bart = Color3.fromRGB(70, 255, 70)
+}
+
+-- ROLE CHECK (CHANGE THIS IF NEEDED)
+local function getRole(plr)
+	if plr.Team then
+		return plr.Team.Name
+	end
+	return nil
+end
+
+-- CLICK SOUND
+local function click(parent)
+	local s = Instance.new("Sound")
+	s.SoundId = CLICK_SOUND_ID
+	s.Volume = 1
+	s.Parent = parent
+	s:Play()
+	game.Debris:AddItem(s, 2)
+end
+
+-- GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "mHUB"
+gui.Name = "M.Hub YVH"
 gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+gui.Parent = LP.PlayerGui
 
+-- MAIN FRAME
 local main = Instance.new("Frame", gui)
 main.Size = UDim2.fromScale(0.45, 0.55)
 main.Position = UDim2.fromScale(0.275, 0.2)
 main.BackgroundColor3 = Color3.fromRGB(25,25,25)
-main.BorderSizePixel = 0
 main.Active = true
 main.Draggable = true
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,14)
 
-local corner = Instance.new("UICorner", main)
-corner.CornerRadius = UDim.new(0,12)
-
--------------------------------------------------
--- TOP BAR
--------------------------------------------------
+-- TITLE
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.new(1,0,0,40)
-title.BackgroundTransparency = 1
-title.Text = "m.HUB [You Vs Homer]"
+title.Text = "M.Hub YVH"
+title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 title.TextSize = 18
-title.TextColor3 = Color3.fromRGB(255,255,255)
+title.BackgroundTransparency = 1
 
--------------------------------------------------
 -- TABS
--------------------------------------------------
-local tabHolder = Instance.new("Frame", main)
-tabHolder.Position = UDim2.fromOffset(10,50)
-tabHolder.Size = UDim2.new(0,120,1,-60)
-tabHolder.BackgroundTransparency = 1
+local tabFrame = Instance.new("Frame", main)
+tabFrame.Position = UDim2.fromOffset(10,50)
+tabFrame.Size = UDim2.new(1,-20,0,40)
+tabFrame.BackgroundTransparency = 1
 
-local function makeTab(text, y)
-	local b = Instance.new("TextButton", tabHolder)
-	b.Size = UDim2.new(1,0,0,40)
-	b.Position = UDim2.fromOffset(0,y)
+local function makeTab(text, x)
+	local b = Instance.new("TextButton", tabFrame)
 	b.Text = text
-	b.Font = Enum.Font.Gotham
+	b.Size = UDim2.fromOffset(140,36)
+	b.Position = UDim2.fromOffset(x,0)
+	b.Font = Enum.Font.GothamBold
 	b.TextSize = 14
-	b.BackgroundColor3 = Color3.fromRGB(35,35,35)
-	b.TextColor3 = Color3.fromRGB(255,255,255)
+	b.TextColor3 = Color3.new(1,1,1)
+	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
 	Instance.new("UICorner", b)
 	return b
 end
 
 local mainTab = makeTab("Main",0)
-local settingsTab = makeTab("Settings",50)
+local settingsTab = makeTab("Settings",150)
 
--------------------------------------------------
 -- PAGES
--------------------------------------------------
-local pages = Instance.new("Frame", main)
-pages.Position = UDim2.fromOffset(140,50)
-pages.Size = UDim2.new(1,-150,1,-60)
-pages.BackgroundTransparency = 1
+local pages = Instance.new("Folder", main)
 
-local MainPage = Instance.new("Frame", pages)
-MainPage.Size = UDim2.fromScale(1,1)
-MainPage.BackgroundTransparency = 1
+local function makePage()
+	local f = Instance.new("Frame", pages)
+	f.Size = UDim2.new(1,-20,1,-110)
+	f.Position = UDim2.fromOffset(10,100)
+	f.BackgroundTransparency = 1
+	f.Visible = false
+	return f
+end
 
-local SettingsPage = MainPage:Clone()
-SettingsPage.Parent = pages
-SettingsPage.Visible = false
+local mainPage = makePage()
+local settingsPage = makePage()
+mainPage.Visible = true
 
--------------------------------------------------
--- TAB SWITCHING
--------------------------------------------------
+local function switchPage(p)
+	for _,v in pairs(pages:GetChildren()) do
+		v.Visible = false
+	end
+	p.Visible = true
+end
+
 mainTab.MouseButton1Click:Connect(function()
-	MainPage.Visible = true
-	SettingsPage.Visible = false
+	click(mainTab)
+	switchPage(mainPage)
 end)
 
 settingsTab.MouseButton1Click:Connect(function()
-	MainPage.Visible = false
-	SettingsPage.Visible = true
+	click(settingsTab)
+	switchPage(settingsPage)
 end)
 
--------------------------------------------------
--- MAIN TAB CONTENT
--------------------------------------------------
-local espToggle = Instance.new("TextButton", MainPage)
-espToggle.Size = UDim2.fromOffset(220,45)
-espToggle.Position = UDim2.fromOffset(10,10)
-espToggle.Text = "ESP [Homer & Bart] : OFF"
-espToggle.Font = Enum.Font.GothamBold
-espToggle.TextSize = 14
-espToggle.BackgroundColor3 = Color3.fromRGB(60,60,60)
-espToggle.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", espToggle)
-
--------------------------------------------------
--- SETTINGS CONTENT
--------------------------------------------------
-local info = Instance.new("TextLabel", SettingsPage)
-info.Size = UDim2.fromOffset(300,80)
-info.Position = UDim2.fromOffset(10,10)
-info.TextWrapped = true
-info.TextXAlignment = Left
-info.TextYAlignment = Top
-info.Font = Enum.Font.Gotham
-info.TextSize = 14
-info.TextColor3 = Color3.new(1,1,1)
-info.BackgroundTransparency = 1
-info.Text =
-	"Username: "..LocalPlayer.Name..
-	"\nDisplay Name: "..LocalPlayer.DisplayName..
-	"\nAccount Age: "..LocalPlayer.AccountAge.." days"
-
-local avatar = Instance.new("ImageLabel", SettingsPage)
-avatar.Size = UDim2.fromOffset(80,80)
-avatar.Position = UDim2.fromOffset(320,10)
-avatar.BackgroundTransparency = 1
-avatar.Image = Players:GetUserThumbnailAsync(
-	LocalPlayer.UserId,
-	Enum.ThumbnailType.HeadShot,
-	Enum.ThumbnailSize.Size420x420
-)
-
-local lockButton = Instance.new("TextButton", SettingsPage)
-lockButton.Size = UDim2.fromOffset(200,40)
-lockButton.Position = UDim2.fromOffset(10,100)
-lockButton.Text = "Lock GUI: OFF"
-lockButton.Font = Enum.Font.GothamBold
-lockButton.TextSize = 14
-lockButton.BackgroundColor3 = Color3.fromRGB(50,50,50)
-lockButton.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", lockButton)
-
--------------------------------------------------
--- COLOR PRESETS
--------------------------------------------------
-local colors = {
-	Purple = Color3.fromRGB(170,85,255),
-	Green = Color3.fromRGB(0,255,0),
-	Red = Color3.fromRGB(255,80,80),
-	Blue = Color3.fromRGB(80,160,255)
-}
-
-local y = 150
-for name,color in pairs(colors) do
-	local btn = Instance.new("TextButton", SettingsPage)
-	btn.Size = UDim2.fromOffset(120,35)
-	btn.Position = UDim2.fromOffset(10,y)
-	btn.Text = name
-	btn.BackgroundColor3 = color
-	btn.TextColor3 = Color3.new(0,0,0)
-	Instance.new("UICorner", btn)
-
-	btn.MouseButton1Click:Connect(function()
-		title.TextColor3 = color
-	end)
-
-	y += 45
+-- BUTTON STATE SYSTEM
+local function updateButton(btn, name, state)
+	if state then
+		btn.Text = name .. " [ON]"
+		btn.BackgroundColor3 = Color3.fromRGB(60,200,60)
+	else
+		btn.Text = name .. " [OFF]"
+		btn.BackgroundColor3 = Color3.fromRGB(200,60,60)
+	end
 end
 
--------------------------------------------------
--- GUI LOCK
--------------------------------------------------
-local locked = false
-lockButton.MouseButton1Click:Connect(function()
-	locked = not locked
-	main.Draggable = not locked
-	lockButton.Text = "Lock GUI: "..(locked and "ON" or "OFF")
-end)
-
--------------------------------------------------
 -- ESP SYSTEM
--------------------------------------------------
-local ESP_ENABLED = false
-local ESP_OBJECTS = {}
+local espEnabled = false
+local espObjects = {}
 
-local function clearESP()
-	for _,v in pairs(ESP_OBJECTS) do
-		v:Destroy()
-	end
-	table.clear(ESP_OBJECTS)
-end
-
-local function createESP(player)
-	if player == LocalPlayer then return end
-	if not player.Character then return end
-	if not player.Character:FindFirstChild("HumanoidRootPart") then return end
-
-	local team = player.Team and player.Team.Name or ""
-	local color = Color3.fromRGB(255,255,255)
-	local labelText = player.Name
-
-	if team == "Bart" then
-		color = Color3.fromRGB(0,255,0)
-		labelText = "BART"
-	elseif team == "Homer" then
-		color = Color3.fromRGB(255,0,0)
-		labelText = "HOMER"
-	elseif team == "Dead" then
-		color = Color3.fromRGB(200,200,200)
-		labelText = "DEAD"
-	end
-
-	local bill = Instance.new("BillboardGui")
-	bill.Size = UDim2.fromOffset(100,40)
-	bill.AlwaysOnTop = true
-	bill.Adornee = player.Character.Head
-	bill.Parent = gui
-
-	local txt = Instance.new("TextLabel", bill)
-	txt.Size = UDim2.fromScale(1,1)
-	txt.BackgroundTransparency = 1
-	txt.Text = labelText
-	txt.Font = Enum.Font.GothamBold
-	txt.TextSize = 16
-	txt.TextColor3 = color
-
-	ESP_OBJECTS[player] = bill
-end
-
--------------------------------------------------
--- ESP LOOP
--------------------------------------------------
-task.spawn(function()
-	while true do
-		if ESP_ENABLED then
-			clearESP()
-			for _,plr in pairs(Players:GetPlayers()) do
-				createESP(plr)
+local function clearESP(plr)
+	if espObjects[plr] then
+		for _,v in pairs(espObjects[plr]) do
+			if v and v.Destroy then
+				v:Destroy()
 			end
 		end
-		task.wait(1)
+	end
+	espObjects[plr] = nil
+end
+
+local function createESP(plr)
+	if plr == LP then return end
+	if not plr.Character then return end
+
+	local role = getRole(plr)
+	if role ~= "Homer" and role ~= "Bart" then
+		clearESP(plr)
+		return
+	end
+
+	clearESP(plr)
+	espObjects[plr] = {}
+
+	local color = ROLE_COLORS[role]
+	local char = plr.Character
+
+	-- Highlight
+	local hl = Instance.new("Highlight", char)
+	hl.FillColor = color
+	hl.OutlineColor = color
+	table.insert(espObjects[plr], hl)
+
+	-- Name Tag
+	local head = char:FindFirstChild("Head")
+	if head then
+		local bb = Instance.new("BillboardGui", head)
+		bb.Size = UDim2.fromOffset(100,40)
+		bb.StudsOffset = Vector3.new(0,2.5,0)
+		bb.AlwaysOnTop = true
+
+		local txt = Instance.new("TextLabel", bb)
+		txt.Size = UDim2.fromScale(1,1)
+		txt.BackgroundTransparency = 1
+		txt.Text = role:upper()
+		txt.Font = Enum.Font.GothamBold
+		txt.TextSize = 16
+		txt.TextColor3 = color
+
+		table.insert(espObjects[plr], bb)
+	end
+
+	-- Skeleton ESP
+	local function beam(a,b)
+		local at0 = Instance.new("Attachment", a)
+		local at1 = Instance.new("Attachment", b)
+		local bm = Instance.new("Beam", a)
+		bm.Attachment0 = at0
+		bm.Attachment1 = at1
+		bm.Width0 = 0.05
+		bm.Width1 = 0.05
+		bm.Color = ColorSequence.new(color)
+		table.insert(espObjects[plr], at0)
+		table.insert(espObjects[plr], at1)
+		table.insert(espObjects[plr], bm)
+	end
+
+	if char:FindFirstChild("UpperTorso") then
+		beam(char.UpperTorso, char.Head)
+		beam(char.UpperTorso, char.LeftUpperArm)
+		beam(char.UpperTorso, char.RightUpperArm)
+		beam(char.UpperTorso, char.LeftUpperLeg)
+		beam(char.UpperTorso, char.RightUpperLeg)
+	end
+end
+
+RunService.RenderStepped:Connect(function()
+	if not espEnabled then return end
+	for _,plr in pairs(Players:GetPlayers()) do
+		createESP(plr)
 	end
 end)
 
-espToggle.MouseButton1Click:Connect(function()
-	ESP_ENABLED = not ESP_ENABLED
-	espToggle.Text = "ESP [Homer & Bart] : "..(ESP_ENABLED and "ON" or "OFF")
-	if not ESP_ENABLED then
-		clearESP()
+-- ESP BUTTON
+local espBtn = Instance.new("TextButton", mainPage)
+espBtn.Size = UDim2.fromOffset(260,50)
+espBtn.Position = UDim2.fromOffset(20,20)
+espBtn.Font = Enum.Font.GothamBold
+espBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", espBtn)
+updateButton(espBtn,"ESP [Homer & Bart]",false)
+
+espBtn.MouseButton1Click:Connect(function()
+	click(espBtn)
+	espEnabled = not espEnabled
+	updateButton(espBtn,"ESP [Homer & Bart]",espEnabled)
+
+	if not espEnabled then
+		for p in pairs(espObjects) do
+			clearESP(p)
+		end
 	end
+end)
+
+-- WALLHOP
+local wallhop = false
+local canJump = true
+
+local hopBtn = espBtn:Clone()
+hopBtn.Position = UDim2.fromOffset(20,90)
+hopBtn.Parent = mainPage
+updateButton(hopBtn,"WallHop",false)
+
+hopBtn.MouseButton1Click:Connect(function()
+	click(hopBtn)
+	wallhop = not wallhop
+	updateButton(hopBtn,"WallHop",wallhop)
+end)
+
+UIS.JumpRequest:Connect(function()
+	if wallhop and canJump then
+		canJump = false
+		local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum:ChangeState(Enum.HumanoidStateType.Jumping)
+			Camera.CFrame *= CFrame.Angles(0, math.rad(90), 0)
+			task.wait(0.05)
+			Camera.CFrame *= CFrame.Angles(0, math.rad(-90), 0)
+		end
+		task.delay(0.25,function()
+			canJump = true
+		end)
+	end
+end)
+
+-- SETTINGS PAGE
+local userInfo = Instance.new("TextLabel", settingsPage)
+userInfo.Size = UDim2.new(1,0,0,80)
+userInfo.Text = "User:\n"..LP.DisplayName.." ("..LP.Name..")"
+userInfo.TextColor3 = Color3.new(1,1,1)
+userInfo.Font = Enum.Font.Gotham
+userInfo.BackgroundTransparency = 1
+userInfo.TextWrapped = true
+
+-- GUI COLOR CHANGER
+local colors = {
+	Purple = Color3.fromRGB(140,90,255),
+	Green = Color3.fromRGB(60,200,120),
+	Blue = Color3.fromRGB(80,140,255),
+	Red = Color3.fromRGB(200,70,70),
+	Dark = Color3.fromRGB(25,25,25)
+}
+
+local y = 90
+for name,color in pairs(colors) do
+	local b = Instance.new("TextButton", settingsPage)
+	b.Size = UDim2.fromOffset(160,40)
+	b.Position = UDim2.fromOffset(0,y)
+	b.Text = name
+	b.Font = Enum.Font.GothamBold
+	b.TextColor3 = Color3.new(1,1,1)
+	b.BackgroundColor3 = color
+	Instance.new("UICorner", b)
+
+	b.MouseButton1Click:Connect(function()
+		click(b)
+		main.BackgroundColor3 = color
+	end)
+
+	y += 50
+end
+
+-- GUI LOCK
+local locked = false
+local lockBtn = Instance.new("TextButton", settingsPage)
+lockBtn.Size = UDim2.fromOffset(160,40)
+lockBtn.Position = UDim2.fromOffset(200,90)
+lockBtn.Font = Enum.Font.GothamBold
+lockBtn.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", lockBtn)
+updateButton(lockBtn,"Lock GUI",false)
+
+lockBtn.MouseButton1Click:Connect(function()
+	click(lockBtn)
+	locked = not locked
+	main.Draggable = not locked
+	updateButton(lockBtn,"Lock GUI",locked)
+end)
+
+-- SIDE TOGGLE BUTTON
+local sideToggle = Instance.new("TextButton", gui)
+sideToggle.Size = UDim2.fromOffset(40,120)
+sideToggle.Position = UDim2.fromScale(0,0.4)
+sideToggle.Text = "≡"
+sideToggle.TextSize = 28
+sideToggle.Font = Enum.Font.GothamBold
+sideToggle.TextColor3 = Color3.new(1,1,1)
+sideToggle.BackgroundColor3 = Color3.fromRGB(30,30,30)
+sideToggle.Active = true
+sideToggle.Draggable = true
+Instance.new("UICorner", sideToggle).CornerRadius = UDim.new(1,0)
+
+sideToggle.MouseButton1Click:Connect(function()
+	click(sideToggle)
+	main.Visible = not main.Visible
 end)
