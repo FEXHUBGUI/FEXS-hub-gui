@@ -1,185 +1,280 @@
---// THIS SCRIPT IS COPY RIGHTED BY M.HUB DO NOT STEAL OR SELL WITHOUT PERMISSON MM2 m.HUB
+--// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Stats = game:GetService("Stats")
-local UserInputService = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 
---// SETTINGS DATA
-local Settings = {
-	Color = Color3.fromRGB(30, 30, 30),
-	Accent = Color3.fromRGB(255, 60, 60),
+--// CONFIG
+local Config = {
+	Color = Color3.fromRGB(22,22,22),
+	Accent = Color3.fromRGB(255,60,60),
 	Scale = 1,
-	ESP = false
+	PlayerESP = false,
+	DroppedGunESP = false
 }
 
 --// GUI
 local gui = Instance.new("ScreenGui")
 gui.Name = "M.HUB[MM2]"
 gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
-
---// TOGGLE BUTTON
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.fromScale(0.08, 0.06)
-toggleBtn.Position = UDim2.fromScale(0.02, 0.5)
-toggleBtn.Text = "M.HUB"
-toggleBtn.BackgroundColor3 = Settings.Accent
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.Parent = gui
-toggleBtn.BorderSizePixel = 0
-toggleBtn.TextScaled = true
+gui.Parent = player.PlayerGui
 
 --// MAIN FRAME
-local main = Instance.new("Frame")
-main.Size = UDim2.fromScale(0.35, 0.45)
-main.Position = UDim2.fromScale(0.5, 0.5)
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.fromScale(0.42,0.52)
+main.Position = UDim2.fromScale(0.5,0.5)
 main.AnchorPoint = Vector2.new(0.5,0.5)
-main.BackgroundColor3 = Settings.Color
-main.Visible = true
-main.Parent = gui
-main.BorderSizePixel = 0
+main.BackgroundColor3 = Config.Color
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,18)
 
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,16)
-local scale = Instance.new("UIScale", main)
-scale.Scale = Settings.Scale
+local uiScale = Instance.new("UIScale", main)
+uiScale.Scale = Config.Scale
 
 --// DRAG
-local dragging, dragStart, startPos
-main.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = main.Position
-	end
-end)
-UserInputService.InputEnded:Connect(function(i)
-	if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
-		dragging = false
-	end
-end)
-UserInputService.InputChanged:Connect(function(i)
-	if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then
-		local delta = i.Position - dragStart
-		main.Position = startPos + UDim2.fromOffset(delta.X, delta.Y)
-	end
-end)
+do
+	local drag, start, pos
+	main.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			drag = true
+			start = i.Position
+			pos = main.Position
+		end
+	end)
+	UIS.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+			drag = false
+		end
+	end)
+	UIS.InputChanged:Connect(function(i)
+		if drag then
+			local delta = i.Position - start
+			main.Position = pos + UDim2.fromOffset(delta.X, delta.Y)
+		end
+	end)
+end
 
 --// TITLE
 local title = Instance.new("TextLabel", main)
-title.Size = UDim2.fromScale(1, 0.12)
-title.Text = "M.HUB [MM2]"
-title.TextColor3 = Color3.new(1,1,1)
+title.Size = UDim2.fromScale(1,0.1)
 title.BackgroundTransparency = 1
+title.Text = "M.HUB [MM2]"
 title.TextScaled = true
+title.TextColor3 = Color3.new(1,1,1)
 
---// PLAYER INFO
-local info = Instance.new("TextLabel", main)
-info.Position = UDim2.fromScale(0.05, 0.15)
-info.Size = UDim2.fromScale(0.9, 0.15)
-info.BackgroundTransparency = 1
-info.TextColor3 = Color3.new(1,1,1)
-info.TextScaled = true
-info.Text = player.Name.." (@ "..player.DisplayName..")\nAccount Age: "..player.AccountAge.." days"
+--// SIDEBAR
+local side = Instance.new("Frame", main)
+side.Position = UDim2.fromScale(0,0.1)
+side.Size = UDim2.fromScale(0.18,0.9)
+side.BackgroundColor3 = Config.Accent
+Instance.new("UICorner", side).CornerRadius = UDim.new(0,16)
 
---// PROFILE PIC
-local thumb = Instance.new("ImageLabel", main)
-thumb.Position = UDim2.fromScale(0.05, 0.32)
-thumb.Size = UDim2.fromScale(0.18, 0.22)
-thumb.BackgroundTransparency = 1
+--// CONTENT
+local content = Instance.new("Frame", main)
+content.Position = UDim2.fromScale(0.2,0.1)
+content.Size = UDim2.fromScale(0.78,0.9)
+content.BackgroundTransparency = 1
 
-local img = Players:GetUserThumbnailAsync(player.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
-thumb.Image = img
+--// TABS
+local mainTab = Instance.new("Frame", content)
+mainTab.Size = UDim2.fromScale(1,1)
+mainTab.BackgroundTransparency = 1
 
---// FPS + PING
-local statsLabel = Instance.new("TextLabel", main)
-statsLabel.Position = UDim2.fromScale(0.27, 0.32)
-statsLabel.Size = UDim2.fromScale(0.68, 0.22)
-statsLabel.BackgroundTransparency = 1
-statsLabel.TextColor3 = Color3.new(1,1,1)
-statsLabel.TextScaled = true
+local settingsTab = Instance.new("ScrollingFrame", content)
+settingsTab.Size = UDim2.fromScale(1,1)
+settingsTab.CanvasSize = UDim2.fromScale(0,1.6)
+settingsTab.ScrollBarImageTransparency = 0.4
+settingsTab.Visible = false
+settingsTab.BackgroundTransparency = 1
 
-local frames = 0
-local last = tick()
-RunService.RenderStepped:Connect(function()
-	frames += 1
-	if tick() - last >= 1 then
-		local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
-		statsLabel.Text = "FPS: "..frames.." | Ping: "..ping.." ms"
-		frames = 0
-		last = tick()
-	end
-end)
-
---// ESP BUTTON
-local espBtn = Instance.new("TextButton", main)
-espBtn.Position = UDim2.fromScale(0.05, 0.6)
-espBtn.Size = UDim2.fromScale(0.9, 0.12)
-espBtn.Text = "ESP [Murderer / Sheriff / All]"
-espBtn.BackgroundColor3 = Settings.Accent
-espBtn.TextColor3 = Color3.new(1,1,1)
-espBtn.TextScaled = true
-espBtn.BorderSizePixel = 0
-Instance.new("UICorner", espBtn)
-
---// ESP SYSTEM
-local Highlights = {}
-
-local function getRole(plr)
-	for _,tool in ipairs(plr.Character:GetChildren()) do
-		if tool:IsA("Tool") then
-			if tool.Name == "Knife" then
-				return "Knife"
-			elseif tool.Name == "Gun" then
-				return "Gun"
-			end
-		end
-	end
-	return "None"
+--// SIDEBAR BUTTONS
+local function sideBtn(text,y,cb)
+	local b = Instance.new("TextButton", side)
+	b.Size = UDim2.fromScale(0.9,0.12)
+	b.Position = UDim2.fromScale(0.05,y)
+	b.Text = text
+	b.TextScaled = true
+	b.TextColor3 = Color3.new(1,1,1)
+	b.BackgroundColor3 = Color3.fromRGB(0,0,0)
+	b.BackgroundTransparency = 0.25
+	Instance.new("UICorner", b)
+	b.MouseButton1Click:Connect(cb)
 end
 
-local function updateESP(plr)
+sideBtn("MAIN",0.05,function()
+	mainTab.Visible = true
+	settingsTab.Visible = false
+end)
+
+sideBtn("SETTINGS",0.22,function()
+	mainTab.Visible = false
+	settingsTab.Visible = true
+end)
+
+--// MAIN TAB BUTTONS
+local function mainButton(text,y)
+	local b = Instance.new("TextButton", mainTab)
+	b.Size = UDim2.fromScale(0.9,0.15)
+	b.Position = UDim2.fromScale(0.05,y)
+	b.Text = text
+	b.TextScaled = true
+	b.TextColor3 = Color3.new(1,1,1)
+	b.BackgroundColor3 = Config.Accent
+	Instance.new("UICorner", b)
+	return b
+end
+
+local espBtn = mainButton("PLAYER ESP [ OFF ]",0.1)
+local gunEspBtn = mainButton("DROPPED GUN ESP [ OFF ]",0.32)
+
+--// PLAYER ESP
+local PlayerHighlights = {}
+
+local function hasTool(plr,name)
+	if plr.Character and plr.Character:FindFirstChild(name) then return true end
+	if plr:FindFirstChild("Backpack") and plr.Backpack:FindFirstChild(name) then return true end
+	return false
+end
+
+local function updatePlayerESP(plr)
 	if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then return end
-	
-	if not Highlights[plr] then
+	if not PlayerHighlights[plr] then
 		local h = Instance.new("Highlight")
-		h.FillTransparency = 0.5
-		h.OutlineTransparency = 0
+		h.FillTransparency = 0.45
 		h.Parent = plr.Character
-		Highlights[plr] = h
+		PlayerHighlights[plr] = h
 	end
-	
-	local role = getRole(plr)
-	if role == "Knife" then
-		Highlights[plr].FillColor = Color3.fromRGB(255,0,0)
-	elseif role == "Gun" then
-		Highlights[plr].FillColor = Color3.fromRGB(0,120,255)
+
+	if hasTool(plr,"Knife") then
+		PlayerHighlights[plr].FillColor = Color3.fromRGB(255,0,0)
+	elseif hasTool(plr,"Gun") then
+		PlayerHighlights[plr].FillColor = Color3.fromRGB(0,120,255)
 	else
-		Highlights[plr].FillColor = Color3.fromRGB(0,255,0)
+		PlayerHighlights[plr].FillColor = Color3.fromRGB(0,255,0)
 	end
 end
 
 RunService.Heartbeat:Connect(function()
-	if not Settings.ESP then return end
+	if not Config.PlayerESP then return end
 	for _,plr in ipairs(Players:GetPlayers()) do
-		if plr ~= player and plr.Character then
-			updateESP(plr)
+		if plr ~= player then
+			updatePlayerESP(plr)
 		end
 	end
 end)
 
 espBtn.MouseButton1Click:Connect(function()
-	Settings.ESP = not Settings.ESP
-	espBtn.Text = Settings.ESP and "ESP ENABLED" or "ESP DISABLED"
-	if not Settings.ESP then
-		for _,h in pairs(Highlights) do h:Destroy() end
-		table.clear(Highlights)
+	Config.PlayerESP = not Config.PlayerESP
+	espBtn.Text = Config.PlayerESP and "PLAYER ESP [ ON ]" or "PLAYER ESP [ OFF ]"
+	if not Config.PlayerESP then
+		for _,h in pairs(PlayerHighlights) do h:Destroy() end
+		table.clear(PlayerHighlights)
 	end
 end)
 
---// TOGGLE HUB
-toggleBtn.MouseButton1Click:Connect(function()
-	main.Visible = not main.Visible
+--// DROPPED GUN ESP
+local GunESP = {}
+local hue = 0
+
+local function createGunESP(tool)
+	if GunESP[tool] then return end
+
+	local h = Instance.new("Highlight")
+	h.FillTransparency = 0.25
+	h.OutlineTransparency = 0
+	h.Parent = tool
+
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.fromScale(4,1)
+	bb.StudsOffset = Vector3.new(0,2.5,0)
+	bb.AlwaysOnTop = true
+	bb.Parent = tool
+
+	local txt = Instance.new("TextLabel", bb)
+	txt.Size = UDim2.fromScale(1,1)
+	txt.BackgroundTransparency = 1
+	txt.Text = "GUN HERE"
+	txt.TextScaled = true
+	txt.Font = Enum.Font.GothamBold
+	txt.TextStrokeTransparency = 0
+
+	GunESP[tool] = {Highlight=h, Text=txt}
+end
+
+local function removeGunESP(tool)
+	if GunESP[tool] then
+		for _,v in pairs(GunESP[tool]) do v:Destroy() end
+		GunESP[tool] = nil
+	end
+end
+
+RunService.RenderStepped:Connect(function(dt)
+	if not Config.DroppedGunESP then return end
+	hue = (hue + dt*0.3) % 1
+	local c = Color3.fromHSV(hue,1,1)
+
+	for tool,data in pairs(GunESP) do
+		if tool and tool.Parent then
+			data.Highlight.FillColor = c
+			data.Text.TextColor3 = c
+		else
+			removeGunESP(tool)
+		end
+	end
+end)
+
+RunService.Heartbeat:Connect(function()
+	if not Config.DroppedGunESP then return end
+	for _,obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Tool") and obj.Name == "Gun" and obj.Parent == workspace then
+			createGunESP(obj)
+		end
+	end
+end)
+
+gunEspBtn.MouseButton1Click:Connect(function()
+	Config.DroppedGunESP = not Config.DroppedGunESP
+	gunEspBtn.Text = Config.DroppedGunESP and "DROPPED GUN ESP [ ON ]" or "DROPPED GUN ESP [ OFF ]"
+	if not Config.DroppedGunESP then
+		for tool,_ in pairs(GunESP) do removeGunESP(tool) end
+	end
+end)
+
+--// SETTINGS TAB CONTENT
+local y = 0.03
+local function label(text,h)
+	local l = Instance.new("TextLabel", settingsTab)
+	l.Position = UDim2.fromScale(0.05,y)
+	l.Size = UDim2.fromScale(0.9,h or 0.08)
+	l.Text = text
+	l.TextScaled = true
+	l.TextColor3 = Color3.new(1,1,1)
+	l.BackgroundTransparency = 1
+	y += (h or 0.08) + 0.02
+	return l
+end
+
+local pfp = Instance.new("ImageLabel", settingsTab)
+pfp.Size = UDim2.fromScale(0.25,0.18)
+pfp.Position = UDim2.fromScale(0.05,y)
+pfp.BackgroundTransparency = 1
+pfp.Image = Players:GetUserThumbnailAsync(player.UserId,Enum.ThumbnailType.HeadShot,Enum.ThumbnailSize.Size420x420)
+y += 0.2
+
+label(player.Name.." ("..player.DisplayName..")")
+label("Account Age: "..player.AccountAge.." days")
+
+local statsLabel = label("FPS: 0 | Ping: 0",0.1)
+
+local frames,last = 0,tick()
+RunService.RenderStepped:Connect(function()
+	frames += 1
+	if tick()-last >= 1 then
+		local ping = math.floor(Stats.Network.ServerStatsItem["Data Ping"]:GetValue())
+		statsLabel.Text = "FPS: "..frames.." | Ping: "..ping.." ms"
+		frames = 0
+		last = tick()
+	end
 end)
