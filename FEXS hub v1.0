@@ -2,85 +2,74 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
---// GUI SETUP
+--// GUI
 local gui = Instance.new("ScreenGui")
-gui.Name = "DebugPanel"
+gui.Name = "DevDebugPanel"
 gui.ResetOnSpawn = false
 gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 160)
+frame.Size = UDim2.new(0, 260, 0, 220)
 frame.Position = UDim2.new(0.05, 0, 0.3, 0)
 frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.Active = true
 frame.Draggable = true
 frame.Parent = gui
 
-local function makeButton(text, posY)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 40)
-    btn.Position = UDim2.new(0, 5, 0, posY)
-    btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.Text = text
-    btn.Parent = frame
-    return btn
+local function makeButton(text, y)
+    local b = Instance.new("TextButton")
+    b.Size = UDim2.new(1, -10, 0, 45)
+    b.Position = UDim2.new(0, 5, 0, y)
+    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    b.TextColor3 = Color3.fromRGB(255,255,255)
+    b.Text = text
+    b.Parent = frame
+    return b
 end
 
-local speedBtn = makeButton("Speed Toggle", 10)
-local espBtn = makeButton("Highlight Debug", 60)
+local speedBtn = makeButton("Speed Glitch", 10)
+local lockMurdBtn = makeButton("Lock Murder (Knife)", 60)
+local lockSheriffBtn = makeButton("Lock Sheriff (Gun)", 110)
 
---// SPEED + SPIN SYSTEM
-local speedEnabled = false
+--// SPEED + SPIN (DEBUG)
+local speedOn = false
 local spinConn
 
-local function startSpin()
-    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local hrp = char:WaitForChild("HumanoidRootPart")
-    local hum = char:WaitForChild("Humanoid")
-
-    hum.WalkSpeed = 100
-
-    spinConn = RunService.RenderStepped:Connect(function()
-        if speedEnabled and hrp then
-            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(25), 0)
-        end
-    end)
-end
-
-local function stopSpin()
-    if spinConn then
-        spinConn:Disconnect()
-        spinConn = nil
-    end
-
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("Humanoid") then
-        char.Humanoid.WalkSpeed = 16
-    end
-end
-
 speedBtn.MouseButton1Click:Connect(function()
-    speedEnabled = not speedEnabled
-    if speedEnabled then
-        startSpin()
+    speedOn = not speedOn
+
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    if speedOn then
+        hum.WalkSpeed = 100
+
+        spinConn = RunService.RenderStepped:Connect(function()
+            if hrp then
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
+            end
+        end)
+
         speedBtn.Text = "Speed: ON"
     else
-        stopSpin()
-        speedBtn.Text = "Speed: OFF"
+        hum.WalkSpeed = 16
+        if spinConn then spinConn:Disconnect() end
+        speedBtn.Text = "Speed Glitch"
     end
 end)
 
---// HIGHLIGHT SYSTEM (DEBUG ONLY)
-local highlightEnabled = false
+--// HIGHLIGHT SYSTEM (ALWAYS ON ESP)
 local highlights = {}
 
-local function getColor(plr)
+local function getToolColor(plr)
     if not plr.Character then return Color3.fromRGB(170,0,255) end
 
-    local hasGun = plr.Character:FindFirstChild("Gun") or (plr.Backpack and plr.Backpack:FindFirstChild("Gun"))
-    local hasKnife = plr.Character:FindFirstChild("Knife") or (plr.Backpack and plr.Backpack:FindFirstChild("Knife"))
+    local char = plr.Character
+    local hasGun = char:FindFirstChild("Gun") or (plr.Backpack and plr.Backpack:FindFirstChild("Gun"))
+    local hasKnife = char:FindFirstChild("Knife") or (plr.Backpack and plr.Backpack:FindFirstChild("Knife"))
 
     if hasGun then
         return Color3.fromRGB(0,170,255) -- blue
@@ -91,7 +80,7 @@ local function getColor(plr)
     end
 end
 
-local function applyHighlight(plr)
+local function applyESP(plr)
     if plr == LocalPlayer then return end
     if not plr.Character then return end
 
@@ -103,47 +92,70 @@ local function applyHighlight(plr)
         highlights[plr] = h
     end
 
-    highlights[plr].FillColor = getColor(plr)
+    highlights[plr].FillColor = getToolColor(plr)
     highlights[plr].OutlineColor = Color3.fromRGB(0,0,0)
 end
 
-local function clearHighlights()
-    for _,h in pairs(highlights) do
-        if h then h:Destroy() end
-    end
-    highlights = {}
-end
-
-local function updateLoop()
+RunService.RenderStepped:Connect(function()
     for _,plr in pairs(Players:GetPlayers()) do
-        applyHighlight(plr)
-    end
-end
-
-espBtn.MouseButton1Click:Connect(function()
-    highlightEnabled = not highlightEnabled
-
-    if highlightEnabled then
-        espBtn.Text = "Highlight: ON"
-
-        task.spawn(function()
-            while highlightEnabled do
-                updateLoop()
-                task.wait(0.5)
-            end
-        end)
-    else
-        espBtn.Text = "Highlight: OFF"
-        clearHighlights()
+        applyESP(plr)
     end
 end)
 
---// AUTO UPDATE ON TOOL CHANGE
+--// CAMERA LOCK SYSTEM (DEV TEST ONLY)
+local function lockCameraTo(plr)
+    if plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+        Workspace.CurrentCamera.CameraSubject = plr.Character.Humanoid
+    end
+end
+
+local cameraLocked = false
+local lockTarget = nil
+
+lockMurdBtn.MouseButton1Click:Connect(function()
+    cameraLocked = true
+    lockTarget = "Knife"
+
+    lockMurdBtn.Text = "Murder Locked"
+
+    RunService.RenderStepped:Connect(function()
+        if cameraLocked then
+            for _,plr in pairs(Players:GetPlayers()) do
+                if plr.Character then
+                    if plr.Character:FindFirstChild("Knife") then
+                        lockCameraTo(plr)
+                        break
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+lockSheriffBtn.MouseButton1Click:Connect(function()
+    cameraLocked = true
+    lockTarget = "Gun"
+
+    lockSheriffBtn.Text = "Sheriff Locked"
+
+    RunService.RenderStepped:Connect(function()
+        if cameraLocked then
+            for _,plr in pairs(Players:GetPlayers()) do
+                if plr.Character then
+                    if plr.Character:FindFirstChild("Gun") then
+                        lockCameraTo(plr)
+                        break
+                    end
+                end
+            end
+        end
+    end)
+end)
+
+--// AUTO REFRESH ON SPAWN
 Players.PlayerAdded:Connect(function(plr)
     plr.CharacterAdded:Connect(function()
         task.wait(1)
-        if highlightEnabled then
-            applyHighlight(plr)
-        end
+        applyESP(plr)
     end)
 end)
