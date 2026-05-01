@@ -1,9 +1,9 @@
 -- ══════════════════════════════════════
---         SERVICES
+--         SERVICES AIMBOT CONFIGS
 -- ══════════════════════════════════════
-local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
-local TweenService     = game:GetService("TweenService")
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera      = workspace.CurrentCamera
@@ -14,7 +14,6 @@ local Camera      = workspace.CurrentCamera
 local SHERIFF_TOOL = "Gun"
 local MURD_TOOL    = "Knife"
 local FAKE_SPEED   = 100
-local SPIN_SPEED   = 20
 
 -- ══════════════════════════════════════
 --              STATE
@@ -23,6 +22,7 @@ local lockedTarget  = nil
 local lockMode      = nil
 local fakeSpeedOn   = false
 local espHighlights = {}
+local wasInAir      = false
 
 -- ══════════════════════════════════════
 --     RAIN HUB WELCOME BANNER
@@ -37,7 +37,7 @@ bannerGui.Parent = LocalPlayer.PlayerGui
 local glow = Instance.new("Frame")
 glow.AnchorPoint = Vector2.new(0.5, 0)
 glow.Size = UDim2.new(0, 520, 0, 64)
-glow.Position = UDim2.new(0.5, 0, 0, -10)
+glow.Position = UDim2.new(0.5, 0, 0, 60)
 glow.BackgroundColor3 = Color3.fromRGB(20, 80, 180)
 glow.BackgroundTransparency = 1
 glow.BorderSizePixel = 0
@@ -48,7 +48,7 @@ Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 16)
 local panel = Instance.new("Frame")
 panel.AnchorPoint = Vector2.new(0.5, 0)
 panel.Size = UDim2.new(0, 500, 0, 58)
-panel.Position = UDim2.new(0.5, 0, 0, -10)
+panel.Position = UDim2.new(0.5, 0, 0, 60)
 panel.BackgroundColor3 = Color3.fromRGB(8, 18, 40)
 panel.BackgroundTransparency = 1
 panel.BorderSizePixel = 0
@@ -124,8 +124,10 @@ local function tw(obj, props, info)
 end
 
 local function fadeIn()
-	tw(panel,       {BackgroundTransparency = 0,    Position = UDim2.new(0.5, 0, 0, 18)}, easeIn)
-	tw(glow,        {BackgroundTransparency = 0.75, Position = UDim2.new(0.5, 0, 0, 14)}, easeIn)
+	panel.Position = UDim2.new(0.5, 0, 0, 40)
+	glow.Position  = UDim2.new(0.5, 0, 0, 44)
+	tw(panel,       {BackgroundTransparency = 0,    Position = UDim2.new(0.5, 0, 0, 60)}, easeIn)
+	tw(glow,        {BackgroundTransparency = 0.75, Position = UDim2.new(0.5, 0, 0, 64)}, easeIn)
 	tw(panelStroke, {Transparency = 0}, easeIn)
 	tw(accentBar,   {BackgroundTransparency = 0}, easeIn)
 	tw(mainText,    {TextTransparency = 0}, easeIn)
@@ -134,8 +136,8 @@ local function fadeIn()
 end
 
 local function fadeOut()
-	tw(panel,       {BackgroundTransparency = 1,    Position = UDim2.new(0.5, 0, 0, -10)}, easeOut)
-	tw(glow,        {BackgroundTransparency = 1,    Position = UDim2.new(0.5, 0, 0, -6)},  easeOut)
+	tw(panel,       {BackgroundTransparency = 1, Position = UDim2.new(0.5, 0, 0, 40)}, easeOut)
+	tw(glow,        {BackgroundTransparency = 1, Position = UDim2.new(0.5, 0, 0, 44)}, easeOut)
 	tw(panelStroke, {Transparency = 1}, easeOut)
 	tw(accentBar,   {BackgroundTransparency = 1}, easeOut)
 	tw(mainText,    {TextTransparency = 1}, easeOut)
@@ -173,7 +175,20 @@ screenGui.Parent = LocalPlayer.PlayerGui
 --       DRAGGABLE WINDOW FACTORY
 -- ══════════════════════════════════════
 local function makeDraggableWindow(title, startPos, accentColor, size)
-	size = size or UDim2.new(0, 200, 0, 80)
+	size = size or UDim2.new(0, 180, 0, 74)
+
+	-- Minimise button holder (sits outside frame so it's always visible)
+	local toggleBtn = Instance.new("TextButton")
+	toggleBtn.Size = UDim2.new(0, 18, 0, 18)
+	toggleBtn.BackgroundColor3 = accentColor:Lerp(Color3.new(0,0,0), 0.3)
+	toggleBtn.BorderSizePixel = 0
+	toggleBtn.Text = "−"
+	toggleBtn.TextColor3 = Color3.new(1,1,1)
+	toggleBtn.TextSize = 13
+	toggleBtn.Font = Enum.Font.GothamBold
+	toggleBtn.ZIndex = 20
+	toggleBtn.Parent = screenGui
+	Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 4)
 
 	local frame = Instance.new("Frame")
 	frame.Size = size
@@ -182,10 +197,7 @@ local function makeDraggableWindow(title, startPos, accentColor, size)
 	frame.BorderSizePixel = 0
 	frame.Active = true
 	frame.Parent = screenGui
-
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = frame
+	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = accentColor
@@ -193,46 +205,84 @@ local function makeDraggableWindow(title, startPos, accentColor, size)
 	stroke.Parent = frame
 
 	local bar = Instance.new("Frame")
-	bar.Size = UDim2.new(1, 0, 0, 28)
-	bar.BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.55)
+	bar.Size = UDim2.new(1, 0, 0, 24)
+	bar.BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0,0,0), 0.55)
 	bar.BorderSizePixel = 0
 	bar.ZIndex = 2
 	bar.Parent = frame
+	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 10)
 
-	local barCorner = Instance.new("UICorner")
-	barCorner.CornerRadius = UDim.new(0, 10)
-	barCorner.Parent = bar
-
-	-- Patch bottom corners of title bar
 	local barFix = Instance.new("Frame")
 	barFix.Size = UDim2.new(1, 0, 0.5, 0)
 	barFix.Position = UDim2.new(0, 0, 0.5, 0)
-	barFix.BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0, 0, 0), 0.55)
+	barFix.BackgroundColor3 = accentColor:Lerp(Color3.fromRGB(0,0,0), 0.55)
 	barFix.BorderSizePixel = 0
 	barFix.ZIndex = 2
 	barFix.Parent = bar
 
 	local titleLbl = Instance.new("TextLabel")
-	titleLbl.Size = UDim2.new(1, -8, 1, 0)
-	titleLbl.Position = UDim2.new(0, 8, 0, 0)
+	titleLbl.Size = UDim2.new(1, -26, 1, 0)
+	titleLbl.Position = UDim2.new(0, 7, 0, 0)
 	titleLbl.BackgroundTransparency = 1
 	titleLbl.Text = title
-	titleLbl.TextColor3 = Color3.new(1, 1, 1)
-	titleLbl.TextSize = 12
+	titleLbl.TextColor3 = Color3.new(1,1,1)
+	titleLbl.TextSize = 11
 	titleLbl.Font = Enum.Font.GothamBold
 	titleLbl.TextXAlignment = Enum.TextXAlignment.Left
 	titleLbl.ZIndex = 3
 	titleLbl.Parent = bar
 
+	-- Close X in title bar
+	local closeBtn = Instance.new("TextButton")
+	closeBtn.Size = UDim2.new(0, 16, 0, 16)
+	closeBtn.Position = UDim2.new(1, -19, 0.5, -8)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+	closeBtn.BorderSizePixel = 0
+	closeBtn.Text = "×"
+	closeBtn.TextColor3 = Color3.new(1,1,1)
+	closeBtn.TextSize = 13
+	closeBtn.Font = Enum.Font.GothamBold
+	closeBtn.ZIndex = 5
+	closeBtn.Parent = bar
+	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 4)
+
+	-- Position toggle button to the right of the frame
+	local function updateTogglePos()
+		toggleBtn.Position = UDim2.new(
+			frame.Position.X.Scale,
+			frame.Position.X.Offset + size.X.Offset + 4,
+			frame.Position.Y.Scale,
+			frame.Position.Y.Offset + 3
+		)
+	end
+	updateTogglePos()
+
+	local minimised = false
+
+	closeBtn.MouseButton1Click:Connect(function()
+		minimised = true
+		frame.Visible = false
+		toggleBtn.Text = "+"
+		toggleBtn.Visible = true
+	end)
+
+	toggleBtn.MouseButton1Click:Connect(function()
+		if minimised then
+			minimised = false
+			frame.Visible = true
+			toggleBtn.Text = "−"
+		end
+	end)
+
 	-- Drag logic
-	local dragging, dragStart, startPosition = false, nil, nil
+	local dragging, dragStart, startPos2 = false, nil, nil
 
 	bar.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
-			dragging      = true
-			dragStart     = input.Position
-			startPosition = frame.Position
+			dragging  = true
+			dragStart = input.Position
+			startPos2 = frame.Position
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -248,11 +298,12 @@ local function makeDraggableWindow(title, startPos, accentColor, size)
 		) then
 			local delta = input.Position - dragStart
 			frame.Position = UDim2.new(
-				startPosition.X.Scale,
-				startPosition.X.Offset + delta.X,
-				startPosition.Y.Scale,
-				startPosition.Y.Offset + delta.Y
+				startPos2.X.Scale,
+				startPos2.X.Offset + delta.X,
+				startPos2.Y.Scale,
+				startPos2.Y.Offset + delta.Y
 			)
+			updateTogglePos()
 		end
 	end)
 
@@ -260,32 +311,31 @@ local function makeDraggableWindow(title, startPos, accentColor, size)
 end
 
 -- ══════════════════════════════════════
---         BUTTON FACTORY
+--         BUTTON + STATUS FACTORY
 -- ══════════════════════════════════════
 local function makeStyledButton(parent, text, posY, color)
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, -16, 0, 36)
-	btn.Position = UDim2.new(0, 8, 0, posY)
+	btn.Size = UDim2.new(1, -12, 0, 30)
+	btn.Position = UDim2.new(0, 6, 0, posY)
 	btn.BackgroundColor3 = color
 	btn.BorderSizePixel = 0
 	btn.Text = text
-	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.TextSize = 12
+	btn.TextColor3 = Color3.new(1,1,1)
+	btn.TextSize = 11
 	btn.Font = Enum.Font.GothamBold
 	btn.AutoButtonColor = false
 	btn.ZIndex = 4
 	btn.Parent = parent
-
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 7)
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
 
 	local bs = Instance.new("UIStroke")
-	bs.Color = Color3.new(1, 1, 1)
-	bs.Transparency = 0.8
+	bs.Color = Color3.new(1,1,1)
+	bs.Transparency = 0.82
 	bs.Thickness = 1
 	bs.Parent = btn
 
 	btn.MouseEnter:Connect(function()
-		TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = color:Lerp(Color3.new(1,1,1), 0.2)}):Play()
+		TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = color:Lerp(Color3.new(1,1,1), 0.18)}):Play()
 	end)
 	btn.MouseLeave:Connect(function()
 		TweenService:Create(btn, TweenInfo.new(0.12), {BackgroundColor3 = color}):Play()
@@ -296,12 +346,12 @@ end
 
 local function makeStatusLabel(parent, posY)
 	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, -16, 0, 16)
-	lbl.Position = UDim2.new(0, 8, 0, posY)
+	lbl.Size = UDim2.new(1, -12, 0, 14)
+	lbl.Position = UDim2.new(0, 6, 0, posY)
 	lbl.BackgroundTransparency = 1
 	lbl.Text = "Idle"
-	lbl.TextColor3 = Color3.fromRGB(160, 160, 180)
-	lbl.TextSize = 11
+	lbl.TextColor3 = Color3.fromRGB(150, 150, 170)
+	lbl.TextSize = 10
 	lbl.Font = Enum.Font.Gotham
 	lbl.TextXAlignment = Enum.TextXAlignment.Left
 	lbl.ZIndex = 4
@@ -312,20 +362,20 @@ end
 -- ══════════════════════════════════════
 --         CREATE THE 3 WINDOWS
 -- ══════════════════════════════════════
-local sheriffColor = Color3.fromRGB(40, 110, 220)
-local win1         = makeDraggableWindow("🔵 Lock Sheriff", UDim2.new(0, 40, 0, 100), sheriffColor, UDim2.new(0, 210, 0, 88))
-local sheriffBtn   = makeStyledButton(win1, "🔵  Lock Sheriff", 32, sheriffColor)
-local sheriffStatus = makeStatusLabel(win1, 72)
+local sheriffColor  = Color3.fromRGB(40, 110, 220)
+local win1          = makeDraggableWindow("🔵 Lock Sheriff", UDim2.new(0, 30, 0, 120), sheriffColor, UDim2.new(0, 185, 0, 74))
+local sheriffBtn    = makeStyledButton(win1, "🔵  Lock Sheriff", 28, sheriffColor)
+local sheriffStatus = makeStatusLabel(win1, 61)
 
 local murdColor  = Color3.fromRGB(200, 40, 40)
-local win2       = makeDraggableWindow("🔴 Lock Murd", UDim2.new(0, 40, 0, 210), murdColor, UDim2.new(0, 210, 0, 88))
-local murdBtn    = makeStyledButton(win2, "🔴  Lock Murd", 32, murdColor)
-local murdStatus = makeStatusLabel(win2, 72)
+local win2       = makeDraggableWindow("🔴 Lock Murd", UDim2.new(0, 30, 0, 210), murdColor, UDim2.new(0, 185, 0, 74))
+local murdBtn    = makeStyledButton(win2, "🔴  Lock Murd", 28, murdColor)
+local murdStatus = makeStatusLabel(win2, 61)
 
 local speedColor  = Color3.fromRGB(90, 40, 180)
-local win3        = makeDraggableWindow("⚡ Fake Speed", UDim2.new(0, 40, 0, 320), speedColor, UDim2.new(0, 210, 0, 88))
-local speedBtn    = makeStyledButton(win3, "⚡  Fake Speed [needs tool]", 32, speedColor)
-local speedStatus = makeStatusLabel(win3, 72)
+local win3        = makeDraggableWindow("⚡ Fake Speed", UDim2.new(0, 30, 0, 300), speedColor, UDim2.new(0, 185, 0, 74))
+local speedBtn    = makeStyledButton(win3, "⚡  Fake Speed [needs tool]", 28, speedColor)
+local speedStatus = makeStatusLabel(win3, 61)
 
 -- ══════════════════════════════════════
 --         UTILITY FUNCTIONS
@@ -380,31 +430,25 @@ local function applyESP(player, fillColor, outlineColor)
 		existing.OutlineColor = outlineColor
 		return
 	end
-
 	if existing then existing:Destroy() end
 
 	local hl = Instance.new("Highlight")
-	hl.Adornee           = char
-	hl.FillColor         = fillColor
-	hl.OutlineColor      = outlineColor
-	hl.FillTransparency  = 0.45
+	hl.Adornee             = char
+	hl.FillColor           = fillColor
+	hl.OutlineColor        = outlineColor
+	hl.FillTransparency    = 0.45
 	hl.OutlineTransparency = 0
-	hl.DepthMode         = Enum.HighlightDepthMode.AlwaysOnTop
-	hl.Parent            = Camera
-
-	espHighlights[player] = hl
+	hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+	hl.Parent              = Camera
+	espHighlights[player]  = hl
 end
 
 local function updateESP()
 	for player in pairs(espHighlights) do
-		if not player or not player.Parent then
-			removeESP(player)
-		end
+		if not player or not player.Parent then removeESP(player) end
 	end
-
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player == LocalPlayer then continue end
-
 		local char = getCharacter(player)
 		if not char then removeESP(player) continue end
 
@@ -423,32 +467,32 @@ local function updateESP()
 end
 
 -- ══════════════════════════════════════
---        CAMERA LOCK-ON SYSTEM
+--     CAMERA LOCK-ON (Aim style)
+--   Camera stays in normal position
+--   but rotates to always face target
 -- ══════════════════════════════════════
-local CAM_DISTANCE = 20
-local CAM_HEIGHT   = 8
+local camLockActive = false
 
 local function startCameraLock()
-	Camera.CameraType = Enum.CameraType.Scriptable
+	camLockActive = true
 end
 
 local function stopCameraLock()
+	camLockActive = false
 	Camera.CameraType = Enum.CameraType.Custom
 end
 
 local function updateCameraLock()
-	if not lockedTarget then return end
-	local char = getCharacter(lockedTarget)
-	local root = char and char:FindFirstChild("HumanoidRootPart")
-	if not root then return end
+	if not camLockActive or not lockedTarget then return end
 
-	local myChar = getCharacter(LocalPlayer)
-	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-	local targetPos = root.Position
-	local lookDir   = (myRoot and (targetPos - myRoot.Position).Unit) or root.CFrame.LookVector
-	local camPos    = targetPos - (lookDir * CAM_DISTANCE) + Vector3.new(0, CAM_HEIGHT, 0)
+	local targetChar = getCharacter(lockedTarget)
+	local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+	if not targetRoot then return end
 
-	Camera.CFrame = CFrame.new(camPos, targetPos)
+	-- Keep camera in its current position, just rotate it to face the target
+	Camera.CameraType = Enum.CameraType.Scriptable
+	local currentPos = Camera.CFrame.Position
+	Camera.CFrame = CFrame.new(currentPos, targetRoot.Position)
 end
 
 -- ══════════════════════════════════════
@@ -460,10 +504,10 @@ local function doLock(toolName, label, statusLbl, otherStatusLbl)
 		lockedTarget = target
 		lockMode     = label
 		startCameraLock()
-		statusLbl.Text      = "Locked → " .. target.Name
+		statusLbl.Text       = "Locked → " .. target.Name
 		statusLbl.TextColor3 = Color3.fromRGB(80, 255, 140)
 		otherStatusLbl.Text       = "Idle"
-		otherStatusLbl.TextColor3 = Color3.fromRGB(160, 160, 180)
+		otherStatusLbl.TextColor3 = Color3.fromRGB(150, 150, 170)
 	else
 		statusLbl.Text       = "No " .. label .. " found"
 		statusLbl.TextColor3 = Color3.fromRGB(255, 100, 80)
@@ -476,7 +520,7 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		lockMode     = nil
 		stopCameraLock()
 		sheriffStatus.Text       = "Unlocked"
-		sheriffStatus.TextColor3 = Color3.fromRGB(160, 160, 180)
+		sheriffStatus.TextColor3 = Color3.fromRGB(150, 150, 170)
 	else
 		doLock(SHERIFF_TOOL, "Sheriff", sheriffStatus, murdStatus)
 	end
@@ -488,7 +532,7 @@ murdBtn.MouseButton1Click:Connect(function()
 		lockMode     = nil
 		stopCameraLock()
 		murdStatus.Text       = "Unlocked"
-		murdStatus.TextColor3 = Color3.fromRGB(160, 160, 180)
+		murdStatus.TextColor3 = Color3.fromRGB(150, 150, 170)
 	else
 		doLock(MURD_TOOL, "Murd", murdStatus, sheriffStatus)
 	end
@@ -505,13 +549,14 @@ speedBtn.MouseButton1Click:Connect(function()
 	if fakeSpeedOn then
 		speedBtn.BackgroundColor3 = speedOnColor
 		speedBtn.Text             = "⚡  Fake Speed [ON]"
-		speedStatus.Text          = "Active — needs tool equipped"
+		speedStatus.Text          = "Jump to activate!"
 		speedStatus.TextColor3    = Color3.fromRGB(180, 100, 255)
 	else
 		speedBtn.BackgroundColor3 = speedOffColor
 		speedBtn.Text             = "⚡  Fake Speed [needs tool]"
 		speedStatus.Text          = "Off"
-		speedStatus.TextColor3    = Color3.fromRGB(160, 160, 180)
+		speedStatus.TextColor3    = Color3.fromRGB(150, 150, 170)
+		-- Reset speed
 		local char = getCharacter(LocalPlayer)
 		local hum  = char and char:FindFirstChildOfClass("Humanoid")
 		if hum then hum.WalkSpeed = 16 end
@@ -522,10 +567,13 @@ end)
 --            MAIN HEARTBEAT LOOP
 -- ══════════════════════════════════════
 RunService.Heartbeat:Connect(function()
+	-- ESP
 	updateESP()
+
+	-- Camera lock-on
 	updateCameraLock()
 
-	-- Auto-switch lock if target loses their tool
+	-- Auto-switch lock if target loses tool
 	if lockedTarget then
 		local toolToCheck = lockMode == "Sheriff" and SHERIFF_TOOL or MURD_TOOL
 		if not hasTool(lockedTarget, toolToCheck) or not getCharacter(lockedTarget) then
@@ -545,22 +593,35 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Fake speed + spin
+	-- Fake Speed — only boosts while in the air (jump glitch style)
 	if fakeSpeedOn then
 		local char = getCharacter(LocalPlayer)
 		if not char then return end
 		local hum  = char:FindFirstChildOfClass("Humanoid")
-		local root = char:FindFirstChild("HumanoidRootPart")
+		if not hum then return end
 
-		if hasAnyToolEquipped(LocalPlayer) then
-			if hum  then hum.WalkSpeed = FAKE_SPEED end
-			if root then root.CFrame = root.CFrame * CFrame.Angles(0, math.rad(SPIN_SPEED), 0) end
-			speedStatus.Text       = "Spinning! 🌀"
-			speedStatus.TextColor3 = Color3.fromRGB(200, 130, 255)
-		else
-			if hum then hum.WalkSpeed = 16 end
-			speedStatus.Text       = "Waiting for tool..."
+		if not hasAnyToolEquipped(LocalPlayer) then
+			-- No tool: reset and warn
+			hum.WalkSpeed = 16
+			speedStatus.Text       = "Equip a tool first!"
 			speedStatus.TextColor3 = Color3.fromRGB(255, 180, 60)
+			return
+		end
+
+		local inAir = hum.FloorMaterial == Enum.Material.Air
+
+		if inAir then
+			-- Airborne: apply speed boost
+			hum.WalkSpeed = FAKE_SPEED
+			speedStatus.Text       = "BOOSTING! 🚀"
+			speedStatus.TextColor3 = Color3.fromRGB(140, 255, 180)
+		else
+			-- On ground: normal speed
+			hum.WalkSpeed = 16
+			if hasAnyToolEquipped(LocalPlayer) then
+				speedStatus.Text       = "Jump to activate!"
+				speedStatus.TextColor3 = Color3.fromRGB(180, 100, 255)
+			end
 		end
 	end
 end)
@@ -579,4 +640,4 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
-print("[Rain Hub] Loaded successfully.")
+print("[Rain Hub] Loaded.")
