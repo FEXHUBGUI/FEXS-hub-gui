@@ -1,10 +1,9 @@
 -- ══════════════════════════════════════
---         SERVICES
+--         SERVICES123
 -- ══════════════════════════════════════
-local Players          = game:GetService("Players")
-local RunService       = game:GetService("RunService")
-local TweenService     = game:GetService("TweenService")
-local UserInputService = game:GetService("UserInputService")
+local Players      = game:GetService("Players")
+local RunService   = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera      = workspace.CurrentCamera
@@ -170,100 +169,103 @@ screenGui.IgnoreGuiInset = true
 screenGui.Parent = LocalPlayer.PlayerGui
 
 -- ══════════════════════════════════════
---    SIMPLE DRAGGABLE WINDOW FACTORY
+--   SIMPLE FLAT BUTTON BUILDER
+--   Just a colored TextButton + status
 -- ══════════════════════════════════════
-local allWindows = {}
+local function makePanel(startPos, btnColor, btnText, statusDefault)
+	-- The main button IS the whole panel — fully clickable solid color
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 180, 0, 44)
+	btn.Position = startPos
+	btn.BackgroundColor3 = btnColor
+	btn.BorderSizePixel = 0
+	btn.Text = btnText
+	btn.TextColor3 = Color3.new(1, 1, 1)
+	btn.TextSize = 13
+	btn.Font = Enum.Font.GothamBold
+	btn.AutoButtonColor = false
+	btn.ZIndex = 2
+	btn.Parent = screenGui
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 
-local function makeWindow(startPos, accentColor, windowSize)
-	windowSize = windowSize or UDim2.new(0, 190, 0, 110)
+	-- Status line sitting just below the button
+	local status = Instance.new("TextLabel")
+	status.Size = UDim2.new(0, 180, 0, 16)
+	status.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset,
+		startPos.Y.Scale,
+		startPos.Y.Offset + 48
+	)
+	status.BackgroundTransparency = 1
+	status.Text = statusDefault or ""
+	status.TextColor3 = Color3.fromRGB(200, 200, 200)
+	status.TextSize = 10
+	status.Font = Enum.Font.Gotham
+	status.TextXAlignment = Enum.TextXAlignment.Left
+	status.ZIndex = 2
+	status.Parent = screenGui
 
-	-- Main container
-	local frame = Instance.new("Frame")
-	frame.Size = windowSize
-	frame.Position = startPos
-	frame.BackgroundColor3 = accentColor
-	frame.BorderSizePixel = 0
-	frame.Active = true
-	frame.Parent = screenGui
-	Instance.new("UICorner", frame).CornerRadius = UDim.new(0, 10)
-
-	-- Title/drag bar (slightly darker strip at top)
-	local bar = Instance.new("Frame")
-	bar.Size = UDim2.new(1, 0, 0, 28)
-	bar.BackgroundColor3 = accentColor:Lerp(Color3.new(0,0,0), 0.4)
-	bar.BorderSizePixel = 0
-	bar.ZIndex = 2
-	bar.Parent = frame
-	Instance.new("UICorner", bar).CornerRadius = UDim.new(0, 10)
-
-	-- Fix bottom corners of bar
-	local barFix = Instance.new("Frame")
-	barFix.Size = UDim2.new(1, 0, 0.5, 0)
-	barFix.Position = UDim2.new(0, 0, 0.5, 0)
-	barFix.BackgroundColor3 = accentColor:Lerp(Color3.new(0,0,0), 0.4)
-	barFix.BorderSizePixel = 0
-	barFix.ZIndex = 2
-	barFix.Parent = bar
-
-	-- Close button (big, sits in bar)
+	-- Close button (small X to the right of the main button)
 	local closeBtn = Instance.new("TextButton")
-	closeBtn.Size = UDim2.new(0, 26, 0, 20)
-	closeBtn.Position = UDim2.new(1, -30, 0.5, -10)
-	closeBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	closeBtn.Size = UDim2.new(0, 28, 0, 28)
+	closeBtn.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + 186,
+		startPos.Y.Scale,
+		startPos.Y.Offset + 8
+	)
+	closeBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
 	closeBtn.BorderSizePixel = 0
 	closeBtn.Text = "✕"
-	closeBtn.TextColor3 = Color3.new(1,1,1)
-	closeBtn.TextSize = 13
+	closeBtn.TextColor3 = Color3.new(1, 1, 1)
+	closeBtn.TextSize = 14
 	closeBtn.Font = Enum.Font.GothamBold
-	closeBtn.ZIndex = 5
-	closeBtn.Parent = bar
-	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 5)
+	closeBtn.ZIndex = 3
+	closeBtn.Parent = screenGui
+	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 
-	-- Reopen pill button (shown when closed, sits outside frame)
-	local reopenBtn = Instance.new("TextButton")
-	reopenBtn.Size = UDim2.new(0, 36, 0, 26)
-	reopenBtn.BackgroundColor3 = accentColor
-	reopenBtn.BorderSizePixel = 0
-	reopenBtn.Text = "▶"
-	reopenBtn.TextColor3 = Color3.new(1,1,1)
-	reopenBtn.TextSize = 14
-	reopenBtn.Font = Enum.Font.GothamBold
-	reopenBtn.Visible = false
-	reopenBtn.ZIndex = 20
-	reopenBtn.Parent = screenGui
-	Instance.new("UICorner", reopenBtn).CornerRadius = UDim.new(0, 7)
+	-- Reopen button (shown when closed)
+	local openBtn = Instance.new("TextButton")
+	openBtn.Size = UDim2.new(0, 180, 0, 44)
+	openBtn.Position = startPos
+	openBtn.BackgroundColor3 = btnColor:Lerp(Color3.new(0,0,0), 0.35)
+	openBtn.BorderSizePixel = 0
+	openBtn.Text = "▶  " .. btnText
+	openBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	openBtn.TextSize = 12
+	openBtn.Font = Enum.Font.GothamBold
+	openBtn.AutoButtonColor = false
+	openBtn.Visible = false
+	openBtn.ZIndex = 2
+	openBtn.Parent = screenGui
+	Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0, 8)
 
-	-- Position reopen relative to frame
-	local function syncReopenPos()
-		reopenBtn.Position = UDim2.new(
-			frame.Position.X.Scale,
-			frame.Position.X.Offset,
-			frame.Position.Y.Scale,
-			frame.Position.Y.Offset
-		)
-	end
-	syncReopenPos()
-
+	-- Close logic
 	closeBtn.MouseButton1Click:Connect(function()
-		frame.Visible = false
-		syncReopenPos()
-		reopenBtn.Visible = true
+		btn.Visible = false
+		closeBtn.Visible = false
+		status.Visible = false
+		openBtn.Visible = true
 	end)
 
-	reopenBtn.MouseButton1Click:Connect(function()
-		frame.Visible = true
-		reopenBtn.Visible = false
+	-- Reopen logic
+	openBtn.MouseButton1Click:Connect(function()
+		btn.Visible = true
+		closeBtn.Visible = true
+		status.Visible = true
+		openBtn.Visible = false
 	end)
 
-	-- Drag logic
+	-- Dragging on the main button
 	local dragging, dragStart, startPos2 = false, nil, nil
 
-	bar.InputBegan:Connect(function(input)
+	btn.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
 			dragging  = true
 			dragStart = input.Position
-			startPos2 = frame.Position
+			startPos2 = btn.Position
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -272,125 +274,48 @@ local function makeWindow(startPos, accentColor, windowSize)
 		end
 	end)
 
-	bar.InputChanged:Connect(function(input)
+	btn.InputChanged:Connect(function(input)
 		if dragging and (
 			input.UserInputType == Enum.UserInputType.MouseMovement or
 			input.UserInputType == Enum.UserInputType.Touch
 		) then
 			local delta = input.Position - dragStart
-			frame.Position = UDim2.new(
-				startPos2.X.Scale,
-				startPos2.X.Offset + delta.X,
-				startPos2.Y.Scale,
-				startPos2.Y.Offset + delta.Y
-			)
-			syncReopenPos()
+			local newX = startPos2.X.Offset + delta.X
+			local newY = startPos2.Y.Offset + delta.Y
+
+			btn.Position = UDim2.new(startPos2.X.Scale, newX, startPos2.Y.Scale, newY)
+			closeBtn.Position = UDim2.new(startPos2.X.Scale, newX + 186, startPos2.Y.Scale, newY + 8)
+			status.Position   = UDim2.new(startPos2.X.Scale, newX,       startPos2.Y.Scale, newY + 48)
+			openBtn.Position  = UDim2.new(startPos2.X.Scale, newX,       startPos2.Y.Scale, newY)
 		end
 	end)
 
-	table.insert(allWindows, frame)
-	return frame, bar
+	return btn, status
 end
 
 -- ══════════════════════════════════════
---    SOLID COLOR BUTTON FACTORY
+--         BUILD THE 3 PANELS
 -- ══════════════════════════════════════
-local function makeSolidButton(parent, text, posY, btnColor)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, -14, 0, 34)
-	btn.Position = UDim2.new(0, 7, 0, posY)
-	btn.BackgroundColor3 = btnColor
-	btn.BorderSizePixel = 0
-	btn.Text = text
-	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.TextSize = 12
-	btn.Font = Enum.Font.GothamBold
-	btn.AutoButtonColor = false
-	btn.ZIndex = 4
-	btn.Parent = parent
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 7)
-	return btn
-end
+local sheriffBtn, sheriffStatus = makePanel(
+	UDim2.new(0, 30, 0, 140),
+	Color3.fromRGB(30, 90, 200),
+	"Lock Sheriff",
+	"Idle"
+)
 
-local function makeStatusLabel(parent, posY)
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, -14, 0, 14)
-	lbl.Position = UDim2.new(0, 7, 0, posY)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = "Idle"
-	lbl.TextColor3 = Color3.fromRGB(220, 220, 220)
-	lbl.TextSize = 10
-	lbl.Font = Enum.Font.Gotham
-	lbl.TextXAlignment = Enum.TextXAlignment.Left
-	lbl.ZIndex = 4
-	lbl.Parent = parent
-	return lbl
-end
+local murdBtn, murdStatus = makePanel(
+	UDim2.new(0, 30, 0, 210),
+	Color3.fromRGB(180, 35, 35),
+	"Lock Murd",
+	"Idle"
+)
 
--- ══════════════════════════════════════
---       WINDOW 1 — LOCK SHERIFF
--- ══════════════════════════════════════
-local sheriffAccent = Color3.fromRGB(30, 90, 200)
-local win1, bar1    = makeWindow(UDim2.new(0, 30, 0, 120), sheriffAccent, UDim2.new(0, 190, 0, 108))
-
-local sheriffTitle = Instance.new("TextLabel")
-sheriffTitle.Size = UDim2.new(1, -40, 1, 0)
-sheriffTitle.Position = UDim2.new(0, 8, 0, 0)
-sheriffTitle.BackgroundTransparency = 1
-sheriffTitle.Text = "Lock Sheriff"
-sheriffTitle.TextColor3 = Color3.new(1,1,1)
-sheriffTitle.TextSize = 12
-sheriffTitle.Font = Enum.Font.GothamBold
-sheriffTitle.TextXAlignment = Enum.TextXAlignment.Left
-sheriffTitle.ZIndex = 3
-sheriffTitle.Parent = bar1
-
-local sheriffBtn    = makeSolidButton(win1, "🔵  Lock Sheriff", 32, Color3.fromRGB(20, 70, 170))
-local sheriffStatus = makeStatusLabel(win1, 70)
-
--- ══════════════════════════════════════
---       WINDOW 2 — LOCK MURD
--- ══════════════════════════════════════
-local murdAccent = Color3.fromRGB(180, 35, 35)
-local win2, bar2 = makeWindow(UDim2.new(0, 30, 0, 245), murdAccent, UDim2.new(0, 190, 0, 108))
-
-local murdTitle = Instance.new("TextLabel")
-murdTitle.Size = UDim2.new(1, -40, 1, 0)
-murdTitle.Position = UDim2.new(0, 8, 0, 0)
-murdTitle.BackgroundTransparency = 1
-murdTitle.Text = "Lock Murd"
-murdTitle.TextColor3 = Color3.new(1,1,1)
-murdTitle.TextSize = 12
-murdTitle.Font = Enum.Font.GothamBold
-murdTitle.TextXAlignment = Enum.TextXAlignment.Left
-murdTitle.ZIndex = 3
-murdTitle.Parent = bar2
-
-local murdBtn    = makeSolidButton(win2, "🔴  Lock Murd", 32, Color3.fromRGB(140, 20, 20))
-local murdStatus = makeStatusLabel(win2, 70)
-
--- ══════════════════════════════════════
---       WINDOW 3 — FAKE SPEED
--- ══════════════════════════════════════
-local speedAccent = Color3.fromRGB(80, 35, 160)
-local win3, bar3  = makeWindow(UDim2.new(0, 30, 0, 370), speedAccent, UDim2.new(0, 190, 0, 108))
-
-local speedTitle = Instance.new("TextLabel")
-speedTitle.Size = UDim2.new(1, -40, 1, 0)
-speedTitle.Position = UDim2.new(0, 8, 0, 0)
-speedTitle.BackgroundTransparency = 1
-speedTitle.Text = "Fake Speed"
-speedTitle.TextColor3 = Color3.new(1,1,1)
-speedTitle.TextSize = 12
-speedTitle.Font = Enum.Font.GothamBold
-speedTitle.TextXAlignment = Enum.TextXAlignment.Left
-speedTitle.ZIndex = 3
-speedTitle.Parent = bar3
-
-local speedOffColor = Color3.fromRGB(60, 20, 130)
-local speedOnColor  = Color3.fromRGB(110, 50, 220)
-local speedBtn      = makeSolidButton(win3, "⚡  Fake Speed [OFF]", 32, speedOffColor)
-local speedStatus   = makeStatusLabel(win3, 70)
+local speedBtn, speedStatus = makePanel(
+	UDim2.new(0, 30, 0, 280),
+	Color3.fromRGB(80, 35, 160),
+	"Fake Speed  [OFF]",
+	"Off"
+)
 
 -- ══════════════════════════════════════
 --         UTILITY FUNCTIONS
@@ -399,6 +324,7 @@ local function getCharacter(player)
 	return player and player.Character
 end
 
+-- ESP checks both character AND backpack so tool doesn't need to be equipped
 local function hasTool(player, toolName)
 	local char = getCharacter(player)
 	if char and char:FindFirstChild(toolName) then return true end
@@ -427,6 +353,7 @@ end
 
 -- ══════════════════════════════════════
 --      THROUGH-WALL ESP (Highlight)
+--   Checks backpack too — no equip needed
 -- ══════════════════════════════════════
 local function removeESP(player)
 	if espHighlights[player] then
@@ -464,13 +391,16 @@ local function updateESP()
 		if player == LocalPlayer then continue end
 		local char = getCharacter(player)
 		if not char then removeESP(player) continue end
+
+		-- hasTool checks backpack AND character so works without equipping
 		if hasTool(player, MURD_TOOL) then
-			applyESP(player, Color3.fromRGB(220, 30, 30),  Color3.fromRGB(255, 80,  80))
+			applyESP(player, Color3.fromRGB(200, 20, 20), Color3.fromRGB(255, 70, 70))
 		elseif hasTool(player, SHERIFF_TOOL) then
-			applyESP(player, Color3.fromRGB(30,  80, 220), Color3.fromRGB(80,  150, 255))
+			applyESP(player, Color3.fromRGB(20, 70, 210), Color3.fromRGB(70, 140, 255))
 		else
-			applyESP(player, Color3.fromRGB(120, 40, 200), Color3.fromRGB(180, 90,  255))
+			applyESP(player, Color3.fromRGB(110, 30, 190), Color3.fromRGB(170, 80, 255))
 		end
+
 		if espHighlights[player] and espHighlights[player].Adornee ~= char then
 			espHighlights[player].Adornee = char
 		end
@@ -478,51 +408,33 @@ local function updateESP()
 end
 
 -- ══════════════════════════════════════
---   CAMERA LOCK-ON (True aim lock)
---   Uses mouse delta to still let you
---   look around but forces camera to
---   always rotate back toward target
+--   CAMERA LOCK-ON (Soft aim style)
+--   Stays in Custom mode, lerps toward
+--   target — no freeze, no spectate
 -- ══════════════════════════════════════
 local camLockActive = false
-
-local function stopCameraLock()
-	camLockActive = false
-	-- Fully restore Roblox default camera
-	Camera.CameraType = Enum.CameraType.Custom
-	local camScript = LocalPlayer.PlayerScripts:FindFirstChild("PlayerModule")
-	if camScript then
-		-- re-require forces the camera module to re-init
-		require(camScript)
-	end
-end
 
 local function startCameraLock()
 	camLockActive = true
 end
 
--- This runs every frame and softly rotates the camera toward the target
--- WITHOUT taking over or freezing — it nudges the existing CFrame
+local function stopCameraLock()
+	camLockActive = false
+	Camera.CameraType = Enum.CameraType.Custom
+end
+
 local function updateCameraLock()
 	if not camLockActive or not lockedTarget then return end
-
 	local targetChar = getCharacter(lockedTarget)
 	local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
 	if not targetRoot then return end
 
-	-- Let Roblox drive the camera position naturally
-	-- We only override the look direction each frame by a lerp
-	-- so it feels smooth and doesn't freeze
 	Camera.CameraType = Enum.CameraType.Custom
 
-	local myChar = getCharacter(LocalPlayer)
-	local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-	if not myRoot then return end
-
 	local currentCF   = Camera.CFrame
-	local targetPoint = targetRoot.Position + Vector3.new(0, 2, 0) -- aim at chest height
+	local targetPoint = targetRoot.Position + Vector3.new(0, 2, 0)
 	local desiredCF   = CFrame.new(currentCF.Position, targetPoint)
 
-	-- Smooth lerp toward target — feels like soft aim, not spectate
 	Camera.CFrame = currentCF:Lerp(desiredCF, 0.18)
 end
 
@@ -538,7 +450,7 @@ local function doLock(toolName, label, statusLbl, otherStatusLbl)
 		statusLbl.Text       = "Locked: " .. target.Name
 		statusLbl.TextColor3 = Color3.fromRGB(80, 255, 140)
 		otherStatusLbl.Text       = "Idle"
-		otherStatusLbl.TextColor3 = Color3.fromRGB(220, 220, 220)
+		otherStatusLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
 	else
 		statusLbl.Text       = "No " .. label .. " found"
 		statusLbl.TextColor3 = Color3.fromRGB(255, 160, 80)
@@ -551,7 +463,7 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		lockMode     = nil
 		stopCameraLock()
 		sheriffStatus.Text       = "Unlocked"
-		sheriffStatus.TextColor3 = Color3.fromRGB(220, 220, 220)
+		sheriffStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
 	else
 		doLock(SHERIFF_TOOL, "Sheriff", sheriffStatus, murdStatus)
 	end
@@ -563,7 +475,7 @@ murdBtn.MouseButton1Click:Connect(function()
 		lockMode     = nil
 		stopCameraLock()
 		murdStatus.Text       = "Unlocked"
-		murdStatus.TextColor3 = Color3.fromRGB(220, 220, 220)
+		murdStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
 	else
 		doLock(MURD_TOOL, "Murd", murdStatus, sheriffStatus)
 	end
@@ -572,18 +484,21 @@ end)
 -- ══════════════════════════════════════
 --        FAKE SPEED BUTTON
 -- ══════════════════════════════════════
+local speedOnColor  = Color3.fromRGB(110, 50, 220)
+local speedOffColor = Color3.fromRGB(80, 35, 160)
+
 speedBtn.MouseButton1Click:Connect(function()
 	fakeSpeedOn = not fakeSpeedOn
 	if fakeSpeedOn then
 		speedBtn.BackgroundColor3 = speedOnColor
-		speedBtn.Text             = "⚡  Fake Speed [ON]"
+		speedBtn.Text             = "Fake Speed  [ON]"
 		speedStatus.Text          = "Jump to boost!"
 		speedStatus.TextColor3    = Color3.fromRGB(200, 160, 255)
 	else
 		speedBtn.BackgroundColor3 = speedOffColor
-		speedBtn.Text             = "⚡  Fake Speed [OFF]"
+		speedBtn.Text             = "Fake Speed  [OFF]"
 		speedStatus.Text          = "Off"
-		speedStatus.TextColor3    = Color3.fromRGB(220, 220, 220)
+		speedStatus.TextColor3    = Color3.fromRGB(200, 200, 200)
 		local char = getCharacter(LocalPlayer)
 		local hum  = char and char:FindFirstChildOfClass("Humanoid")
 		if hum then hum.WalkSpeed = 16 end
@@ -594,10 +509,7 @@ end)
 --            MAIN HEARTBEAT LOOP
 -- ══════════════════════════════════════
 RunService.Heartbeat:Connect(function()
-	-- ESP
 	updateESP()
-
-	-- Camera lock
 	updateCameraLock()
 
 	-- Auto-switch lock if target loses tool
@@ -620,7 +532,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Fake Speed — boost only while airborne
+	-- Fake Speed — airborne only
 	if fakeSpeedOn then
 		local char = getCharacter(LocalPlayer)
 		if not char then return end
