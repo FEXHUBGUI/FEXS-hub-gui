@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES
+--         SERVICES1231232
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -668,7 +668,7 @@ local function doLock(toolName, label, statusLbl, otherStatusLbl)
 	end
 end
 
-sheriffBtn.MouseButton1Click:Connect(function()
+local function toggleSheriff()
 	if lockedTarget and lockMode == "Sheriff" then
 		lockedTarget = nil
 		lockMode     = nil
@@ -678,9 +678,9 @@ sheriffBtn.MouseButton1Click:Connect(function()
 	else
 		doLock(SHERIFF_TOOL, "Sheriff", sheriffStatus, murdStatus)
 	end
-end)
+end
 
-murdBtn.MouseButton1Click:Connect(function()
+local function toggleMurd()
 	if lockedTarget and lockMode == "Murd" then
 		lockedTarget = nil
 		lockMode     = nil
@@ -690,7 +690,10 @@ murdBtn.MouseButton1Click:Connect(function()
 	else
 		doLock(MURD_TOOL, "Murd", murdStatus, sheriffStatus)
 	end
-end)
+end
+
+sheriffBtn.MouseButton1Click:Connect(toggleSheriff)
+murdBtn.MouseButton1Click:Connect(toggleMurd)
 
 -- ══════════════════════════════════════
 --        FAKE SPEED BUTTON
