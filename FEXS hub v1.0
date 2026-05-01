@@ -1,28 +1,81 @@
 --// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local lp = Players.LocalPlayer
 local cam = workspace.CurrentCamera
 
 --// STATE
-local lastGunDropPosition = nil
-local sheriffTarget = nil
-local murdererTarget = nil
-local lockSheriff = false
-local lockMurderer = false
+local lastReturnCFrame = nil
 
 --================================================
--- UI CREATOR (each button is separate & draggable)
+-- NOTIFICATION SYSTEM
 --================================================
-local function makeButton(text, posY)
+local function notify(text)
+	local gui = Instance.new("ScreenGui")
+	gui.Parent = lp:WaitForChild("PlayerGui")
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0, 320, 0, 50)
+	frame.Position = UDim2.new(0.5, -160, 0, -60)
+	frame.BackgroundColor3 = Color3.fromRGB(120, 70, 170)
+	frame.Parent = gui
+
+	local corner = Instance.new("UICorner")
+	corner.Parent = frame
+
+	local label = Instance.new("TextLabel")
+	label.Size = UDim2.new(1,0,1,0)
+	label.BackgroundTransparency = 1
+	label.TextColor3 = Color3.new(1,1,1)
+	label.Font = Enum.Font.GothamBold
+	label.TextScaled = true
+	label.Text = text
+	label.Parent = frame
+
+	TweenService:Create(frame, TweenInfo.new(0.35), {
+		Position = UDim2.new(0.5, -160, 0, 0)
+	}):Play()
+
+	task.delay(3, function()
+		TweenService:Create(frame, TweenInfo.new(0.35), {
+			Position = UDim2.new(0.5, -160, 0, -60)
+		}):Play()
+
+		task.wait(0.5)
+		gui:Destroy()
+	end)
+end
+
+--================================================
+-- ROLE SYSTEM (SERVER CONTROLLED)
+--================================================
+local function getRole(plr)
+	return plr:GetAttribute("Role")
+end
+
+--================================================
+-- DROP SYSTEM (SERVER SET ATTRIBUTE)
+--================================================
+local function getGunDrop()
+	return workspace:GetAttribute("LastGunDrop")
+end
+
+--================================================
+-- RANDOM DRAGGABLE BUTTON CREATOR
+--================================================
+local function makeButton(text)
 	local gui = Instance.new("ScreenGui")
 	gui.ResetOnSpawn = false
 	gui.Parent = lp:WaitForChild("PlayerGui")
 
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(0, 220, 0, 50)
-	frame.Position = UDim2.new(0.5, -110, 0, posY)
+
+	-- random safe spawn position
+	frame.Position = UDim2.new(math.random(10,70)/100, 0, math.random(10,70)/100, 0)
+
 	frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 	frame.Active = true
 	frame.Draggable = true
@@ -61,141 +114,104 @@ local function makeButton(text, posY)
 end
 
 --================================================
--- TOOL DETECTION (DOES NOT REQUIRE EQUIP)
+-- TP TO GUN (DEATH DROP ONLY)
 --================================================
-local function playerHasTool(plr, toolName)
-	local char = plr.Character
-	local backpack = plr:FindFirstChild("Backpack")
-
-	if char and char:FindFirstChild(toolName) then
-		return true
-	end
-
-	if backpack and backpack:FindFirstChild(toolName) then
-		return true
-	end
-
-	return false
-end
-
---================================================
--- TRACK DROPPED GUN (ONLY VALID FOR TP)
---================================================
-workspace.ChildAdded:Connect(function(obj)
-	if obj:IsA("Tool") and obj.Name == "Gun" then
-		local handle = obj:FindFirstChild("Handle")
-		if handle then
-			task.spawn(function()
-				while obj.Parent == workspace and handle do
-					lastGunDropPosition = handle.Position
-					task.wait(0.1)
-				end
-			end)
-		end
-	end
-end)
-
---================================================
--- FIND ROLES (LIVE UPDATE)
---================================================
-local function updateTargets()
-	sheriffTarget = nil
-	murdererTarget = nil
-
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if playerHasTool(plr, "Gun") then
-			sheriffTarget = plr
-		end
-		if playerHasTool(plr, "Knife") then
-			murdererTarget = plr
-		end
-	end
-end
-
-RunService.RenderStepped:Connect(updateTargets)
-
---================================================
--- TP TO GUN (ONLY IF DROPPED)
---================================================
-local tpBtn = makeButton("TP TO GUN", 0.15)
+local tpBtn = makeButton("TP TO GUN")
 
 tpBtn.MouseButton1Click:Connect(function()
 	local char = lp.Character
 	local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
-	-- ONLY ALLOW IF IT WAS DROPPED (NOT IN SOMEONE'S HAND/BACKPACK)
-	if hrp and lastGunDropPosition then
-		hrp.CFrame = CFrame.new(lastGunDropPosition + Vector3.new(0,3,0))
+	local drop = getGunDrop()
+
+	if not drop then
+		notify("ERROR 101: Gun Not Found Please Wait For Gun To Drop!")
+		return
+	end
+
+	if hrp then
+		lastReturnCFrame = hrp.CFrame
+		hrp.CFrame = CFrame.new(drop + Vector3.new(0,3,0))
+
+		task.delay(2, function()
+			if hrp and lastReturnCFrame then
+				hrp.CFrame = lastReturnCFrame
+			end
+		end)
 	end
 end)
 
 --================================================
--- LOCK SHERIFF
+-- LOCK SYSTEM
 --================================================
-local sheriffBtn = makeButton("LOCK SHERIFF", 0.25)
+local function getTarget(role)
+	for _, p in ipairs(Players:GetPlayers()) do
+		if getRole(p) == role then
+			return p
+		end
+	end
+end
 
+local function lockCamera(role)
+	RunService:BindToRenderStep("LOCK_"..role, 1, function()
+		local target = getTarget(role)
+		if target and target.Character then
+			local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+			if hrp then
+				cam.CFrame = CFrame.new(cam.CFrame.Position, hrp.Position)
+			end
+		end
+	end)
+end
+
+local sheriffBtn = makeButton("LOCK SHERIFF")
 sheriffBtn.MouseButton1Click:Connect(function()
-	lockSheriff = not lockSheriff
+	lockCamera("Sheriff")
 end)
 
-RunService.RenderStepped:Connect(function()
-	if lockSheriff and sheriffTarget and sheriffTarget.Character then
-		local hrp = sheriffTarget.Character:FindFirstChild("HumanoidRootPart")
-		if hrp then
-			cam.CFrame = CFrame.new(cam.CFrame.Position, hrp.Position)
-		end
-	end
-end)
-
---================================================
--- LOCK MURDERER
---================================================
-local murderBtn = makeButton("LOCK MURDERER", 0.35)
-
+local murderBtn = makeButton("LOCK MURDERER")
 murderBtn.MouseButton1Click:Connect(function()
-	lockMurderer = not lockMurderer
-end)
-
-RunService.RenderStepped:Connect(function()
-	if lockMurderer and murdererTarget and murdererTarget.Character then
-		local hrp = murdererTarget.Character:FindFirstChild("HumanoidRootPart")
-		if hrp then
-			cam.CFrame = CFrame.new(cam.CFrame.Position, hrp.Position)
-		end
-	end
+	lockCamera("Murderer")
 end)
 
 --================================================
--- CLEAN ESP (NO TEXT ABOVE HEADS)
+-- PROXIMITY ROLE TAGS (SMALL + ONLY NEAR PLAYERS)
 --================================================
-local highlights = {}
-
-local function applyESP(plr, color)
+local function showTag(plr)
 	local char = plr.Character
 	if not char then return end
 
-	if highlights[plr] then
-		highlights[plr]:Destroy()
-	end
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	local my = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+	if not hrp or not my then return end
 
-	local h = Instance.new("Highlight")
-	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	h.FillTransparency = 0.5
-	h.OutlineTransparency = 0
-	h.FillColor = color
-	h.Parent = char
+	local dist = (hrp.Position - my.Position).Magnitude
+	if dist > 20 then return end
 
-	highlights[plr] = h
+	local role = getRole(plr)
+	if not role then return end
+
+	local old = hrp:FindFirstChild("Tag")
+	if old then old:Destroy() end
+
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.new(0, 90, 0, 20)
+	bb.StudsOffset = Vector3.new(0,2,0)
+	bb.Parent = hrp
+	bb.Name = "Tag"
+
+	local t = Instance.new("TextLabel")
+	t.Size = UDim2.new(1,0,1,0)
+	t.BackgroundTransparency = 1
+	t.TextScaled = true
+	t.Font = Enum.Font.GothamBold
+	t.Text = role
+	t.TextColor3 = Color3.new(1,1,1)
+	t.Parent = bb
 end
 
 RunService.RenderStepped:Connect(function()
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if playerHasTool(plr, "Gun") then
-			applyESP(plr, Color3.fromRGB(80,160,255))
-		elseif playerHasTool(plr, "Knife") then
-			applyESP(plr, Color3.fromRGB(255,80,80))
-		else
-			applyESP(plr, Color3.fromRGB(170,80,255))
-		end
+	for _, p in ipairs(Players:GetPlayers()) do
+		showTag(p)
 	end
 end)
