@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES
+--         SERVICES23
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -169,87 +169,166 @@ screenGui.IgnoreGuiInset = true
 screenGui.Parent = LocalPlayer.PlayerGui
 
 -- ══════════════════════════════════════
---   SIMPLE FLAT BUTTON BUILDER
+--   TWEEN HELPERS FOR BUTTON FADING
 -- ══════════════════════════════════════
-local function makePanel(startPos, btnColor, btnText, statusDefault)
+local fadeDuration = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local function fadeOutBtn(btn, statusLbl, xBtn)
+	-- Fade everything out smoothly
+	tw(btn,       {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
+	tw(statusLbl, {TextTransparency = 1},                             fadeDuration)
+	tw(xBtn,      {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
+	task.delay(0.36, function()
+		btn.Visible       = false
+		statusLbl.Visible = false
+		xBtn.Visible      = false
+		-- Reset transparency for when it comes back
+		btn.BackgroundTransparency       = 0
+		btn.TextTransparency             = 0
+		statusLbl.TextTransparency       = 0
+		xBtn.BackgroundTransparency      = 0
+		xBtn.TextTransparency            = 0
+	end)
+end
+
+local function fadeInBtn(btn, statusLbl, xBtn)
+	btn.BackgroundTransparency       = 1
+	btn.TextTransparency             = 1
+	statusLbl.TextTransparency       = 1
+	xBtn.BackgroundTransparency      = 1
+	xBtn.TextTransparency            = 1
+	btn.Visible       = true
+	statusLbl.Visible = true
+	xBtn.Visible      = true
+	tw(btn,       {BackgroundTransparency = 0, TextTransparency = 0}, fadeDuration)
+	tw(statusLbl, {TextTransparency = 0},                             fadeDuration)
+	tw(xBtn,      {BackgroundTransparency = 0, TextTransparency = 0}, fadeDuration)
+end
+
+-- ══════════════════════════════════════
+--   CUBE BUTTON BUILDER
+--   Square shape, mobile-friendly size
+--   Close = fade out, reopen = small pill
+-- ══════════════════════════════════════
+
+-- Size of each square button
+local CUBE_SIZE = 80  -- width and height equal = square/cube look
+
+local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
+	-- ── Main cube button ──────────────────
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, 180, 0, 44)
+	btn.Size = UDim2.new(0, CUBE_SIZE, 0, CUBE_SIZE)
 	btn.Position = startPos
 	btn.BackgroundColor3 = btnColor
 	btn.BorderSizePixel = 0
-	btn.Text = btnText
-	btn.TextColor3 = Color3.new(1, 1, 1)
-	btn.TextSize = 13
-	btn.Font = Enum.Font.GothamBold
+	btn.Text = ""
 	btn.AutoButtonColor = false
 	btn.ZIndex = 2
 	btn.Parent = screenGui
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
+	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 14)
 
+	-- Top line of text inside cube (e.g. "Lock")
+	local labelTop = Instance.new("TextLabel")
+	labelTop.Size = UDim2.new(1, -8, 0, 22)
+	labelTop.Position = UDim2.new(0, 4, 0, 14)
+	labelTop.BackgroundTransparency = 1
+	labelTop.Text = topLine
+	labelTop.TextColor3 = Color3.new(1, 1, 1)
+	labelTop.TextSize = 13
+	labelTop.Font = Enum.Font.GothamBold
+	labelTop.TextXAlignment = Enum.TextXAlignment.Center
+	labelTop.ZIndex = 3
+	labelTop.Parent = btn
+
+	-- Bottom line of text inside cube (e.g. "Sheriff")
+	local labelBot = Instance.new("TextLabel")
+	labelBot.Size = UDim2.new(1, -8, 0, 20)
+	labelBot.Position = UDim2.new(0, 4, 0, 36)
+	labelBot.BackgroundTransparency = 1
+	labelBot.Text = btnLabel
+	labelBot.TextColor3 = Color3.fromRGB(210, 230, 255)
+	labelBot.TextSize = 11
+	labelBot.Font = Enum.Font.Gotham
+	labelBot.TextXAlignment = Enum.TextXAlignment.Center
+	labelBot.ZIndex = 3
+	labelBot.Parent = btn
+
+	-- Status text below the cube
 	local status = Instance.new("TextLabel")
-	status.Size = UDim2.new(0, 180, 0, 16)
+	status.Size = UDim2.new(0, CUBE_SIZE, 0, 16)
 	status.Position = UDim2.new(
 		startPos.X.Scale,
 		startPos.X.Offset,
 		startPos.Y.Scale,
-		startPos.Y.Offset + 48
+		startPos.Y.Offset + CUBE_SIZE + 4
 	)
 	status.BackgroundTransparency = 1
 	status.Text = statusDefault or ""
 	status.TextColor3 = Color3.fromRGB(200, 200, 200)
 	status.TextSize = 10
 	status.Font = Enum.Font.Gotham
-	status.TextXAlignment = Enum.TextXAlignment.Left
+	status.TextXAlignment = Enum.TextXAlignment.Center
 	status.ZIndex = 2
 	status.Parent = screenGui
 
-	local closeBtn = Instance.new("TextButton")
-	closeBtn.Size = UDim2.new(0, 28, 0, 28)
-	closeBtn.Position = UDim2.new(
+	-- Small X close button (top-right corner of cube)
+	local xBtn = Instance.new("TextButton")
+	xBtn.Size = UDim2.new(0, 22, 0, 22)
+	xBtn.Position = UDim2.new(
 		startPos.X.Scale,
-		startPos.X.Offset + 186,
+		startPos.X.Offset + CUBE_SIZE - 10,
 		startPos.Y.Scale,
-		startPos.Y.Offset + 8
+		startPos.Y.Offset - 12
 	)
-	closeBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
-	closeBtn.BorderSizePixel = 0
-	closeBtn.Text = "✕"
-	closeBtn.TextColor3 = Color3.new(1, 1, 1)
-	closeBtn.TextSize = 14
-	closeBtn.Font = Enum.Font.GothamBold
-	closeBtn.ZIndex = 3
-	closeBtn.Parent = screenGui
-	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+	xBtn.BackgroundColor3 = Color3.fromRGB(190, 40, 40)
+	xBtn.BorderSizePixel = 0
+	xBtn.Text = "✕"
+	xBtn.TextColor3 = Color3.new(1, 1, 1)
+	xBtn.TextSize = 11
+	xBtn.Font = Enum.Font.GothamBold
+	xBtn.ZIndex = 4
+	xBtn.Parent = screenGui
+	Instance.new("UICorner", xBtn).CornerRadius = UDim.new(1, 0)  -- full circle X
 
-	local openBtn = Instance.new("TextButton")
-	openBtn.Size = UDim2.new(0, 180, 0, 44)
-	openBtn.Position = startPos
-	openBtn.BackgroundColor3 = btnColor:Lerp(Color3.new(0,0,0), 0.35)
-	openBtn.BorderSizePixel = 0
-	openBtn.Text = "▶  " .. btnText
-	openBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-	openBtn.TextSize = 12
-	openBtn.Font = Enum.Font.GothamBold
-	openBtn.AutoButtonColor = false
-	openBtn.Visible = false
-	openBtn.ZIndex = 2
-	openBtn.Parent = screenGui
-	Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0, 8)
+	-- Small reopen pill button (shows when closed)
+	local reopenBtn = Instance.new("TextButton")
+	reopenBtn.Size = UDim2.new(0, CUBE_SIZE, 0, 28)
+	reopenBtn.Position = startPos
+	reopenBtn.BackgroundColor3 = btnColor:Lerp(Color3.new(0, 0, 0), 0.4)
+	reopenBtn.BorderSizePixel = 0
+	reopenBtn.Text = "▶ " .. btnLabel
+	reopenBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+	reopenBtn.TextSize = 10
+	reopenBtn.Font = Enum.Font.GothamBold
+	reopenBtn.AutoButtonColor = false
+	reopenBtn.Visible = false
+	reopenBtn.ZIndex = 2
+	reopenBtn.Parent = screenGui
+	Instance.new("UICorner", reopenBtn).CornerRadius = UDim.new(0, 8)
 
-	closeBtn.MouseButton1Click:Connect(function()
-		btn.Visible = false
-		closeBtn.Visible = false
-		status.Visible = false
-		openBtn.Visible = true
+	-- ── Close logic (fade out then show reopen pill) ──
+	xBtn.MouseButton1Click:Connect(function()
+		fadeOutBtn(btn, status, xBtn)
+		task.delay(0.38, function()
+			reopenBtn.BackgroundTransparency = 1
+			reopenBtn.TextTransparency = 1
+			reopenBtn.Visible = true
+			tw(reopenBtn, {BackgroundTransparency = 0, TextTransparency = 0}, fadeDuration)
+		end)
 	end)
 
-	openBtn.MouseButton1Click:Connect(function()
-		btn.Visible = true
-		closeBtn.Visible = true
-		status.Visible = true
-		openBtn.Visible = false
+	-- ── Reopen logic (fade in cube, hide pill) ──
+	reopenBtn.MouseButton1Click:Connect(function()
+		tw(reopenBtn, {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
+		task.delay(0.36, function()
+			reopenBtn.Visible = false
+		end)
+		task.delay(0.1, function()
+			fadeInBtn(btn, status, xBtn)
+		end)
 	end)
 
+	-- ── Dragging on the cube ──────────────────
 	local dragging, dragStart, startPos2 = false, nil, nil
 
 	btn.InputBegan:Connect(function(input)
@@ -275,10 +354,10 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 			local newX = startPos2.X.Offset + delta.X
 			local newY = startPos2.Y.Offset + delta.Y
 
-			btn.Position     = UDim2.new(startPos2.X.Scale, newX,       startPos2.Y.Scale, newY)
-			closeBtn.Position = UDim2.new(startPos2.X.Scale, newX + 186, startPos2.Y.Scale, newY + 8)
-			status.Position   = UDim2.new(startPos2.X.Scale, newX,       startPos2.Y.Scale, newY + 48)
-			openBtn.Position  = UDim2.new(startPos2.X.Scale, newX,       startPos2.Y.Scale, newY)
+			btn.Position      = UDim2.new(startPos2.X.Scale, newX,                      startPos2.Y.Scale, newY)
+			xBtn.Position     = UDim2.new(startPos2.X.Scale, newX + CUBE_SIZE - 10,     startPos2.Y.Scale, newY - 12)
+			status.Position   = UDim2.new(startPos2.X.Scale, newX,                      startPos2.Y.Scale, newY + CUBE_SIZE + 4)
+			reopenBtn.Position = UDim2.new(startPos2.X.Scale, newX,                     startPos2.Y.Scale, newY)
 		end
 	end)
 
@@ -286,26 +365,30 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 end
 
 -- ══════════════════════════════════════
---         BUILD THE 3 PANELS
+--         BUILD THE 3 CUBE PANELS
+--   Laid out in a column, left side
 -- ══════════════════════════════════════
 local sheriffBtn, sheriffStatus = makePanel(
-	UDim2.new(0, 30, 0, 140),
+	UDim2.new(0, 20, 0, 140),
 	Color3.fromRGB(30, 90, 200),
-	"Lock Sheriff",
+	"Sheriff",
+	"Lock",
 	"Idle"
 )
 
 local murdBtn, murdStatus = makePanel(
-	UDim2.new(0, 30, 0, 210),
+	UDim2.new(0, 110, 0, 140),
 	Color3.fromRGB(180, 35, 35),
-	"Lock Murd",
+	"Murd",
+	"Lock",
 	"Idle"
 )
 
 local speedBtn, speedStatus = makePanel(
-	UDim2.new(0, 30, 0, 280),
+	UDim2.new(0, 200, 0, 140),
 	Color3.fromRGB(80, 35, 160),
-	"Fake Speed  [OFF]",
+	"Speed",
+	"Fake",
 	"Off"
 )
 
@@ -434,12 +517,12 @@ local function doLock(toolName, label, statusLbl, otherStatusLbl)
 		lockedTarget = target
 		lockMode     = label
 		startCameraLock()
-		statusLbl.Text       = "Locked: " .. target.Name
+		statusLbl.Text       = "🔒 " .. target.Name
 		statusLbl.TextColor3 = Color3.fromRGB(80, 255, 140)
 		otherStatusLbl.Text       = "Idle"
 		otherStatusLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
 	else
-		statusLbl.Text       = "No " .. label .. " found"
+		statusLbl.Text       = "Not found"
 		statusLbl.TextColor3 = Color3.fromRGB(255, 160, 80)
 	end
 end
@@ -478,12 +561,10 @@ speedBtn.MouseButton1Click:Connect(function()
 	fakeSpeedOn = not fakeSpeedOn
 	if fakeSpeedOn then
 		speedBtn.BackgroundColor3 = speedOnColor
-		speedBtn.Text             = "Fake Speed  [ON]"
-		speedStatus.Text          = "Jump to boost!"
+		speedStatus.Text          = "Jump!"
 		speedStatus.TextColor3    = Color3.fromRGB(200, 160, 255)
 	else
 		speedBtn.BackgroundColor3 = speedOffColor
-		speedBtn.Text             = "Fake Speed  [OFF]"
 		speedStatus.Text          = "Off"
 		speedStatus.TextColor3    = Color3.fromRGB(200, 200, 200)
 		local char = getCharacter(LocalPlayer)
@@ -513,7 +594,7 @@ RunService.Heartbeat:Connect(function()
 				lockedTarget         = nil
 				lockMode             = nil
 				stopCameraLock()
-				statusLbl.Text       = "Target lost tool"
+				statusLbl.Text       = "Lost tool"
 				statusLbl.TextColor3 = Color3.fromRGB(255, 130, 60)
 			end
 		end
@@ -528,18 +609,18 @@ RunService.Heartbeat:Connect(function()
 
 		if not hasAnyToolEquipped(LocalPlayer) then
 			hum.WalkSpeed          = 16
-			speedStatus.Text       = "Need tool equipped!"
+			speedStatus.Text       = "Equip tool!"
 			speedStatus.TextColor3 = Color3.fromRGB(255, 180, 60)
 			return
 		end
 
 		if hum.FloorMaterial == Enum.Material.Air then
 			hum.WalkSpeed          = FAKE_SPEED
-			speedStatus.Text       = "BOOSTING 🚀"
+			speedStatus.Text       = "🚀 Boost!"
 			speedStatus.TextColor3 = Color3.fromRGB(140, 255, 180)
 		else
 			hum.WalkSpeed          = 16
-			speedStatus.Text       = "Jump to boost!"
+			speedStatus.Text       = "Jump!"
 			speedStatus.TextColor3 = Color3.fromRGB(200, 160, 255)
 		end
 	end
@@ -554,8 +635,8 @@ Players.PlayerRemoving:Connect(function(player)
 		lockedTarget = nil
 		lockMode     = nil
 		stopCameraLock()
-		sheriffStatus.Text = "Target left"
-		murdStatus.Text    = "Target left"
+		sheriffStatus.Text = "Left"
+		murdStatus.Text    = "Left"
 	end
 end)
 
