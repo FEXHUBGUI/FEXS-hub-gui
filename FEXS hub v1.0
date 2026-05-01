@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES
+--         SERVICES GRAB GUN TP INSTA
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -22,6 +22,14 @@ local lockedTarget  = nil
 local lockMode      = nil
 local fakeSpeedOn   = false
 local espHighlights = {}
+
+-- Gun TP state
+local gunTpActive        = false   -- is the feature on?
+local gunLastPos         = nil     -- where the sheriff died
+local myReturnPos        = nil     -- where WE were before teleporting
+local gunTpDone          = false   -- have we already tped to gun pos?
+local trackedSheriff     = nil     -- the player we're watching
+local gunTpWatchConn     = nil     -- connection watching sheriff death
 
 -- ══════════════════════════════════════
 --     RAIN HUB WELCOME BANNER
@@ -392,6 +400,14 @@ local speedBtn, speedStatus = makePanel(
 	"Off"
 )
 
+local gunTpBtn, gunTpStatus = makePanel(
+	UDim2.new(0, 290, 0, 140),
+	Color3.fromRGB(30, 130, 90),
+	"Gun TP",
+	"Gun",
+	"Standby"
+)
+
 -- ══════════════════════════════════════
 --         UTILITY FUNCTIONS
 -- ══════════════════════════════════════
@@ -648,6 +664,121 @@ speedBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ══════════════════════════════════════
+--        GUN TP BUTTON
+-- ══════════════════════════════════════
+local gunTpOnColor  = Color3.fromRGB(40, 180, 110)
+local gunTpOffColor = Color3.fromRGB(30, 130, 90)
+
+local function stopGunTpWatch()
+	if gunTpWatchConn then
+		gunTpWatchConn:Disconnect()
+		gunTpWatchConn = nil
+	end
+	trackedSheriff = nil
+end
+
+local function startWatchingSheriff(sheriff)
+	stopGunTpWatch()
+	trackedSheriff = sheriff
+	gunLastPos     = nil  -- clear any stale position
+
+	local char = getCharacter(sheriff)
+	if not char then return end
+	local hum  = char:FindFirstChildOfClass("Humanoid")
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not hum or not root then return end
+
+	-- Confirm they are actually alive right now — refuse to set up if already dead
+	if hum.Health <= 0 then
+		gunTpStatus.Text       = "Already dead"
+		gunTpStatus.TextColor3 = Color3.fromRGB(255, 130, 60)
+		stopGunTpWatch()
+		return
+	end
+
+	-- Heartbeat: ONLY used to record position while sheriff is alive & healthy.
+	-- Never teleports — that is strictly the Died event's job.
+	gunTpWatchConn = RunService.Heartbeat:Connect(function()
+		if not gunTpActive then stopGunTpWatch() return end
+
+		local c = getCharacter(trackedSheriff)
+		if not c then stopGunTpWatch() return end
+
+		local r = c:FindFirstChild("HumanoidRootPart")
+		local h = c:FindFirstChildOfClass("Humanoid")
+
+		-- Only save position while clearly alive (health > 0)
+		if r and h and h.Health > 0 then
+			gunLastPos = r.Position
+		end
+	end)
+
+	-- Died event: this is the ONLY place a teleport can happen.
+	-- Fires exactly once when the humanoid health reaches 0.
+	hum.Died:Connect(function()
+		if not gunTpActive or gunTpDone then return end
+
+		-- gunLastPos was saved every frame while alive, so it holds
+		-- the exact position from just before health hit 0.
+		if not gunLastPos then
+			gunTpStatus.Text       = "No position saved"
+			gunTpStatus.TextColor3 = Color3.fromRGB(255, 130, 60)
+			stopGunTpWatch()
+			return
+		end
+
+		-- Save our own position ONLY at the moment of their death
+		local myChar = getCharacter(LocalPlayer)
+		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+		if myRoot then
+			myReturnPos = myRoot.Position
+		end
+
+		-- Teleport to where they died — strictly gated to this death event
+		if myRoot then
+			myRoot.CFrame = CFrame.new(gunLastPos + Vector3.new(0, 3, 0))
+			gunTpDone = true
+			gunTpStatus.Text       = "TP'd! Get gun"
+			gunTpStatus.TextColor3 = Color3.fromRGB(80, 255, 160)
+		end
+
+		stopGunTpWatch()
+	end)
+end
+
+gunTpBtn.MouseButton1Click:Connect(function()
+	gunTpActive = not gunTpActive
+
+	if gunTpActive then
+		-- Reset state
+		gunLastPos    = nil
+		myReturnPos   = nil
+		gunTpDone     = false
+		gunTpBtn.BackgroundColor3 = gunTpOnColor
+
+		-- Find the sheriff right now
+		local sheriff = findPlayerWithTool(SHERIFF_TOOL)
+		if sheriff then
+			startWatchingSheriff(sheriff)
+			gunTpStatus.Text       = "Watching: " .. sheriff.Name
+			gunTpStatus.TextColor3 = Color3.fromRGB(100, 255, 180)
+		else
+			gunTpStatus.Text       = "No sheriff yet"
+			gunTpStatus.TextColor3 = Color3.fromRGB(255, 200, 80)
+		end
+	else
+		-- Turn off
+		stopGunTpWatch()
+		gunTpDone   = false
+		gunLastPos  = nil
+		myReturnPos = nil
+		gunTpBtn.BackgroundColor3 = gunTpOffColor
+		gunTpStatus.Text          = "Standby"
+		gunTpStatus.TextColor3    = Color3.fromRGB(200, 200, 200)
+	end
+end)
+
+-- ══════════════════════════════════════
 --            MAIN HEARTBEAT LOOP
 -- ══════════════════════════════════════
 RunService.Heartbeat:Connect(function()
@@ -670,6 +801,38 @@ RunService.Heartbeat:Connect(function()
 				stopCameraLock()
 				statusLbl.Text       = "Lost tool"
 				statusLbl.TextColor3 = Color3.fromRGB(255, 130, 60)
+			end
+		end
+	end
+
+	-- Gun TP: auto-find sheriff if not tracked yet
+	if gunTpActive and not trackedSheriff and not gunTpDone then
+		local sheriff = findPlayerWithTool(SHERIFF_TOOL)
+		if sheriff then
+			startWatchingSheriff(sheriff)
+			gunTpStatus.Text       = "Watching: " .. sheriff.Name
+			gunTpStatus.TextColor3 = Color3.fromRGB(100, 255, 180)
+		end
+	end
+
+	-- Gun TP: auto-return if WE picked up the gun after teleporting
+	if gunTpActive and gunTpDone and myReturnPos then
+		if hasTool(LocalPlayer, SHERIFF_TOOL) then
+			local myChar = getCharacter(LocalPlayer)
+			local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+			if myRoot then
+				myRoot.CFrame = CFrame.new(myReturnPos + Vector3.new(0, 3, 0))
+				gunTpStatus.Text       = "Returned home!"
+				gunTpStatus.TextColor3 = Color3.fromRGB(80, 200, 255)
+				-- Reset so it doesn't keep teleporting
+				myReturnPos = nil
+				gunTpDone   = false
+				gunTpActive = false
+				gunTpBtn.BackgroundColor3 = gunTpOffColor
+				task.delay(2, function()
+					gunTpStatus.Text       = "Standby"
+					gunTpStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
+				end)
 			end
 		end
 	end
