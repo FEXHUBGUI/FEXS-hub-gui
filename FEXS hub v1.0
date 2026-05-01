@@ -2,58 +2,63 @@
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 
 --// GUI
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "RainHubMM2"
 
--- BLUR
-local blur = Instance.new("BlurEffect", Lighting)
-blur.Size = 0
-
--- SIDE BUTTON
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0,40,0,90)
-toggleBtn.Position = UDim2.new(0,0,0.4,0)
-toggleBtn.Text = "☰"
-toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.Draggable = true
-Instance.new("UICorner", toggleBtn)
-
--- MAIN
+-- MAIN (CENTERED)
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,360,0,330)
-main.Position = UDim2.new(-1,0,0.25,0)
+main.Size = UDim2.new(0,380,0,340)
+main.Position = UDim2.new(0.5,-190,0.5,-170)
 main.BackgroundColor3 = Color3.fromRGB(10,15,25)
 main.Active = true
 main.Draggable = true
 Instance.new("UICorner", main)
 
+-- WATER SHADER (FAKE)
+local water = Instance.new("Frame", main)
+water.Size = UDim2.new(1,0,1,0)
+water.BackgroundTransparency = 0.8
+water.BackgroundColor3 = Color3.fromRGB(0,80,150)
+
+task.spawn(function()
+	while true do
+		TweenService:Create(water,TweenInfo.new(3,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{
+			BackgroundTransparency = 0.85
+		}):Play()
+		task.wait(3)
+		TweenService:Create(water,TweenInfo.new(3,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{
+			BackgroundTransparency = 0.75
+		}):Play()
+		task.wait(3)
+	end
+end)
+
 -- TITLE
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.new(1,0,0,35)
 title.Text = "Rain Hub MM2"
+title.Font = Enum.Font.Arcade
 title.TextColor3 = Color3.fromRGB(0,170,255)
 title.BackgroundTransparency = 1
 
--- RAIN BACKGROUND
-for i = 1,25 do
+-- RAIN (ACTUALLY FALLING)
+for i = 1,30 do
 	local drop = Instance.new("ImageLabel", main)
 	drop.Image = "rbxassetid://133078236"
-	drop.Size = UDim2.new(0,15,0,30)
+	drop.Size = UDim2.new(0,10,0,25)
 	drop.BackgroundTransparency = 1
-	drop.Position = UDim2.new(math.random(),0,math.random(),0)
-
+	
 	task.spawn(function()
 		while true do
 			drop.Position = UDim2.new(math.random(),0,-0.2,0)
-			TweenService:Create(drop,TweenInfo.new(2,Enum.EasingStyle.Linear),{
+			local t = TweenService:Create(drop,TweenInfo.new(1.5,Enum.EasingStyle.Linear),{
 				Position = UDim2.new(drop.Position.X.Scale,0,1.2,0)
-			}):Play()
-			task.wait(2)
+			})
+			t:Play()
+			t.Completed:Wait()
 		end
 	end)
 end
@@ -77,8 +82,14 @@ for i,name in pairs(tabs) do
 	btn.Size = UDim2.new(1/#tabs,0,1,0)
 	btn.Position = UDim2.new((i-1)/#tabs,0,0,0)
 	btn.Text = name
-	btn.BackgroundColor3 = Color3.fromRGB(20,25,40)
+	btn.Font = Enum.Font.Arcade
 	btn.TextColor3 = Color3.new(1,1,1)
+	btn.BackgroundColor3 = Color3.fromRGB(20,25,40)
+	
+	local stroke = Instance.new("UIStroke", btn)
+	stroke.Color = Color3.fromRGB(0,150,255)
+	stroke.Thickness = 2
+	
 	Instance.new("UICorner", btn)
 
 	local frame = Instance.new("Frame", content)
@@ -97,13 +108,19 @@ end
 tabFrames["Visual"].Visible = true
 
 -- BUTTON CREATOR
-function makeBtn(parent,text,y,callback)
+function makeBtn(parent,text,y,color,callback)
 	local b = Instance.new("TextButton", parent)
-	b.Size = UDim2.new(0.85,0,0,40)
+	b.Size = UDim2.new(0.85,0,0,45)
 	b.Position = UDim2.new(0.075,0,0,y)
 	b.Text = text.." [OFF]"
-	b.BackgroundColor3 = Color3.fromRGB(25,30,50)
+	b.Font = Enum.Font.Arcade
 	b.TextColor3 = Color3.new(1,1,1)
+	b.BackgroundColor3 = Color3.fromRGB(15,15,25)
+	
+	local stroke = Instance.new("UIStroke", b)
+	stroke.Color = color
+	stroke.Thickness = 2
+	
 	Instance.new("UICorner", b)
 
 	local state = false
@@ -143,91 +160,51 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- VISUAL TAB
-makeBtn(tabFrames["Visual"],"ESP",10,function(v)
+makeBtn(tabFrames["Visual"],"ESP",10,Color3.fromRGB(0,150,255),function(v)
 	espOn = v
 end)
 
-makeBtn(tabFrames["Visual"],"Potato Mode",60,function(v)
-	Lighting.GlobalShadows = not v
-	for _,d in pairs(workspace:GetDescendants()) do
-		if d:IsA("Texture") or d:IsA("Decal") then
-			d:Destroy()
-		end
-	end
-end)
-
-makeBtn(tabFrames["Visual"],"Glossy Shaders",110,function(v)
-	for _,p in pairs(workspace:GetDescendants()) do
-		if p:IsA("BasePart") then
-			p.Material = v and Enum.Material.SmoothPlastic or Enum.Material.Plastic
-			p.Reflectance = v and 0.4 or 0
-		end
-	end
-end)
-
--- LOCK SYSTEM
+-- LOCK SYSTEM (SMART)
 local locking = false
-local target = nil
+local mode = nil
 
-function getToolPlayer(tool)
+function getTarget()
 	for _,p in pairs(Players:GetPlayers()) do
 		if p ~= LocalPlayer then
-			if p.Backpack:FindFirstChild(tool) or (p.Character and p.Character:FindFirstChild(tool)) then
-				return p
+			if mode == "Sheriff" then
+				if p.Backpack:FindFirstChild("Gun") or (p.Character and p.Character:FindFirstChild("Gun")) then
+					return p
+				end
+			elseif mode == "Murderer" then
+				if p.Backpack:FindFirstChild("Knife") or (p.Character and p.Character:FindFirstChild("Knife")) then
+					return p
+				end
 			end
 		end
 	end
 end
 
 RunService.RenderStepped:Connect(function()
-	if locking and target and target.Character then
-		local hrp = target.Character:FindFirstChild("HumanoidRootPart")
-		if hrp then
-			workspace.CurrentCamera.CFrame = CFrame.new(
-				workspace.CurrentCamera.CFrame.Position,
-				hrp.Position
+	if locking then
+		local target = getTarget()
+		if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+			local pos = target.Character.HumanoidRootPart.Position
+			workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(
+				CFrame.new(workspace.CurrentCamera.CFrame.Position, pos),
+				0.2
 			)
 		end
 	end
 end)
 
--- LOCK BUTTON (MOBILE)
-local lockBtn = Instance.new("TextButton", gui)
-lockBtn.Size = UDim2.new(0,130,0,50)
-lockBtn.Position = UDim2.new(0.5,-65,0.8,0)
-lockBtn.Text = "LOCK"
-lockBtn.BackgroundTransparency = 0.4
-lockBtn.Visible = false
-lockBtn.Draggable = true
-Instance.new("UICorner", lockBtn)
-
-lockBtn.MouseButton1Click:Connect(function()
-	locking = not locking
-end)
-
 -- MURDERER TAB
-makeBtn(tabFrames["Murderer"],"Lock On Sheriff",10,function(v)
-	lockBtn.Visible = v
-	target = getToolPlayer("Gun")
+makeBtn(tabFrames["Murderer"],"Shoot Sheriff",10,Color3.fromRGB(0,150,255),function(v)
+	locking = v
+	mode = "Sheriff"
 end)
 
 -- SHERIFF TAB
-makeBtn(tabFrames["Sheriff"],"Lock On Murderer",10,function(v)
-	lockBtn.Visible = v
-	target = getToolPlayer("Knife")
-end)
-
--- OPEN/CLOSE
-local open = false
-
-toggleBtn.MouseButton1Click:Connect(function()
-	open = not open
-
-	TweenService:Create(main,TweenInfo.new(0.3),{
-		Position = open and UDim2.new(0,10,0.25,0) or UDim2.new(-1,0,0.25,0)
-	}):Play()
-
-	TweenService:Create(blur,TweenInfo.new(0.3),{
-		Size = open and 15 or 0
-	}):Play()
+makeBtn(tabFrames["Sheriff"],"Shoot Murderer",10,Color3.fromRGB(255,50,50),function(v)
+	locking = v
+	mode = "Murderer"
 end)
