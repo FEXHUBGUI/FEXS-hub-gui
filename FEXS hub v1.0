@@ -1,4 +1,3 @@
---// SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -6,11 +5,14 @@ local TweenService = game:GetService("TweenService")
 local lp = Players.LocalPlayer
 local cam = workspace.CurrentCamera
 
---// STATE
-local lastReturnCFrame = nil
+--================================================
+-- STATE
+--================================================
+local returnCFrame = nil
+local awaitingReturn = false
 
 --================================================
--- NOTIFICATION SYSTEM
+-- NOTIFICATIONS
 --================================================
 local function notify(text)
 	local gui = Instance.new("ScreenGui")
@@ -22,8 +24,7 @@ local function notify(text)
 	frame.BackgroundColor3 = Color3.fromRGB(120, 70, 170)
 	frame.Parent = gui
 
-	local corner = Instance.new("UICorner")
-	corner.Parent = frame
+	Instance.new("UICorner", frame)
 
 	local label = Instance.new("TextLabel")
 	label.Size = UDim2.new(1,0,1,0)
@@ -42,7 +43,6 @@ local function notify(text)
 		TweenService:Create(frame, TweenInfo.new(0.35), {
 			Position = UDim2.new(0.5, -160, 0, -60)
 		}):Play()
-
 		task.wait(0.5)
 		gui:Destroy()
 	end)
@@ -56,46 +56,42 @@ local function getRole(plr)
 end
 
 --================================================
--- DROP SYSTEM (SERVER SET ATTRIBUTE)
+-- GUN DROP (SERVER STORED)
 --================================================
 local function getGunDrop()
 	return workspace:GetAttribute("LastGunDrop")
 end
 
 --================================================
--- RANDOM DRAGGABLE BUTTON CREATOR
+-- DRAGGABLE BUTTON SYSTEM (FIXED)
 --================================================
-local function makeButton(text)
+local function makeButton(text, y)
 	local gui = Instance.new("ScreenGui")
 	gui.ResetOnSpawn = false
 	gui.Parent = lp:WaitForChild("PlayerGui")
 
 	local frame = Instance.new("Frame")
 	frame.Size = UDim2.new(0, 220, 0, 50)
-
-	-- random safe spawn position
-	frame.Position = UDim2.new(math.random(10,70)/100, 0, math.random(10,70)/100, 0)
+	frame.Position = UDim2.new(math.random(10,70)/100, 0, y, 0)
 
 	frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 	frame.Active = true
 	frame.Draggable = true
 	frame.Parent = gui
 
-	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 10)
-	corner.Parent = frame
+	Instance.new("UICorner", frame)
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Thickness = 2
 	stroke.Parent = frame
 
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(1, 0, 1, 0)
+	btn.Size = UDim2.new(1,0,1,0)
+	btn.BackgroundTransparency = 1
 	btn.Text = text
 	btn.Font = Enum.Font.GothamBold
 	btn.TextSize = 14
 	btn.TextColor3 = Color3.new(1,1,1)
-	btn.BackgroundTransparency = 1
 	btn.Parent = frame
 
 	-- rainbow border
@@ -103,9 +99,9 @@ local function makeButton(text)
 		local i = 0
 		while gui.Parent do
 			i += 1
-			local hue = (i % 360) / 360
-			stroke.Color = Color3.fromHSV(hue, 1, 1)
-			frame.BackgroundColor3 = Color3.fromHSV(hue, 0.2, 0.15)
+			local hue = (i % 360)/360
+			stroke.Color = Color3.fromHSV(hue,1,1)
+			frame.BackgroundColor3 = Color3.fromHSV(hue,0.2,0.15)
 			task.wait(0.03)
 		end
 	end)
@@ -114,9 +110,9 @@ local function makeButton(text)
 end
 
 --================================================
--- TP TO GUN (DEATH DROP ONLY)
+-- TP TO GUN (UPDATED RETURN SYSTEM)
 --================================================
-local tpBtn = makeButton("TP TO GUN")
+local tpBtn = makeButton("TP TO GUN", 0.15)
 
 tpBtn.MouseButton1Click:Connect(function()
 	local char = lp.Character
@@ -130,19 +126,32 @@ tpBtn.MouseButton1Click:Connect(function()
 	end
 
 	if hrp then
-		lastReturnCFrame = hrp.CFrame
-		hrp.CFrame = CFrame.new(drop + Vector3.new(0,3,0))
+		returnCFrame = hrp.CFrame
+		awaitingReturn = true
 
-		task.delay(2, function()
-			if hrp and lastReturnCFrame then
-				hrp.CFrame = lastReturnCFrame
-			end
-		end)
+		hrp.CFrame = CFrame.new(drop + Vector3.new(0,3,0))
 	end
 end)
 
 --================================================
--- LOCK SYSTEM
+-- RETURN WHEN NEW GUN TOOL IS RECEIVED
+--================================================
+lp.Backpack.ChildAdded:Connect(function(child)
+	if child:IsA("Tool") and child.Name == "Gun" and awaitingReturn then
+		local char = lp.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
+		if hrp and returnCFrame then
+			task.wait(0.2)
+			hrp.CFrame = returnCFrame
+		end
+
+		awaitingReturn = false
+	end
+end)
+
+--================================================
+-- LOCK SYSTEM (FIXED)
 --================================================
 local function getTarget(role)
 	for _, p in ipairs(Players:GetPlayers()) do
@@ -152,11 +161,11 @@ local function getTarget(role)
 	end
 end
 
-local function lockCamera(role)
+local function lock(role)
 	RunService:BindToRenderStep("LOCK_"..role, 1, function()
-		local target = getTarget(role)
-		if target and target.Character then
-			local hrp = target.Character:FindFirstChild("HumanoidRootPart")
+		local t = getTarget(role)
+		if t and t.Character then
+			local hrp = t.Character:FindFirstChild("HumanoidRootPart")
 			if hrp then
 				cam.CFrame = CFrame.new(cam.CFrame.Position, hrp.Position)
 			end
@@ -164,54 +173,47 @@ local function lockCamera(role)
 	end)
 end
 
-local sheriffBtn = makeButton("LOCK SHERIFF")
-sheriffBtn.MouseButton1Click:Connect(function()
-	lockCamera("Sheriff")
+makeButton("LOCK SHERIFF", 0.25).MouseButton1Click:Connect(function()
+	lock("Sheriff")
 end)
 
-local murderBtn = makeButton("LOCK MURDERER")
-murderBtn.MouseButton1Click:Connect(function()
-	lockCamera("Murderer")
+makeButton("LOCK MURDERER", 0.35).MouseButton1Click:Connect(function()
+	lock("Murderer")
 end)
 
 --================================================
--- PROXIMITY ROLE TAGS (SMALL + ONLY NEAR PLAYERS)
+-- ESP (FIXED + RELIABLE)
 --================================================
-local function showTag(plr)
+local highlights = {}
+
+local function applyESP(plr, color)
 	local char = plr.Character
 	if not char then return end
 
-	local hrp = char:FindFirstChild("HumanoidRootPart")
-	local my = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-	if not hrp or not my then return end
+	if highlights[plr] then
+		highlights[plr]:Destroy()
+	end
 
-	local dist = (hrp.Position - my.Position).Magnitude
-	if dist > 20 then return end
+	local h = Instance.new("Highlight")
+	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	h.FillTransparency = 0.5
+	h.OutlineTransparency = 0
+	h.FillColor = color
+	h.Parent = char
 
-	local role = getRole(plr)
-	if not role then return end
-
-	local old = hrp:FindFirstChild("Tag")
-	if old then old:Destroy() end
-
-	local bb = Instance.new("BillboardGui")
-	bb.Size = UDim2.new(0, 90, 0, 20)
-	bb.StudsOffset = Vector3.new(0,2,0)
-	bb.Parent = hrp
-	bb.Name = "Tag"
-
-	local t = Instance.new("TextLabel")
-	t.Size = UDim2.new(1,0,1,0)
-	t.BackgroundTransparency = 1
-	t.TextScaled = true
-	t.Font = Enum.Font.GothamBold
-	t.Text = role
-	t.TextColor3 = Color3.new(1,1,1)
-	t.Parent = bb
+	highlights[plr] = h
 end
 
 RunService.RenderStepped:Connect(function()
 	for _, p in ipairs(Players:GetPlayers()) do
-		showTag(p)
+		local role = getRole(p)
+
+		if role == "Sheriff" then
+			applyESP(p, Color3.fromRGB(80,160,255))
+		elseif role == "Murderer" then
+			applyESP(p, Color3.fromRGB(255,80,80))
+		else
+			applyESP(p, Color3.fromRGB(170,80,255))
+		end
 	end
 end)
