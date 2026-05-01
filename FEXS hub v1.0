@@ -1,195 +1,149 @@
+--// SERVICES
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
 
-local lp = Players.LocalPlayer
-local cam = workspace.CurrentCamera
+--// GUI SETUP
+local gui = Instance.new("ScreenGui")
+gui.Name = "DebugPanel"
+gui.ResetOnSpawn = false
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
---========================
--- STATE
---========================
-local returnCFrame = nil
-local dragging = {}
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 160)
+frame.Position = UDim2.new(0.05, 0, 0.3, 0)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
 
---========================
--- NOTIFY
---========================
-local function notify(txt)
-	local g = Instance.new("ScreenGui", lp.PlayerGui)
-
-	local f = Instance.new("Frame", g)
-	f.Size = UDim2.new(0,300,0,50)
-	f.Position = UDim2.new(0.5,-150,0,-60)
-	f.BackgroundColor3 = Color3.fromRGB(120,70,170)
-
-	local t = Instance.new("TextLabel", f)
-	t.Size = UDim2.new(1,0,1,0)
-	t.BackgroundTransparency = 1
-	t.Text = txt
-	t.TextColor3 = Color3.new(1,1,1)
-	t.Font = Enum.Font.GothamBold
-	t.TextScaled = true
-
-	game.TweenService:Create(f, TweenInfo.new(0.3), {
-		Position = UDim2.new(0.5,-150,0,0)
-	}):Play()
-
-	task.delay(3, function()
-		g:Destroy()
-	end)
+local function makeButton(text, posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 40)
+    btn.Position = UDim2.new(0, 5, 0, posY)
+    btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = text
+    btn.Parent = frame
+    return btn
 end
 
---========================
--- ROLE
---========================
-local function getRole(p)
-	return p:GetAttribute("Role")
+local speedBtn = makeButton("Speed Toggle", 10)
+local espBtn = makeButton("Highlight Debug", 60)
+
+--// SPEED + SPIN SYSTEM
+local speedEnabled = false
+local spinConn
+
+local function startSpin()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local hum = char:WaitForChild("Humanoid")
+
+    hum.WalkSpeed = 100
+
+    spinConn = RunService.RenderStepped:Connect(function()
+        if speedEnabled and hrp then
+            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(25), 0)
+        end
+    end)
 end
 
---========================
--- GUN DROP
---========================
-local function getDrop()
-	return workspace:GetAttribute("LastGunDrop")
+local function stopSpin()
+    if spinConn then
+        spinConn:Disconnect()
+        spinConn = nil
+    end
+
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("Humanoid") then
+        char.Humanoid.WalkSpeed = 16
+    end
 end
 
---========================
--- DRAG SYSTEM (FIXED - WORKS ON PC + MOBILE)
---========================
-local function makeButton(text, y)
-
-	local gui = Instance.new("ScreenGui")
-	gui.Parent = lp.PlayerGui
-
-	local frame = Instance.new("Frame")
-	frame.Size = UDim2.new(0,220,0,50)
-	frame.Position = UDim2.new(math.random(10,70)/100,0,y,0)
-	frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-	frame.Parent = gui
-
-	local btn = Instance.new("TextButton", frame)
-	btn.Size = UDim2.new(1,0,1,0)
-	btn.BackgroundTransparency = 1
-	btn.Text = text
-	btn.Font = Enum.Font.GothamBold
-	btn.TextColor3 = Color3.new(1,1,1)
-
-	-- REAL DRAGGING
-	local draggingNow = false
-	local dragStart
-	local startPos
-
-	frame.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-
-			draggingNow = true
-			dragStart = input.Position
-			startPos = frame.Position
-		end
-	end)
-
-	frame.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			draggingNow = false
-		end
-	end)
-
-	UserInputService.InputChanged:Connect(function(input)
-		if draggingNow and (input.UserInputType == Enum.UserInputType.MouseMovement
-			or input.UserInputType == Enum.UserInputType.Touch) then
-
-			local delta = input.Position - dragStart
-			frame.Position = UDim2.new(
-				startPos.X.Scale,
-				startPos.X.Offset + delta.X,
-				startPos.Y.Scale,
-				startPos.Y.Offset + delta.Y
-			)
-		end
-	end)
-
-	return btn
-end
-
---========================
--- TP TO GUN (FIXED)
---========================
-makeButton("TP TO GUN",0.15).MouseButton1Click:Connect(function()
-	local char = lp.Character
-	local hrp = char and char:FindFirstChild("HumanoidRootPart")
-
-	local drop = getDrop()
-
-	if not drop then
-		notify("ERROR 101: Gun Not Found Please Wait For Gun To Drop!")
-		return
-	end
-
-	if hrp then
-		returnCFrame = hrp.CFrame
-		hrp.CFrame = CFrame.new(drop + Vector3.new(0,3,0))
-
-		task.wait(2)
-
-		if returnCFrame then
-			hrp.CFrame = returnCFrame
-		end
-	end
+speedBtn.MouseButton1Click:Connect(function()
+    speedEnabled = not speedEnabled
+    if speedEnabled then
+        startSpin()
+        speedBtn.Text = "Speed: ON"
+    else
+        stopSpin()
+        speedBtn.Text = "Speed: OFF"
+    end
 end)
 
---========================
--- LOCK CAMERA
---========================
-local function lock(role)
-	RunService:BindToRenderStep("LOCK_"..role, 1, function()
-		for _, p in ipairs(Players:GetPlayers()) do
-			if getRole(p) == role and p.Character then
-				local hrp = p.Character:FindFirstChild("HumanoidRootPart")
-				if hrp then
-					cam.CFrame = CFrame.new(cam.CFrame.Position, hrp.Position)
-				end
-			end
-		end
-	end)
+--// HIGHLIGHT SYSTEM (DEBUG ONLY)
+local highlightEnabled = false
+local highlights = {}
+
+local function getColor(plr)
+    if not plr.Character then return Color3.fromRGB(170,0,255) end
+
+    local hasGun = plr.Character:FindFirstChild("Gun") or (plr.Backpack and plr.Backpack:FindFirstChild("Gun"))
+    local hasKnife = plr.Character:FindFirstChild("Knife") or (plr.Backpack and plr.Backpack:FindFirstChild("Knife"))
+
+    if hasGun then
+        return Color3.fromRGB(0,170,255) -- blue
+    elseif hasKnife then
+        return Color3.fromRGB(255,0,0) -- red
+    else
+        return Color3.fromRGB(170,0,255) -- purple
+    end
 end
 
-makeButton("LOCK SHERIFF",0.25).MouseButton1Click:Connect(function()
-	lock("Sheriff")
+local function applyHighlight(plr)
+    if plr == LocalPlayer then return end
+    if not plr.Character then return end
+
+    local char = plr.Character
+
+    if not highlights[plr] then
+        local h = Instance.new("Highlight")
+        h.Parent = char
+        highlights[plr] = h
+    end
+
+    highlights[plr].FillColor = getColor(plr)
+    highlights[plr].OutlineColor = Color3.fromRGB(0,0,0)
+end
+
+local function clearHighlights()
+    for _,h in pairs(highlights) do
+        if h then h:Destroy() end
+    end
+    highlights = {}
+end
+
+local function updateLoop()
+    for _,plr in pairs(Players:GetPlayers()) do
+        applyHighlight(plr)
+    end
+end
+
+espBtn.MouseButton1Click:Connect(function()
+    highlightEnabled = not highlightEnabled
+
+    if highlightEnabled then
+        espBtn.Text = "Highlight: ON"
+
+        task.spawn(function()
+            while highlightEnabled do
+                updateLoop()
+                task.wait(0.5)
+            end
+        end)
+    else
+        espBtn.Text = "Highlight: OFF"
+        clearHighlights()
+    end
 end)
 
-makeButton("LOCK MURDERER",0.35).MouseButton1Click:Connect(function()
-	lock("Murderer")
-end)
-
---========================
--- ESP (FIXED)
---========================
-local esp = {}
-
-RunService.RenderStepped:Connect(function()
-	for _, p in ipairs(Players:GetPlayers()) do
-		local char = p.Character
-		if not char then continue end
-
-		if esp[p] then esp[p]:Destroy() end
-
-		local h = Instance.new("Highlight")
-		h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-		h.FillTransparency = 0.5
-
-		local role = getRole(p)
-
-		if role == "Sheriff" then
-			h.FillColor = Color3.fromRGB(80,160,255)
-		elseif role == "Murderer" then
-			h.FillColor = Color3.fromRGB(255,80,80)
-		else
-			h.FillColor = Color3.fromRGB(170,80,255)
-		end
-
-		h.Parent = char
-		esp[p] = h
-	end
+--// AUTO UPDATE ON TOOL CHANGE
+Players.PlayerAdded:Connect(function(plr)
+    plr.CharacterAdded:Connect(function()
+        task.wait(1)
+        if highlightEnabled then
+            applyHighlight(plr)
+        end
+    end)
 end)
