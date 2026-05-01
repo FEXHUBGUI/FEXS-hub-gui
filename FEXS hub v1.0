@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES23
+--         SERVICES
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -426,11 +426,14 @@ local function findPlayerWithTool(toolName)
 end
 
 -- ══════════════════════════════════════
---      THROUGH-WALL ESP (Highlight)
+--   ESP: CHAMS (Highlight) + BOX ESP
+--   espHighlights[player] = { hl, billboard }
 -- ══════════════════════════════════════
 local function removeESP(player)
-	if espHighlights[player] then
-		espHighlights[player]:Destroy()
+	local data = espHighlights[player]
+	if data then
+		if data.hl        then data.hl:Destroy()        end
+		if data.billboard then data.billboard:Destroy() end
 		espHighlights[player] = nil
 	end
 end
@@ -438,43 +441,115 @@ end
 local function applyESP(player, fillColor, outlineColor)
 	local char = getCharacter(player)
 	if not char then return end
-	local existing = espHighlights[player]
-	if existing and existing.Adornee == char then
-		existing.FillColor    = fillColor
-		existing.OutlineColor = outlineColor
-		return
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	local data = espHighlights[player]
+
+	-- ── CHAMS (through-wall fill + outline) ──────────────
+	local hl = data and data.hl
+	if not hl or not hl.Parent then
+		hl = Instance.new("Highlight")
+		hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+		hl.FillTransparency    = 0.35
+		hl.OutlineTransparency = 0
+		hl.Parent              = Camera
 	end
-	if existing then existing:Destroy() end
-	local hl = Instance.new("Highlight")
-	hl.Adornee             = char
-	hl.FillColor           = fillColor
-	hl.OutlineColor        = outlineColor
-	hl.FillTransparency    = 0.45
-	hl.OutlineTransparency = 0
-	hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
-	hl.Parent              = Camera
-	espHighlights[player]  = hl
+	hl.Adornee    = char
+	hl.FillColor    = fillColor
+	hl.OutlineColor = outlineColor
+
+	-- ── BOX ESP (BillboardGui drawn as a border box) ─────
+	local bb = data and data.billboard
+	if not bb or not bb.Parent then
+		bb = Instance.new("BillboardGui")
+		bb.AlwaysOnTop    = true
+		bb.StudsOffset    = Vector3.new(0, 3.5, 0)   -- sits above head
+		bb.Size           = UDim2.new(0, 50, 0, 80)  -- box dimensions on screen
+		bb.ResetOnSpawn   = false
+		bb.LightInfluence = 0
+
+		-- Four border lines (top, bottom, left, right) to form a box
+		local function makeLine(anchorPoint, size, position, color)
+			local f = Instance.new("Frame")
+			f.AnchorPoint          = anchorPoint
+			f.Size                 = size
+			f.Position             = position
+			f.BackgroundColor3     = color
+			f.BackgroundTransparency = 0
+			f.BorderSizePixel      = 0
+			f.ZIndex               = 5
+			f.Parent               = bb
+			return f
+		end
+
+		local thickness = UDim2.new(1, 0, 0, 2)
+		local side      = UDim2.new(0, 2, 1, 0)
+		makeLine(Vector2.new(0.5, 0), thickness,         UDim2.new(0.5, 0, 0, 0),   outlineColor) -- top
+		makeLine(Vector2.new(0.5, 1), thickness,         UDim2.new(0.5, 0, 1, 0),   outlineColor) -- bottom
+		makeLine(Vector2.new(0, 0.5), side,              UDim2.new(0, 0, 0.5, 0),   outlineColor) -- left
+		makeLine(Vector2.new(1, 0.5), side,              UDim2.new(1, 0, 0.5, 0),   outlineColor) -- right
+
+		-- Name label above the box
+		local nameLabel = Instance.new("TextLabel")
+		nameLabel.Size                  = UDim2.new(1, 0, 0, 16)
+		nameLabel.Position              = UDim2.new(0, 0, 0, -18)
+		nameLabel.BackgroundTransparency = 1
+		nameLabel.TextColor3            = outlineColor
+		nameLabel.TextSize              = 11
+		nameLabel.Font                  = Enum.Font.GothamBold
+		nameLabel.TextStrokeTransparency = 0.4
+		nameLabel.TextStrokeColor3      = Color3.new(0, 0, 0)
+		nameLabel.Text                  = player.Name
+		nameLabel.ZIndex                = 6
+		nameLabel.Name                  = "NameLabel"
+		nameLabel.Parent                = bb
+	end
+
+	-- Update box line colors and name label color to match role
+	for _, child in ipairs(bb:GetChildren()) do
+		if child:IsA("Frame") then
+			child.BackgroundColor3 = outlineColor
+		elseif child:IsA("TextLabel") and child.Name == "NameLabel" then
+			child.TextColor3 = outlineColor
+			child.Text       = player.Name
+		end
+	end
+
+	bb.Adornee = root
+
+	espHighlights[player] = { hl = hl, billboard = bb }
 end
 
 local function updateESP()
+	-- Cleanup players who left
 	for player in pairs(espHighlights) do
 		if not player or not player.Parent then removeESP(player) end
 	end
+
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player == LocalPlayer then continue end
 		local char = getCharacter(player)
 		if not char then removeESP(player) continue end
 
+		local fillColor, outlineColor
 		if hasTool(player, MURD_TOOL) then
-			applyESP(player, Color3.fromRGB(200, 20, 20), Color3.fromRGB(255, 70, 70))
+			fillColor    = Color3.fromRGB(200, 20,  20)
+			outlineColor = Color3.fromRGB(255, 70,  70)
 		elseif hasTool(player, SHERIFF_TOOL) then
-			applyESP(player, Color3.fromRGB(20, 70, 210), Color3.fromRGB(70, 140, 255))
+			fillColor    = Color3.fromRGB(20,  70,  210)
+			outlineColor = Color3.fromRGB(70,  140, 255)
 		else
-			applyESP(player, Color3.fromRGB(110, 30, 190), Color3.fromRGB(170, 80, 255))
+			fillColor    = Color3.fromRGB(110, 30,  190)
+			outlineColor = Color3.fromRGB(170, 80,  255)
 		end
 
-		if espHighlights[player] and espHighlights[player].Adornee ~= char then
-			espHighlights[player].Adornee = char
+		applyESP(player, fillColor, outlineColor)
+
+		-- Keep highlight adornee up to date if character respawned
+		local data = espHighlights[player]
+		if data and data.hl and data.hl.Adornee ~= char then
+			data.hl.Adornee = char
 		end
 	end
 end
@@ -503,9 +578,8 @@ local function updateCameraLock()
 
 	Camera.CameraType = Enum.CameraType.Custom
 
-	-- Hard instant snap — no Lerp, no smoothing, locks straight to body every frame
-	local targetPoint = targetRoot.Position + Vector3.new(0, 2, 0)
-	Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPoint)
+	-- Hard instant snap directly onto HumanoidRootPart — no offset, no smoothing
+	Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetRoot.Position)
 end
 
 -- ══════════════════════════════════════
