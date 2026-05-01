@@ -1,39 +1,71 @@
---// SERVICES
+--// SERVICES123
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
 
---// GUI
-local gui = Instance.new("ScreenGui")
-gui.Name = "DevDebugPanel"
-gui.ResetOnSpawn = false
-gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+--------------------------------------------------
+--// FUNCTION: CREATE DRAGGABLE BUTTON PANEL
+--------------------------------------------------
+local function createPanel(title, position)
+    local gui = Instance.new("ScreenGui")
+    gui.ResetOnSpawn = false
+    gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 220)
-frame.Position = UDim2.new(0.05, 0, 0.3, 0)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-frame.Active = true
-frame.Draggable = true
-frame.Parent = gui
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 220, 0, 60)
+    frame.Position = position
+    frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+    frame.Active = true
+    frame.Draggable = true
+    frame.Parent = gui
 
-local function makeButton(text, y)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -10, 0, 45)
-    b.Position = UDim2.new(0, 5, 0, y)
-    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    b.TextColor3 = Color3.fromRGB(255,255,255)
-    b.Text = text
-    b.Parent = frame
-    return b
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = frame
+
+    local stroke = Instance.new("UIStroke")
+    stroke.Thickness = 1
+    stroke.Color = Color3.fromRGB(80,80,80)
+    stroke.Parent = frame
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1,0,0,20)
+    label.BackgroundTransparency = 1
+    label.Text = title
+    label.TextColor3 = Color3.fromRGB(200,200,200)
+    label.Font = Enum.Font.Gotham
+    label.TextSize = 12
+    label.Parent = frame
+
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1,-10,0,30)
+    button.Position = UDim2.new(0,5,0,25)
+    button.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    button.TextColor3 = Color3.fromRGB(255,255,255)
+    button.Font = Enum.Font.GothamBold
+    button.TextSize = 13
+    button.Text = "OFF"
+    button.Parent = frame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0,6)
+    btnCorner.Parent = button
+
+    return button
 end
 
-local speedBtn = makeButton("Speed Glitch", 10)
-local lockMurdBtn = makeButton("Lock Murder (Knife)", 60)
-local lockSheriffBtn = makeButton("Lock Sheriff (Gun)", 110)
+--------------------------------------------------
+--// PANELS (ALL SEPARATE DRAGGABLE)
+--------------------------------------------------
+local speedBtn = createPanel("Speed Debug", UDim2.new(0.05,0,0.2,0))
+local espBtn = createPanel("ESP Debug", UDim2.new(0.05,0,0.35,0))
+local lockMurdBtn = createPanel("Lock Murder", UDim2.new(0.05,0,0.5,0))
+local lockSheriffBtn = createPanel("Lock Sheriff", UDim2.new(0.05,0,0.65,0))
 
---// SPEED + SPIN (DEBUG)
+--------------------------------------------------
+--// SPEED + SPIN
+--------------------------------------------------
 local speedOn = false
 local spinConn
 
@@ -49,113 +81,104 @@ speedBtn.MouseButton1Click:Connect(function()
 
         spinConn = RunService.RenderStepped:Connect(function()
             if hrp then
-                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(20), 0)
+                hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(18), 0)
             end
         end)
 
-        speedBtn.Text = "Speed: ON"
+        speedBtn.Text = "ON"
     else
         hum.WalkSpeed = 16
         if spinConn then spinConn:Disconnect() end
-        speedBtn.Text = "Speed Glitch"
+        speedBtn.Text = "OFF"
     end
 end)
 
---// HIGHLIGHT SYSTEM (ALWAYS ON ESP)
+--------------------------------------------------
+--// ESP (ALWAYS ON, NO TOGGLE)
+--------------------------------------------------
 local highlights = {}
 
-local function getToolColor(plr)
-    if not plr.Character then return Color3.fromRGB(170,0,255) end
-
+local function getColor(plr)
     local char = plr.Character
-    local hasGun = char:FindFirstChild("Gun") or (plr.Backpack and plr.Backpack:FindFirstChild("Gun"))
-    local hasKnife = char:FindFirstChild("Knife") or (plr.Backpack and plr.Backpack:FindFirstChild("Knife"))
+    if not char then return Color3.fromRGB(170,0,255) end
 
-    if hasGun then
-        return Color3.fromRGB(0,170,255) -- blue
-    elseif hasKnife then
-        return Color3.fromRGB(255,0,0) -- red
+    if char:FindFirstChild("Gun") then
+        return Color3.fromRGB(0,170,255)
+    elseif char:FindFirstChild("Knife") then
+        return Color3.fromRGB(255,0,0)
     else
-        return Color3.fromRGB(170,0,255) -- purple
+        return Color3.fromRGB(170,0,255)
     end
-end
-
-local function applyESP(plr)
-    if plr == LocalPlayer then return end
-    if not plr.Character then return end
-
-    local char = plr.Character
-
-    if not highlights[plr] then
-        local h = Instance.new("Highlight")
-        h.Parent = char
-        highlights[plr] = h
-    end
-
-    highlights[plr].FillColor = getToolColor(plr)
-    highlights[plr].OutlineColor = Color3.fromRGB(0,0,0)
 end
 
 RunService.RenderStepped:Connect(function()
     for _,plr in pairs(Players:GetPlayers()) do
-        applyESP(plr)
+        if plr ~= LocalPlayer and plr.Character then
+            if not highlights[plr] then
+                local h = Instance.new("Highlight")
+                h.Parent = plr.Character
+                highlights[plr] = h
+            end
+
+            highlights[plr].FillColor = getColor(plr)
+            highlights[plr].OutlineColor = Color3.new(0,0,0)
+        end
     end
 end)
 
---// CAMERA LOCK SYSTEM (DEV TEST ONLY)
-local function lockCameraTo(plr)
-    if plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-        Workspace.CurrentCamera.CameraSubject = plr.Character.Humanoid
+--------------------------------------------------
+--// CAMERA LOCK (FIXED WORKING VERSION)
+--------------------------------------------------
+local function lockTo(plr)
+    if plr and plr.Character then
+        local hum = plr.Character:FindFirstChild("Humanoid")
+        if hum then
+            Workspace.CurrentCamera.CameraSubject = hum
+        end
     end
 end
 
-local cameraLocked = false
-local lockTarget = nil
+local lockMurd = false
+local lockSher = false
 
 lockMurdBtn.MouseButton1Click:Connect(function()
-    cameraLocked = true
-    lockTarget = "Knife"
+    lockMurd = not lockMurd
+    lockSher = false
 
-    lockMurdBtn.Text = "Murder Locked"
+    lockMurdBtn.Text = lockMurd and "ON" or "OFF"
+    lockSheriffBtn.Text = "OFF"
 
-    RunService.RenderStepped:Connect(function()
-        if cameraLocked then
+    if lockMurd then
+        RunService.RenderStepped:Connect(function()
+            if not lockMurd then return end
+
             for _,plr in pairs(Players:GetPlayers()) do
-                if plr.Character then
-                    if plr.Character:FindFirstChild("Knife") then
-                        lockCameraTo(plr)
-                        break
-                    end
+                if plr.Character and plr.Character:FindFirstChild("Knife") then
+                    lockTo(plr)
+                    break
                 end
             end
-        end
-    end)
+        end)
+    end
 end)
 
 lockSheriffBtn.MouseButton1Click:Connect(function()
-    cameraLocked = true
-    lockTarget = "Gun"
+    lockSher = not lockSher
+    lockMurd = false
 
-    lockSheriffBtn.Text = "Sheriff Locked"
+    lockSheriffBtn.Text = lockSher and "ON" or "OFF"
+    lockMurdBtn.Text = "OFF"
 
-    RunService.RenderStepped:Connect(function()
-        if cameraLocked then
+    if lockSher then
+        RunService.RenderStepped:Connect(function()
+            if not lockSher then return end
+
             for _,plr in pairs(Players:GetPlayers()) do
-                if plr.Character then
-                    if plr.Character:FindFirstChild("Gun") then
-                        lockCameraTo(plr)
-                        break
-                    end
+                if plr.Character and plr.Character:FindFirstChild("Gun") then
+                    lockTo(plr)
+                    break
                 end
             end
-        end
-    end)
-end)
-
---// AUTO REFRESH ON SPAWN
-Players.PlayerAdded:Connect(function(plr)
-    plr.CharacterAdded:Connect(function()
-        task.wait(1)
-        applyESP(plr)
-    end)
+        end)
+    end
 end)
