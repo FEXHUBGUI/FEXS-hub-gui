@@ -3,21 +3,42 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local Lighting = game:GetService("Lighting")
 
 --// GUI
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "RainHubMM2"
 
--- MAIN (CENTERED)
+-- SIDE TOGGLE BUTTON
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.new(0,30,0,70)
+toggleBtn.Position = UDim2.new(0,0,0.4,0)
+toggleBtn.Text = "≡"
+toggleBtn.Font = Enum.Font.Arcade
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.Draggable = true
+Instance.new("UICorner", toggleBtn)
+
+-- MAIN (SMALLER + CENTERED)
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,380,0,340)
-main.Position = UDim2.new(0.5,-190,0.5,-170)
+main.Size = UDim2.new(0,300,0,260)
+main.Position = UDim2.new(0.5,-150,0.5,-130)
 main.BackgroundColor3 = Color3.fromRGB(10,15,25)
+main.Visible = false
 main.Active = true
 main.Draggable = true
 Instance.new("UICorner", main)
 
--- WATER SHADER (FAKE)
+-- TITLE
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "Rain Hub MM2"
+title.Font = Enum.Font.Arcade
+title.TextColor3 = Color3.fromRGB(0,170,255)
+title.BackgroundTransparency = 1
+
+-- WATER EFFECT
 local water = Instance.new("Frame", main)
 water.Size = UDim2.new(1,0,1,0)
 water.BackgroundTransparency = 0.8
@@ -25,36 +46,24 @@ water.BackgroundColor3 = Color3.fromRGB(0,80,150)
 
 task.spawn(function()
 	while true do
-		TweenService:Create(water,TweenInfo.new(3,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{
-			BackgroundTransparency = 0.85
-		}):Play()
+		TweenService:Create(water,TweenInfo.new(3),{BackgroundTransparency = 0.85}):Play()
 		task.wait(3)
-		TweenService:Create(water,TweenInfo.new(3,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut),{
-			BackgroundTransparency = 0.75
-		}):Play()
+		TweenService:Create(water,TweenInfo.new(3),{BackgroundTransparency = 0.75}):Play()
 		task.wait(3)
 	end
 end)
 
--- TITLE
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1,0,0,35)
-title.Text = "Rain Hub MM2"
-title.Font = Enum.Font.Arcade
-title.TextColor3 = Color3.fromRGB(0,170,255)
-title.BackgroundTransparency = 1
-
--- RAIN (ACTUALLY FALLING)
-for i = 1,30 do
+-- RAIN
+for i = 1,20 do
 	local drop = Instance.new("ImageLabel", main)
 	drop.Image = "rbxassetid://133078236"
-	drop.Size = UDim2.new(0,10,0,25)
+	drop.Size = UDim2.new(0,8,0,20)
 	drop.BackgroundTransparency = 1
 	
 	task.spawn(function()
 		while true do
 			drop.Position = UDim2.new(math.random(),0,-0.2,0)
-			local t = TweenService:Create(drop,TweenInfo.new(1.5,Enum.EasingStyle.Linear),{
+			local t = TweenService:Create(drop,TweenInfo.new(1.3,Enum.EasingStyle.Linear),{
 				Position = UDim2.new(drop.Position.X.Scale,0,1.2,0)
 			})
 			t:Play()
@@ -65,14 +74,12 @@ end
 
 -- TABS
 local tabHolder = Instance.new("Frame", main)
-tabHolder.Size = UDim2.new(1,0,0,30)
-tabHolder.Position = UDim2.new(0,0,0,35)
-tabHolder.BackgroundTransparency = 1
+tabHolder.Size = UDim2.new(1,0,0,25)
+tabHolder.Position = UDim2.new(0,0,0,30)
 
 local content = Instance.new("Frame", main)
-content.Size = UDim2.new(1,0,1,-65)
-content.Position = UDim2.new(0,0,0,65)
-content.BackgroundTransparency = 1
+content.Size = UDim2.new(1,0,1,-55)
+content.Position = UDim2.new(0,0,0,55)
 
 local tabs = {"Murderer","Sheriff","Visual"}
 local tabFrames = {}
@@ -83,19 +90,13 @@ for i,name in pairs(tabs) do
 	btn.Position = UDim2.new((i-1)/#tabs,0,0,0)
 	btn.Text = name
 	btn.Font = Enum.Font.Arcade
-	btn.TextColor3 = Color3.new(1,1,1)
 	btn.BackgroundColor3 = Color3.fromRGB(20,25,40)
-	
-	local stroke = Instance.new("UIStroke", btn)
-	stroke.Color = Color3.fromRGB(0,150,255)
-	stroke.Thickness = 2
-	
+	btn.TextColor3 = Color3.new(1,1,1)
 	Instance.new("UICorner", btn)
 
 	local frame = Instance.new("Frame", content)
 	frame.Size = UDim2.new(1,0,1,0)
 	frame.Visible = false
-	frame.BackgroundTransparency = 1
 
 	tabFrames[name] = frame
 
@@ -110,17 +111,17 @@ tabFrames["Visual"].Visible = true
 -- BUTTON CREATOR
 function makeBtn(parent,text,y,color,callback)
 	local b = Instance.new("TextButton", parent)
-	b.Size = UDim2.new(0.85,0,0,45)
+	b.Size = UDim2.new(0.85,0,0,35)
 	b.Position = UDim2.new(0.075,0,0,y)
 	b.Text = text.." [OFF]"
 	b.Font = Enum.Font.Arcade
-	b.TextColor3 = Color3.new(1,1,1)
 	b.BackgroundColor3 = Color3.fromRGB(15,15,25)
-	
+	b.TextColor3 = Color3.new(1,1,1)
+
 	local stroke = Instance.new("UIStroke", b)
 	stroke.Color = color
 	stroke.Thickness = 2
-	
+
 	Instance.new("UICorner", b)
 
 	local state = false
@@ -147,9 +148,9 @@ RunService.RenderStepped:Connect(function()
 			if espOn then
 				local h = Instance.new("Highlight", char)
 
-				if p.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife") then
+				if p:FindFirstChild("Backpack") and (p.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife")) then
 					h.FillColor = Color3.fromRGB(255,0,0)
-				elseif p.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun") then
+				elseif p:FindFirstChild("Backpack") and (p.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun")) then
 					h.FillColor = Color3.fromRGB(0,150,255)
 				else
 					h.FillColor = Color3.fromRGB(0,255,0)
@@ -164,19 +165,53 @@ makeBtn(tabFrames["Visual"],"ESP",10,Color3.fromRGB(0,150,255),function(v)
 	espOn = v
 end)
 
--- LOCK SYSTEM (SMART)
+-- POTATO
+makeBtn(tabFrames["Visual"],"Potato Mode",55,Color3.fromRGB(150,150,150),function(v)
+	Lighting.GlobalShadows = not v
+	for _,d in pairs(workspace:GetDescendants()) do
+		if d:IsA("Texture") or d:IsA("Decal") then
+			d:Destroy()
+		end
+	end
+end)
+
+-- GLOSSY (FIXED)
+makeBtn(tabFrames["Visual"],"Glossy Shader",100,Color3.fromRGB(0,200,255),function(v)
+	for _,p in pairs(workspace:GetDescendants()) do
+		if p:IsA("BasePart") then
+			p.Material = v and Enum.Material.SmoothPlastic or Enum.Material.Plastic
+			p.Reflectance = v and 0.5 or 0
+		end
+	end
+end)
+
+-- LOCK BUTTON UI
+local lockBtn = Instance.new("TextButton", gui)
+lockBtn.Size = UDim2.new(0,120,0,45)
+lockBtn.Position = UDim2.new(0.5,-60,0.8,0)
+lockBtn.Visible = false
+lockBtn.Font = Enum.Font.Arcade
+lockBtn.TextColor3 = Color3.new(1,1,1)
+lockBtn.BackgroundTransparency = 0.2
+lockBtn.Draggable = true
+Instance.new("UICorner", lockBtn)
+
 local locking = false
 local mode = nil
+
+lockBtn.MouseButton1Click:Connect(function()
+	locking = not locking
+end)
 
 function getTarget()
 	for _,p in pairs(Players:GetPlayers()) do
 		if p ~= LocalPlayer then
-			if mode == "Sheriff" then
-				if p.Backpack:FindFirstChild("Gun") or (p.Character and p.Character:FindFirstChild("Gun")) then
+			if mode == "Murderer" then
+				if p.Backpack:FindFirstChild("Knife") or (p.Character and p.Character:FindFirstChild("Knife")) then
 					return p
 				end
-			elseif mode == "Murderer" then
-				if p.Backpack:FindFirstChild("Knife") or (p.Character and p.Character:FindFirstChild("Knife")) then
+			elseif mode == "Sheriff" then
+				if p.Backpack:FindFirstChild("Gun") or (p.Character and p.Character:FindFirstChild("Gun")) then
 					return p
 				end
 			end
@@ -198,13 +233,25 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- MURDERER TAB
-makeBtn(tabFrames["Murderer"],"Shoot Sheriff",10,Color3.fromRGB(0,150,255),function(v)
-	locking = v
+makeBtn(tabFrames["Murderer"],"Lock Sheriff Button",10,Color3.fromRGB(0,150,255),function(v)
+	lockBtn.Visible = v
 	mode = "Sheriff"
+	lockBtn.Text = "Lock Sheriff"
+	lockBtn.BackgroundColor3 = Color3.fromRGB(0,100,255)
 end)
 
 -- SHERIFF TAB
-makeBtn(tabFrames["Sheriff"],"Shoot Murderer",10,Color3.fromRGB(255,50,50),function(v)
-	locking = v
+makeBtn(tabFrames["Sheriff"],"Lock Murderer Button",10,Color3.fromRGB(255,50,50),function(v)
+	lockBtn.Visible = v
 	mode = "Murderer"
+	lockBtn.Text = "Lock Murderer"
+	lockBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+end)
+
+-- OPEN/CLOSE GUI
+local open = false
+
+toggleBtn.MouseButton1Click:Connect(function()
+	open = not open
+	main.Visible = open
 end)
