@@ -4,10 +4,20 @@ local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
+local SoundService = game:GetService("SoundService")
 
 --// GUI
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.Name = "RainHubMM2"
+
+-- BLUR
+local blur = Instance.new("BlurEffect", Lighting)
+blur.Size = 0
+
+-- SOUND
+local clickSound = Instance.new("Sound", SoundService)
+clickSound.SoundId = "rbxassetid://12221967"
+clickSound.Volume = 1
 
 -- SIDE BUTTON
 local toggleBtn = Instance.new("TextButton", gui)
@@ -21,11 +31,11 @@ toggleBtn.TextColor3 = Color3.new(1,1,1)
 toggleBtn.Draggable = true
 Instance.new("UICorner", toggleBtn)
 
--- MAIN FRAME
+-- MAIN
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,300,0,260)
-main.Position = UDim2.new(0.5,-150,0.5,-130)
-main.BackgroundColor3 = Color3.fromRGB(10,15,25)
+main.Size = UDim2.new(0,320,0,270)
+main.Position = UDim2.new(0.5,-160,0.5,-135)
+main.BackgroundColor3 = Color3.fromRGB(15,20,40)
 main.Visible = false
 main.Active = true
 main.Draggable = true
@@ -37,7 +47,7 @@ title.Size = UDim2.new(1,0,0,30)
 title.Text = "Rain Hub MM2"
 title.Font = Enum.Font.Arcade
 title.TextScaled = true
-title.TextColor3 = Color3.fromRGB(0,170,255)
+title.TextColor3 = Color3.fromRGB(0,200,255)
 title.BackgroundTransparency = 1
 
 -- TABS
@@ -59,21 +69,24 @@ for i,name in pairs(tabs) do
 	btn.Text = name
 	btn.Font = Enum.Font.Arcade
 	btn.TextScaled = true
-	btn.BackgroundColor3 = Color3.fromRGB(20,25,40)
+	btn.BackgroundColor3 = Color3.fromRGB(20,25,50)
 	btn.TextColor3 = Color3.new(1,1,1)
-	Instance.new("UICorner", btn)
 
 	local stroke = Instance.new("UIStroke", btn)
-	stroke.Color = Color3.fromRGB(0,150,255)
+	stroke.Color = Color3.fromRGB(0,200,255)
 	stroke.Thickness = 2
+
+	Instance.new("UICorner", btn)
 
 	local frame = Instance.new("Frame", content)
 	frame.Size = UDim2.new(1,0,1,0)
 	frame.Visible = false
+	frame.BackgroundTransparency = 1
 
 	tabFrames[name] = frame
 
 	btn.MouseButton1Click:Connect(function()
+		clickSound:Play()
 		for _,f in pairs(tabFrames) do f.Visible = false end
 		frame.Visible = true
 	end)
@@ -81,7 +94,7 @@ end
 
 tabFrames["Visual"].Visible = true
 
--- BUTTON CREATOR
+-- PREMIUM BUTTON CREATOR
 function makeBtn(parent,text,y,color,callback)
 	local b = Instance.new("TextButton", parent)
 	b.Size = UDim2.new(0.9,0,0,45)
@@ -89,9 +102,24 @@ function makeBtn(parent,text,y,color,callback)
 	b.Text = text.." [OFF]"
 	b.Font = Enum.Font.Arcade
 	b.TextScaled = true
-	b.BackgroundColor3 = Color3.fromRGB(15,15,25)
+	b.BackgroundColor3 = Color3.fromRGB(20,20,40)
 	b.TextColor3 = Color3.new(1,1,1)
 
+	-- gradient
+	local grad = Instance.new("UIGradient", b)
+	grad.Color = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(0,120,255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(0,200,255))
+	}
+
+	task.spawn(function()
+		while true do
+			grad.Rotation += 1
+			task.wait()
+		end
+	end)
+
+	-- stroke
 	local stroke = Instance.new("UIStroke", b)
 	stroke.Color = color
 	stroke.Thickness = 2
@@ -100,12 +128,33 @@ function makeBtn(parent,text,y,color,callback)
 
 	local state = false
 
+	-- hover glow
+	b.MouseEnter:Connect(function()
+		TweenService:Create(stroke,TweenInfo.new(0.2),{Thickness = 4}):Play()
+	end)
+
+	b.MouseLeave:Connect(function()
+		TweenService:Create(stroke,TweenInfo.new(0.2),{Thickness = 2}):Play()
+	end)
+
 	b.MouseButton1Click:Connect(function()
+		clickSound:Play()
 		state = not state
-		
-		b:TweenSize(UDim2.new(0.88,0,0,42),"Out","Quad",0.08,true)
-		task.wait(0.08)
-		b:TweenSize(UDim2.new(0.9,0,0,45),"Out","Quad",0.08,true)
+
+		-- ripple
+		local ripple = Instance.new("Frame", b)
+		ripple.Size = UDim2.new(0,0,0,0)
+		ripple.Position = UDim2.new(0.5,0,0.5,0)
+		ripple.BackgroundTransparency = 0.5
+		ripple.BackgroundColor3 = Color3.new(1,1,1)
+		Instance.new("UICorner", ripple)
+
+		TweenService:Create(ripple,TweenInfo.new(0.4),{
+			Size = UDim2.new(1.5,0,1.5,0),
+			BackgroundTransparency = 1
+		}):Play()
+
+		game.Debris:AddItem(ripple,0.4)
 
 		b.Text = text.." ["..(state and "ON" or "OFF").."]"
 		callback(state)
@@ -140,17 +189,12 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- VISUAL TAB
-makeBtn(tabFrames["Visual"],"ESP",10,Color3.fromRGB(0,150,255),function(v)
+makeBtn(tabFrames["Visual"],"ESP",10,Color3.fromRGB(0,200,255),function(v)
 	espOn = v
 end)
 
 makeBtn(tabFrames["Visual"],"Potato Mode",60,Color3.fromRGB(150,150,150),function(v)
 	Lighting.GlobalShadows = not v
-	for _,d in pairs(workspace:GetDescendants()) do
-		if d:IsA("Texture") or d:IsA("Decal") then
-			d:Destroy()
-		end
-	end
 end)
 
 makeBtn(tabFrames["Visual"],"Glossy Shader",110,Color3.fromRGB(0,200,255),function(v)
@@ -163,10 +207,8 @@ makeBtn(tabFrames["Visual"],"Glossy Shader",110,Color3.fromRGB(0,200,255),functi
 end)
 
 -- LOCK BUTTONS
-
--- MURDERER
 local murderBtn = Instance.new("TextButton", gui)
-murderBtn.Size = UDim2.new(0,140,0,50)
+murderBtn.Size = UDim2.new(0,150,0,55)
 murderBtn.Position = UDim2.new(0.35,0,0.8,0)
 murderBtn.Visible = false
 murderBtn.Text = "Lock Murderer"
@@ -177,13 +219,8 @@ murderBtn.TextColor3 = Color3.new(1,1,1)
 murderBtn.Draggable = true
 Instance.new("UICorner", murderBtn)
 
-local mStroke = Instance.new("UIStroke", murderBtn)
-mStroke.Color = Color3.fromRGB(0,150,255)
-mStroke.Thickness = 2
-
--- SHERIFF
 local sheriffBtn = Instance.new("TextButton", gui)
-sheriffBtn.Size = UDim2.new(0,140,0,50)
+sheriffBtn.Size = UDim2.new(0,150,0,55)
 sheriffBtn.Position = UDim2.new(0.55,0,0.8,0)
 sheriffBtn.Visible = false
 sheriffBtn.Text = "Lock Sheriff"
@@ -194,22 +231,20 @@ sheriffBtn.TextColor3 = Color3.new(1,1,1)
 sheriffBtn.Draggable = true
 Instance.new("UICorner", sheriffBtn)
 
-local sStroke = Instance.new("UIStroke", sheriffBtn)
-sStroke.Color = Color3.fromRGB(0,150,255)
-sStroke.Thickness = 2
-
--- LOCK LOGIC
 local murderLock = false
 local sheriffLock = false
 
 murderBtn.MouseButton1Click:Connect(function()
+	clickSound:Play()
 	murderLock = not murderLock
 end)
 
 sheriffBtn.MouseButton1Click:Connect(function()
+	clickSound:Play()
 	sheriffLock = not sheriffLock
 end)
 
+-- HARD LOCK (AIMBOT STYLE)
 RunService.RenderStepped:Connect(function()
 	local cam = workspace.CurrentCamera
 
@@ -218,19 +253,13 @@ RunService.RenderStepped:Connect(function()
 
 			if murderLock then
 				if p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife") then
-					cam.CFrame = cam.CFrame:Lerp(
-						CFrame.new(cam.CFrame.Position, p.Character.HumanoidRootPart.Position),
-						0.2
-					)
+					cam.CFrame = CFrame.new(cam.CFrame.Position, p.Character.HumanoidRootPart.Position)
 				end
 			end
 
 			if sheriffLock then
 				if p.Backpack:FindFirstChild("Gun") or p.Character:FindFirstChild("Gun") then
-					cam.CFrame = cam.CFrame:Lerp(
-						CFrame.new(cam.CFrame.Position, p.Character.HumanoidRootPart.Position),
-						0.2
-					)
+					cam.CFrame = CFrame.new(cam.CFrame.Position, p.Character.HumanoidRootPart.Position)
 				end
 			end
 
@@ -239,7 +268,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- TAB BUTTONS
-makeBtn(tabFrames["Murderer"],"Lock Sheriff Button",10,Color3.fromRGB(0,150,255),function(v)
+makeBtn(tabFrames["Murderer"],"Lock Sheriff Button",10,Color3.fromRGB(0,200,255),function(v)
 	sheriffBtn.Visible = v
 end)
 
@@ -247,12 +276,17 @@ makeBtn(tabFrames["Sheriff"],"Lock Murderer Button",10,Color3.fromRGB(255,50,50)
 	murderBtn.Visible = v
 end)
 
--- OPEN ANIMATION
+-- OPEN
 toggleBtn.MouseButton1Click:Connect(function()
+	clickSound:Play()
 	main.Visible = not main.Visible
-	
+
+	TweenService:Create(blur,TweenInfo.new(0.2),{
+		Size = main.Visible and 10 or 0
+	}):Play()
+
 	if main.Visible then
 		main.Size = UDim2.new(0,0,0,0)
-		main:TweenSize(UDim2.new(0,300,0,260),"Out","Back",0.25,true)
+		main:TweenSize(UDim2.new(0,320,0,270),"Out","Back",0.25,true)
 	end
 end)
