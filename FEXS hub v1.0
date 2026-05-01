@@ -1,288 +1,228 @@
---// Stwe
+--// SERVICES
 local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
-local Lighting = game:GetService("Lighting")
-local SoundService = game:GetService("SoundService")
+
+local lp = Players.LocalPlayer
+local cam = workspace.CurrentCamera
 
 --// GUI
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "RainHubMM2"
+local gui = Instance.new("ScreenGui")
+gui.Name = "DebugPowerUI"
+gui.ResetOnSpawn = false
+gui.Parent = lp:WaitForChild("PlayerGui")
 
--- BLUR (GLASS EFFECT)
-local blur = Instance.new("BlurEffect", Lighting)
-blur.Size = 0
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 180)
+frame.Position = UDim2.new(0.5, -130, 0.6, 0)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
 
--- SOUND
-local clickSound = Instance.new("Sound", SoundService)
-clickSound.SoundId = "rbxassetid://12221967"
-clickSound.Volume = 0.2
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 10)
+corner.Parent = frame
 
--- SIDE BUTTON
-local toggleBtn = Instance.new("TextButton", gui)
-toggleBtn.Size = UDim2.new(0,32,0,75)
-toggleBtn.Position = UDim2.new(0,0,0.4,0)
-toggleBtn.Text = "≡"
-toggleBtn.Font = Enum.Font.GothamBold
-toggleBtn.TextScaled = true
-toggleBtn.BackgroundColor3 = Color3.fromRGB(0,140,255)
-toggleBtn.TextColor3 = Color3.new(1,1,1)
-toggleBtn.Draggable = true
-Instance.new("UICorner", toggleBtn)
+local stroke = Instance.new("UIStroke")
+stroke.Thickness = 2
+stroke.Parent = frame
 
--- MAIN (GLASS PANEL)
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,330,0,280)
-main.Position = UDim2.new(0.5,-165,0.5,-140)
-main.BackgroundColor3 = Color3.fromRGB(20,30,60)
-main.BackgroundTransparency = 0.15
-main.Visible = false
-main.Active = true
-main.Draggable = true
-Instance.new("UICorner", main)
-
--- INNER SHADOW (DEPTH)
-local shadow = Instance.new("Frame", main)
-shadow.Size = UDim2.new(1,0,1,0)
-shadow.BackgroundTransparency = 0.8
-shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-Instance.new("UICorner", shadow)
-
--- MOVING GRADIENT
-local gradient = Instance.new("UIGradient", main)
-gradient.Color = ColorSequence.new{
-	ColorSequenceKeypoint.new(0, Color3.fromRGB(0,120,255)),
-	ColorSequenceKeypoint.new(1, Color3.fromRGB(10,20,60))
-}
-gradient.Rotation = 90
-
+--// RAINBOW
 task.spawn(function()
-	while true do
-		gradient.Offset = Vector2.new(0, gradient.Offset.Y + 0.002)
-		task.wait()
+	local i = 0
+	while gui.Parent do
+		i += 1
+		local hue = (i % 360) / 360
+		local c = Color3.fromHSV(hue, 1, 1)
+		frame.BackgroundColor3 = Color3.fromHSV(hue, 0.25, 0.15)
+		stroke.Color = c
+		task.wait(0.03)
 	end
 end)
 
--- TITLE
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1,0,0,35)
-title.Text = "Rain Hub MM2"
-title.Font = Enum.Font.GothamBold
-title.TextScaled = true
-title.TextColor3 = Color3.fromRGB(200,230,255)
-title.BackgroundTransparency = 1
-
--- TABS
-local tabHolder = Instance.new("Frame", main)
-tabHolder.Size = UDim2.new(1,0,0,30)
-tabHolder.Position = UDim2.new(0,0,0,35)
-
-local content = Instance.new("Frame", main)
-content.Size = UDim2.new(1,0,1,-65)
-content.Position = UDim2.new(0,0,0,65)
-
-local tabs = {"Murderer","Sheriff","Visual"}
-local tabFrames = {}
-
-for i,name in pairs(tabs) do
-	local btn = Instance.new("TextButton", tabHolder)
-	btn.Size = UDim2.new(1/#tabs,0,1,0)
-	btn.Position = UDim2.new((i-1)/#tabs,0,0,0)
-	btn.Text = name
-	btn.Font = Enum.Font.GothamBold
-	btn.TextScaled = true
-	btn.BackgroundColor3 = Color3.fromRGB(30,40,80)
-	btn.TextColor3 = Color3.new(1,1,1)
-	Instance.new("UICorner", btn)
-
-	local stroke = Instance.new("UIStroke", btn)
-	stroke.Color = Color3.fromRGB(0,200,255)
-	stroke.Thickness = 2
-
-	local frame = Instance.new("Frame", content)
-	frame.Size = UDim2.new(1,0,1,0)
-	frame.Visible = false
-	frame.BackgroundTransparency = 1
-
-	tabFrames[name] = frame
-
-	btn.MouseButton1Click:Connect(function()
-		clickSound:Play()
-		for _,f in pairs(tabFrames) do f.Visible = false end
-		frame.Visible = true
-	end)
-end
-
-tabFrames["Visual"].Visible = true
-
--- PREMIUM BUTTON
-function makeBtn(parent,text,y,color,callback)
-	local b = Instance.new("TextButton", parent)
-	b.Size = UDim2.new(0.9,0,0,48)
-	b.Position = UDim2.new(0.05,0,0,y)
-	b.Text = text.." [OFF]"
+--// BUTTON FACTORY
+local function makeButton(text, y)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, 240, 0, 40)
+	b.Position = UDim2.new(0, 10, 0, y)
+	b.Text = text
 	b.Font = Enum.Font.GothamBold
-	b.TextScaled = true
-	b.BackgroundColor3 = Color3.fromRGB(30,40,80)
+	b.TextSize = 14
 	b.TextColor3 = Color3.new(1,1,1)
+	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	b.Parent = frame
 
-	local grad = Instance.new("UIGradient", b)
-	grad.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(0,140,255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(0,200,255))
-	}
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, 8)
+	c.Parent = b
 
-	task.spawn(function()
-		while true do
-			grad.Rotation += 0.5
-			task.wait()
-		end
-	end)
-
-	local stroke = Instance.new("UIStroke", b)
-	stroke.Color = color
-	stroke.Thickness = 2
-
-	Instance.new("UICorner", b)
-
-	local state = false
-
-	b.MouseButton1Click:Connect(function()
-		clickSound:Play()
-		state = not state
-
-		b.Text = text.." ["..(state and "ON" or "OFF").."]"
-		callback(state)
-	end)
+	return b
 end
 
--- ESP
-local espOn = false
+--// STATE
+local lastGunPos = nil
+local lockTarget = nil
+local locking = false
 
-RunService.RenderStepped:Connect(function()
-	for _,p in pairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer and p.Character then
-			local char = p.Character
-
-			if char:FindFirstChild("Highlight") then
-				char.Highlight:Destroy()
-			end
-
-			if espOn then
-				local h = Instance.new("Highlight", char)
-
-				if p.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife") then
-					h.FillColor = Color3.fromRGB(255,0,0)
-				elseif p.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun") then
-					h.FillColor = Color3.fromRGB(0,150,255)
-				else
-					h.FillColor = Color3.fromRGB(0,255,0)
+--// TRACK TOOL POSITIONS (your game logic)
+local function getRoleTarget(toolName)
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local char = plr.Character
+		if char then
+			local tool = char:FindFirstChild(toolName)
+			if tool then
+				local hrp = char:FindFirstChild("HumanoidRootPart")
+				if hrp then
+					return plr, hrp
 				end
 			end
 		end
 	end
-end)
+	return nil, nil
+end
 
--- VISUAL TAB
-makeBtn(tabFrames["Visual"],"ESP",10,Color3.fromRGB(0,200,255),function(v)
-	espOn = v
-end)
-
-makeBtn(tabFrames["Visual"],"Potato Mode",65,Color3.fromRGB(150,150,150),function(v)
-	Lighting.GlobalShadows = not v
-end)
-
-makeBtn(tabFrames["Visual"],"Glossy Shader",120,Color3.fromRGB(0,200,255),function(v)
-	for _,p in pairs(workspace:GetDescendants()) do
-		if p:IsA("BasePart") then
-			p.Material = v and Enum.Material.SmoothPlastic or Enum.Material.Plastic
-			p.Reflectance = v and 0.5 or 0
+-- track dropped gun position
+workspace.ChildAdded:Connect(function(obj)
+	if obj:IsA("Tool") and obj.Name == "Gun" then
+		local handle = obj:FindFirstChild("Handle")
+		if handle then
+			task.spawn(function()
+				while obj.Parent == workspace and handle do
+					lastGunPos = handle.Position
+					task.wait(0.1)
+				end
+			end)
 		end
 	end
 end)
 
--- LOCK BUTTONS
-local murderBtn = Instance.new("TextButton", gui)
-murderBtn.Size = UDim2.new(0,150,0,55)
-murderBtn.Position = UDim2.new(0.35,0,0.8,0)
-murderBtn.Visible = false
-murderBtn.Text = "Lock Murderer"
-murderBtn.Font = Enum.Font.GothamBold
-murderBtn.TextScaled = true
-murderBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
-murderBtn.TextColor3 = Color3.new(1,1,1)
-murderBtn.Draggable = true
-Instance.new("UICorner", murderBtn)
+--// TP BUTTON
+local tpBtn = makeButton("TP TO GUN", 10)
 
-local sheriffBtn = Instance.new("TextButton", gui)
-sheriffBtn.Size = UDim2.new(0,150,0,55)
-sheriffBtn.Position = UDim2.new(0.55,0,0.8,0)
-sheriffBtn.Visible = false
-sheriffBtn.Text = "Lock Sheriff"
-sheriffBtn.Font = Enum.Font.GothamBold
-sheriffBtn.TextScaled = true
-sheriffBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
-sheriffBtn.TextColor3 = Color3.new(1,1,1)
-sheriffBtn.Draggable = true
-Instance.new("UICorner", sheriffBtn)
-
--- LOCK LOGIC (HARD LOCK)
-local murderLock = false
-local sheriffLock = false
-
-murderBtn.MouseButton1Click:Connect(function()
-	clickSound:Play()
-	murderLock = not murderLock
+tpBtn.MouseButton1Click:Connect(function()
+	local char = lp.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if hrp and lastGunPos then
+		hrp.CFrame = CFrame.new(lastGunPos + Vector3.new(0,3,0))
+	end
 end)
+
+--// LOCK FUNCTION
+local function startLock(toolName)
+	locking = true
+
+	RunService:BindToRenderStep("LOCK_"..toolName, 1, function()
+		if not locking then return end
+
+		local _, targetHRP = getRoleTarget(toolName)
+		if targetHRP then
+			lockTarget = targetHRP
+			cam.CFrame = CFrame.new(cam.CFrame.Position, targetHRP.Position)
+		end
+	end)
+end
+
+local function stopLock(toolName)
+	locking = false
+	RunService:UnbindFromRenderStep("LOCK_"..toolName)
+end
+
+--// LOCK SHERIFF (Gun)
+local sheriffBtn = makeButton("LOCK ON SHERIFF", 60)
 
 sheriffBtn.MouseButton1Click:Connect(function()
-	clickSound:Play()
-	sheriffLock = not sheriffLock
-end)
-
-RunService.RenderStepped:Connect(function()
-	local cam = workspace.CurrentCamera
-
-	for _,p in pairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-
-			if murderLock then
-				if p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife") then
-					cam.CFrame = CFrame.new(cam.CFrame.Position, p.Character.HumanoidRootPart.Position)
-				end
-			end
-
-			if sheriffLock then
-				if p.Backpack:FindFirstChild("Gun") or p.Character:FindFirstChild("Gun") then
-					cam.CFrame = CFrame.new(cam.CFrame.Position, p.Character.HumanoidRootPart.Position)
-				end
-			end
-
-		end
+	if locking then
+		stopLock("Gun")
+	else
+		startLock("Gun")
 	end
 end)
 
--- TAB BUTTONS
-makeBtn(tabFrames["Murderer"],"Lock Sheriff Button",10,Color3.fromRGB(0,200,255),function(v)
-	sheriffBtn.Visible = v
+--// LOCK MURDERER (Knife)
+local murderBtn = makeButton("LOCK ON MURDERER", 110)
+
+murderBtn.MouseButton1Click:Connect(function()
+	if locking then
+		stopLock("Knife")
+	else
+		startLock("Knife")
+	end
 end)
 
-makeBtn(tabFrames["Sheriff"],"Lock Murderer Button",10,Color3.fromRGB(255,50,50),function(v)
-	murderBtn.Visible = v
-end)
+--// DEBUG WALL SEE SYSTEM (Highlight ESP style but for YOUR GAME)
+local highlights = {}
 
--- OPEN
-toggleBtn.MouseButton1Click:Connect(function()
-	clickSound:Play()
-	main.Visible = not main.Visible
+local function applyHighlight(plr, color)
+	if highlights[plr] then highlights[plr]:Destroy() end
 
-	TweenService:Create(blur,TweenInfo.new(0.2),{
-		Size = main.Visible and 12 or 0
-	}):Play()
+	local char = plr.Character
+	if not char then return end
 
-	if main.Visible then
-		main.Size = UDim2.new(0,0,0,0)
-		main:TweenSize(UDim2.new(0,330,0,280),"Out","Back",0.25,true)
+	local h = Instance.new("Highlight")
+	h.FillTransparency = 0.5
+	h.OutlineTransparency = 0
+	h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	h.Parent = char
+	h.FillColor = color
+
+	highlights[plr] = h
+end
+
+local function updateHighlights()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local char = plr.Character
+		if not char then continue end
+
+		if char:FindFirstChild("Gun") then
+			applyHighlight(plr, Color3.fromRGB(80,160,255)) -- blue
+		elseif char:FindFirstChild("Knife") then
+			applyHighlight(plr, Color3.fromRGB(255,80,80)) -- red
+		else
+			applyHighlight(plr, Color3.fromRGB(170,80,255)) -- purple
+		end
+	end
+end
+
+RunService.RenderStepped:Connect(updateHighlights)
+
+-- name tags
+local function makeBillboard(plr, text, color)
+	local char = plr.Character
+	if not char then return end
+
+	local head = char:FindFirstChild("Head")
+	if not head then return end
+
+	if head:FindFirstChild("RoleTag") then head.RoleTag:Destroy() end
+
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "RoleTag"
+	bb.Size = UDim2.new(0,200,0,50)
+	bb.StudsOffset = Vector3.new(0,2,0)
+	bb.AlwaysOnTop = true
+	bb.Parent = head
+
+	local tl = Instance.new("TextLabel")
+	tl.Size = UDim2.new(1,0,1,0)
+	tl.BackgroundTransparency = 1
+	tl.Text = text
+	tl.TextColor3 = color
+	tl.Font = Enum.Font.GothamBold
+	tl.TextScaled = true
+	tl.Parent = bb
+end
+
+RunService.RenderStepped:Connect(function()
+	for _, plr in ipairs(Players:GetPlayers()) do
+		local char = plr.Character
+		if not char then continue end
+
+		if char:FindFirstChild("Knife") then
+			makeBillboard(plr, "Red = MURDERER", Color3.fromRGB(255,80,80))
+		elseif char:FindFirstChild("Gun") then
+			makeBillboard(plr, "Blue = SHERIFF", Color3.fromRGB(80,160,255))
+		else
+			makeBillboard(plr, "Purple = INNOCENT", Color3.fromRGB(170,80,255))
+		end
 	end
 end)
