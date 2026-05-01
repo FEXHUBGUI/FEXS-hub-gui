@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES123
+--         SERVICES
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -170,10 +170,8 @@ screenGui.Parent = LocalPlayer.PlayerGui
 
 -- ══════════════════════════════════════
 --   SIMPLE FLAT BUTTON BUILDER
---   Just a colored TextButton + status
 -- ══════════════════════════════════════
 local function makePanel(startPos, btnColor, btnText, statusDefault)
-	-- The main button IS the whole panel — fully clickable solid color
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(0, 180, 0, 44)
 	btn.Position = startPos
@@ -188,7 +186,6 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 	btn.Parent = screenGui
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 8)
 
-	-- Status line sitting just below the button
 	local status = Instance.new("TextLabel")
 	status.Size = UDim2.new(0, 180, 0, 16)
 	status.Position = UDim2.new(
@@ -206,7 +203,6 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 	status.ZIndex = 2
 	status.Parent = screenGui
 
-	-- Close button (small X to the right of the main button)
 	local closeBtn = Instance.new("TextButton")
 	closeBtn.Size = UDim2.new(0, 28, 0, 28)
 	closeBtn.Position = UDim2.new(
@@ -225,7 +221,6 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 	closeBtn.Parent = screenGui
 	Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
 
-	-- Reopen button (shown when closed)
 	local openBtn = Instance.new("TextButton")
 	openBtn.Size = UDim2.new(0, 180, 0, 44)
 	openBtn.Position = startPos
@@ -241,7 +236,6 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 	openBtn.Parent = screenGui
 	Instance.new("UICorner", openBtn).CornerRadius = UDim.new(0, 8)
 
-	-- Close logic
 	closeBtn.MouseButton1Click:Connect(function()
 		btn.Visible = false
 		closeBtn.Visible = false
@@ -249,7 +243,6 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 		openBtn.Visible = true
 	end)
 
-	-- Reopen logic
 	openBtn.MouseButton1Click:Connect(function()
 		btn.Visible = true
 		closeBtn.Visible = true
@@ -257,7 +250,6 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 		openBtn.Visible = false
 	end)
 
-	-- Dragging on the main button
 	local dragging, dragStart, startPos2 = false, nil, nil
 
 	btn.InputBegan:Connect(function(input)
@@ -283,7 +275,7 @@ local function makePanel(startPos, btnColor, btnText, statusDefault)
 			local newX = startPos2.X.Offset + delta.X
 			local newY = startPos2.Y.Offset + delta.Y
 
-			btn.Position = UDim2.new(startPos2.X.Scale, newX, startPos2.Y.Scale, newY)
+			btn.Position     = UDim2.new(startPos2.X.Scale, newX,       startPos2.Y.Scale, newY)
 			closeBtn.Position = UDim2.new(startPos2.X.Scale, newX + 186, startPos2.Y.Scale, newY + 8)
 			status.Position   = UDim2.new(startPos2.X.Scale, newX,       startPos2.Y.Scale, newY + 48)
 			openBtn.Position  = UDim2.new(startPos2.X.Scale, newX,       startPos2.Y.Scale, newY)
@@ -324,7 +316,6 @@ local function getCharacter(player)
 	return player and player.Character
 end
 
--- ESP checks both character AND backpack so tool doesn't need to be equipped
 local function hasTool(player, toolName)
 	local char = getCharacter(player)
 	if char and char:FindFirstChild(toolName) then return true end
@@ -353,7 +344,6 @@ end
 
 -- ══════════════════════════════════════
 --      THROUGH-WALL ESP (Highlight)
---   Checks backpack too — no equip needed
 -- ══════════════════════════════════════
 local function removeESP(player)
 	if espHighlights[player] then
@@ -392,7 +382,6 @@ local function updateESP()
 		local char = getCharacter(player)
 		if not char then removeESP(player) continue end
 
-		-- hasTool checks backpack AND character so works without equipping
 		if hasTool(player, MURD_TOOL) then
 			applyESP(player, Color3.fromRGB(200, 20, 20), Color3.fromRGB(255, 70, 70))
 		elseif hasTool(player, SHERIFF_TOOL) then
@@ -408,9 +397,9 @@ local function updateESP()
 end
 
 -- ══════════════════════════════════════
---   CAMERA LOCK-ON (Soft aim style)
---   Stays in Custom mode, lerps toward
---   target — no freeze, no spectate
+--   CAMERA HARD LOCK-ON
+--   Snaps instantly every frame — no lerp,
+--   no smoothing, no delay whatsoever
 -- ══════════════════════════════════════
 local camLockActive = false
 
@@ -431,11 +420,9 @@ local function updateCameraLock()
 
 	Camera.CameraType = Enum.CameraType.Custom
 
-	local currentCF   = Camera.CFrame
+	-- Hard instant snap — no Lerp, no smoothing, locks straight to body every frame
 	local targetPoint = targetRoot.Position + Vector3.new(0, 2, 0)
-	local desiredCF   = CFrame.new(currentCF.Position, targetPoint)
-
-	Camera.CFrame = currentCF:Lerp(desiredCF, 0.18)
+	Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPoint)
 end
 
 -- ══════════════════════════════════════
