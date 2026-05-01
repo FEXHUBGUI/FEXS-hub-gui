@@ -1,450 +1,226 @@
--- MM2 VALUE CHECKER Script
--- Place this in a LocalScript in StarterPlayerScripts or use an exploit to run it.
-
-local HttpService = game:GetService("HttpService")
-local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui")
+--// SERVICES
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
-local player = Players.LocalPlayer
-local gui = Instance.new("ScreenGui")
-gui.Name = "MM2ValueChecker"
-gui.Parent = player:WaitForChild("PlayerGui")
-gui.ResetOnSpawn = false
+--// GUI CREATION
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "MM2HelperUI"
 
--- Values table
-local values = {}
-local categories = {"ancient", "unique", "godly", "vintage", "legendary", "rare", "uncommon", "common", "pets", "misc"}
+-- OPEN BUTTON
+local openBtn = Instance.new("TextButton", gui)
+openBtn.Size = UDim2.new(0, 50, 0, 100)
+openBtn.Position = UDim2.new(0, 0, 0.4, 0)
+openBtn.Text = ">"
+openBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
+openBtn.TextColor3 = Color3.new(1,1,1)
+openBtn.Active = true
+openBtn.Draggable = true
 
--- Function to load values from website
-local function loadValues()
-    for _, cat in ipairs(categories) do
-        local url = "https://mm2values.com/?p=" .. cat
-        local success, response = pcall(function()
-            return HttpService:GetAsync(url)
-        end)
-        if success then
-            for name, valStr in string.gmatch(response, "%*%*(.-)%*%* Value: ([%d,]+)") do
-                local cleanName = name:gsub("'", ""):lower()  -- Clean name for matching
-                local value = tonumber(valStr:gsub(",", ""))
-                if value then
-                    values[cleanName] = {name = name, value = value}
-                end
-            end
-        else
-            warn("Failed to fetch " .. cat .. ": " .. response)
-        end
-    end
+-- MAIN FRAME
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 350, 0, 300)
+main.Position = UDim2.new(-0.4, 0, 0.3, 0)
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+
+-- DRAG
+main.Active = true
+main.Draggable = true
+
+-- TABS
+local tabs = {"Murderer","Sheriff","Visual"}
+local tabFrames = {}
+
+local tabHolder = Instance.new("Frame", main)
+tabHolder.Size = UDim2.new(1,0,0,30)
+
+local content = Instance.new("Frame", main)
+content.Position = UDim2.new(0,0,0,30)
+content.Size = UDim2.new(1,0,1,-30)
+
+-- CREATE TABS
+for i,v in pairs(tabs) do
+	local btn = Instance.new("TextButton", tabHolder)
+	btn.Size = UDim2.new(1/#tabs,0,1,0)
+	btn.Position = UDim2.new((i-1)/#tabs,0,0,0)
+	btn.Text = v
+	btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	btn.TextColor3 = Color3.new(1,1,1)
+
+	local frame = Instance.new("Frame", content)
+	frame.Size = UDim2.new(1,0,1,0)
+	frame.Visible = false
+	frame.BackgroundTransparency = 1
+	
+	tabFrames[v] = frame
+	
+	btn.MouseButton1Click:Connect(function()
+		for _,f in pairs(tabFrames) do f.Visible = false end
+		frame.Visible = true
+	end)
 end
 
-loadValues()
+tabFrames["Visual"].Visible = true
 
--- Main Frame
-local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0.6, 0, 0.6, 0)
-mainFrame.Position = UDim2.new(0.2, 0, 0.2, 0)
-mainFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-mainFrame.BorderSizePixel = 0
-mainFrame.Parent = gui
+--// TOGGLE FUNCTION
+function createToggle(parent, text, callback)
+	local btn = Instance.new("TextButton", parent)
+	btn.Size = UDim2.new(0,200,0,40)
+	btn.Text = text.." [OFF]"
+	btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+	btn.TextColor3 = Color3.new(1,1,1)
 
-local uiCorner = Instance.new("UICorner")
-uiCorner.CornerRadius = UDim.new(0, 10)
-uiCorner.Parent = mainFrame
+	local state = false
 
--- Title
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0.1, 0)
-title.BackgroundTransparency = 1
-title.Text = "MM2 VALUE CHECKER"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.TextSize = 24
-title.Font = Enum.Font.GothamBold
-title.Parent = mainFrame
+	btn.MouseButton1Click:Connect(function()
+		state = not state
+		btn.Text = text.." ["..(state and "ON" or "OFF").."]"
+		callback(state)
+	end)
 
--- Tab Buttons Frame
-local tabButtons = Instance.new("Frame")
-tabButtons.Size = UDim2.new(1, 0, 0.1, 0)
-tabButtons.Position = UDim2.new(0, 0, 0.1, 0)
-tabButtons.BackgroundTransparency = 1
-tabButtons.Parent = mainFrame
-
--- Trade Tab Button
-local tradeBtn = Instance.new("TextButton")
-tradeBtn.Size = UDim2.new(0.5, 0, 1, 0)
-tradeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-tradeBtn.Text = "Trade"
-tradeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-tradeBtn.TextSize = 20
-tradeBtn.Font = Enum.Font.Gotham
-tradeBtn.Parent = tabButtons
-local tradeCorner = Instance.new("UICorner", tradeBtn)
-tradeCorner.CornerRadius = UDim.new(0, 8)
-
--- Values Tab Button
-local valuesBtn = Instance.new("TextButton")
-valuesBtn.Size = UDim2.new(0.5, 0, 1, 0)
-valuesBtn.Position = UDim2.new(0.5, 0, 0, 0)
-valuesBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-valuesBtn.Text = "Values"
-valuesBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-valuesBtn.TextSize = 20
-valuesBtn.Font = Enum.Font.Gotham
-valuesBtn.Parent = tabButtons
-local valuesCorner = Instance.new("UICorner", valuesBtn)
-valuesCorner.CornerRadius = UDim.new(0, 8)
-
--- Tab Frames
-local tradeFrame = Instance.new("Frame")
-tradeFrame.Size = UDim2.new(1, 0, 0.8, 0)
-tradeFrame.Position = UDim2.new(0, 0, 0.2, 0)
-tradeFrame.BackgroundTransparency = 1
-tradeFrame.Visible = true
-tradeFrame.Parent = mainFrame
-
-local valuesFrame = Instance.new("Frame")
-valuesFrame.Size = UDim2.new(1, 0, 0.8, 0)
-valuesFrame.Position = UDim2.new(0, 0, 0.2, 0)
-valuesFrame.BackgroundTransparency = 1
-valuesFrame.Visible = false
-valuesFrame.Parent = mainFrame
-
--- Function to switch tabs with animation
-local currentTab = tradeFrame
-local function switchTab(newTab)
-    local tweenOut = TweenService:Create(currentTab, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Position = UDim2.new(-1, 0, 0.2, 0)})
-    tweenOut:Play()
-    tweenOut.Completed:Wait()
-    currentTab.Visible = false
-    currentTab.Position = UDim2.new(1, 0, 0.2, 0)
-    newTab.Position = UDim2.new(1, 0, 0.2, 0)
-    newTab.Visible = true
-    local tweenIn = TweenService:Create(newTab, TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut), {Position = UDim2.new(0, 0, 0.2, 0)})
-    tweenIn:Play()
-    currentTab = newTab
+	return btn
 end
 
-tradeBtn.MouseButton1Click:Connect(function()
-    if currentTab ~= tradeFrame then
-        switchTab(tradeFrame)
-    end
-end)
+--// ESP
+local espEnabled = {
+	Innocent = false,
+	Murderer = false,
+	Sheriff = false
+}
 
-valuesBtn.MouseButton1Click:Connect(function()
-    if currentTab ~= valuesFrame then
-        switchTab(valuesFrame)
-    end
-end)
+function updateESP()
+	for _,plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer and plr.Character then
+			local char = plr.Character
+			
+			if char:FindFirstChild("Highlight") then
+				char.Highlight:Destroy()
+			end
+			
+			local highlight = Instance.new("Highlight", char)
 
--- Values Tab Content
-local searchBox = Instance.new("TextBox")
-searchBox.Size = UDim2.new(0.8, 0, 0.1, 0)
-searchBox.Position = UDim2.new(0.1, 0, 0, 0)
-searchBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-searchBox.Text = "Search item..."
-searchBox.TextColor3 = Color3.fromRGB(200, 200, 200)
-searchBox.TextSize = 18
-searchBox.Font = Enum.Font.Gotham
-searchBox.Parent = valuesFrame
-local searchCorner = Instance.new("UICorner", searchBox)
-
-local resultsFrame = Instance.new("ScrollingFrame")
-resultsFrame.Size = UDim2.new(0.9, 0, 0.85, 0)
-resultsFrame.Position = UDim2.new(0.05, 0, 0.12, 0)
-resultsFrame.BackgroundTransparency = 1
-resultsFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-resultsFrame.ScrollBarThickness = 5
-resultsFrame.Parent = valuesFrame
-
-local uiListLayout = Instance.new("UIListLayout")
-uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-uiListLayout.Padding = UDim.new(0, 5)
-uiListLayout.Parent = resultsFrame
-
--- Function to update results
-local function updateResults(query)
-    for _, child in ipairs(resultsFrame:GetChildren()) do
-        if child:IsA("TextLabel") then
-            child:Destroy()
-        end
-    end
-    query = query:lower()
-    local count = 0
-    for cleanName, data in pairs(values) do
-        if cleanName:find(query) then
-            local label = Instance.new("TextLabel")
-            label.Size = UDim2.new(1, 0, 0, 30)
-            label.BackgroundTransparency = 1
-            label.Text = data.name .. ": " .. data.value
-            label.TextColor3 = Color3.fromRGB(255, 255, 255)
-            label.TextSize = 16
-            label.Font = Enum.Font.Gotham
-            label.Parent = resultsFrame
-            count = count + 1
-        end
-    end
-    resultsFrame.CanvasSize = UDim2.new(0, 0, 0, count * 35)
+			if espEnabled.Innocent then
+				highlight.FillColor = Color3.fromRGB(0,255,0)
+			end
+			
+			if plr.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife") then
+				if espEnabled.Murderer then
+					highlight.FillColor = Color3.fromRGB(255,0,0)
+				end
+			end
+			
+			if plr.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun") then
+				if espEnabled.Sheriff then
+					highlight.FillColor = Color3.fromRGB(0,0,255)
+				end
+			end
+		end
+	end
 end
 
-searchBox.FocusLost:Connect(function(enter)
-    if enter then
-        updateResults(searchBox.Text)
-    end
-end)
+RunService.RenderStepped:Connect(updateESP)
 
--- Trade Tab Content
-local yourOfferFrame = Instance.new("Frame")
-yourOfferFrame.Size = UDim2.new(0.45, 0, 0.9, 0)
-yourOfferFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-yourOfferFrame.Parent = tradeFrame
-local yourCorner = Instance.new("UICorner", yourOfferFrame)
+--// VISUAL TAB
+local visual = tabFrames["Visual"]
 
-local yourTitle = Instance.new("TextLabel")
-yourTitle.Size = UDim2.new(1, 0, 0.1, 0)
-yourTitle.BackgroundTransparency = 1
-yourTitle.Text = "Your Offer"
-yourTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-yourTitle.TextSize = 18
-yourTitle.Parent = yourOfferFrame
+createToggle(visual, "Innocent ESP", function(v)
+	espEnabled.Innocent = v
+end).Position = UDim2.new(0,10,0,10)
 
-local yourInput = Instance.new("TextBox")
-yourInput.Size = UDim2.new(0.7, 0, 0.1, 0)
-yourInput.Position = UDim2.new(0, 0, 0.1, 0)
-yourInput.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-yourInput.Text = "Item name"
-yourInput.TextColor3 = Color3.fromRGB(200, 200, 200)
-yourInput.TextSize = 16
-yourInput.Parent = yourOfferFrame
-Instance.new("UICorner", yourInput)
+createToggle(visual, "Murderer ESP", function(v)
+	espEnabled.Murderer = v
+end).Position = UDim2.new(0,10,0,60)
 
-local yourAddBtn = Instance.new("TextButton")
-yourAddBtn.Size = UDim2.new(0.3, 0, 0.1, 0)
-yourAddBtn.Position = UDim2.new(0.7, 0, 0.1, 0)
-yourAddBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-yourAddBtn.Text = "Add"
-yourAddBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-yourAddBtn.TextSize = 16
-yourAddBtn.Parent = yourOfferFrame
-Instance.new("UICorner", yourAddBtn)
+createToggle(visual, "Sheriff ESP", function(v)
+	espEnabled.Sheriff = v
+end).Position = UDim2.new(0,10,0,110)
 
-local yourList = Instance.new("ScrollingFrame")
-yourList.Size = UDim2.new(1, 0, 0.7, 0)
-yourList.Position = UDim2.new(0, 0, 0.2, 0)
-yourList.BackgroundTransparency = 1
-yourList.CanvasSize = UDim2.new(0, 0, 0, 0)
-yourList.Parent = yourOfferFrame
-local yourListLayout = Instance.new("UIListLayout", yourList)
-yourListLayout.Padding = UDim.new(0, 5)
+-- POTATO MODE
+createToggle(visual, "Potato Mode", function(v)
+	for _,obj in pairs(workspace:GetDescendants()) do
+		if obj:IsA("Texture") or obj:IsA("Decal") then
+			obj:Destroy()
+		end
+	end
+	
+	game.Lighting.GlobalShadows = not v
+	game.Lighting.FogEnd = v and 50 or 100000
+end).Position = UDim2.new(0,10,0,160)
 
-local yourTotal = Instance.new("TextLabel")
-yourTotal.Size = UDim2.new(1, 0, 0.1, 0)
-yourTotal.Position = UDim2.new(0, 0, 0.9, 0)
-yourTotal.BackgroundTransparency = 1
-yourTotal.Text = "Total: 0"
-yourTotal.TextColor3 = Color3.fromRGB(255, 255, 255)
-yourTotal.TextSize = 18
-yourTotal.Parent = yourOfferFrame
+-- GLOSSY MODE
+createToggle(visual, "Glossy Mode", function(v)
+	for _,part in pairs(workspace:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Material = v and Enum.Material.Neon or Enum.Material.Plastic
+		end
+	end
+end).Position = UDim2.new(0,10,0,210)
 
--- Their Offer
-local theirOfferFrame = Instance.new("Frame")
-theirOfferFrame.Size = UDim2.new(0.45, 0, 0.9, 0)
-theirOfferFrame.Position = UDim2.new(0.55, 0, 0, 0)
-theirOfferFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-theirOfferFrame.Parent = tradeFrame
-local theirCorner = Instance.new("UICorner", theirOfferFrame)
+--// CAMERA LOCK
+local locking = false
+local target = nil
 
-local theirTitle = Instance.new("TextLabel")
-theirTitle.Size = UDim2.new(1, 0, 0.1, 0)
-theirTitle.BackgroundTransparency = 1
-theirTitle.Text = "Their Offer"
-theirTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
-theirTitle.TextSize = 18
-theirTitle.Parent = theirOfferFrame
-
-local theirInput = Instance.new("TextBox")
-theirInput.Size = UDim2.new(0.7, 0, 0.1, 0)
-theirInput.Position = UDim2.new(0, 0, 0.1, 0)
-theirInput.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-theirInput.Text = "Item name"
-theirInput.TextColor3 = Color3.fromRGB(200, 200, 200)
-theirInput.TextSize = 16
-theirInput.Parent = theirOfferFrame
-Instance.new("UICorner", theirInput)
-
-local theirAddBtn = Instance.new("TextButton")
-theirAddBtn.Size = UDim2.new(0.3, 0, 0.1, 0)
-theirAddBtn.Position = UDim2.new(0.7, 0, 0.1, 0)
-theirAddBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-theirAddBtn.Text = "Add"
-theirAddBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-theirAddBtn.TextSize = 16
-theirAddBtn.Parent = theirOfferFrame
-Instance.new("UICorner", theirAddBtn)
-
-local theirList = Instance.new("ScrollingFrame")
-theirList.Size = UDim2.new(1, 0, 0.7, 0)
-theirList.Position = UDim2.new(0, 0, 0.2, 0)
-theirList.BackgroundTransparency = 1
-theirList.CanvasSize = UDim2.new(0, 0, 0, 0)
-theirList.Parent = theirOfferFrame
-local theirListLayout = Instance.new("UIListLayout", theirList)
-theirListLayout.Padding = UDim.new(0, 5)
-
-local theirTotal = Instance.new("TextLabel")
-theirTotal.Size = UDim2.new(1, 0, 0.1, 0)
-theirTotal.Position = UDim2.new(0, 0, 0.9, 0)
-theirTotal.BackgroundTransparency = 1
-theirTotal.Text = "Total: 0"
-theirTotal.TextColor3 = Color3.fromRGB(255, 255, 255)
-theirTotal.TextSize = 18
-theirTotal.Parent = theirOfferFrame
-
--- Calculate Button
-local calcBtn = Instance.new("TextButton")
-calcBtn.Size = UDim2.new(0.4, 0, 0.1, 0)
-calcBtn.Position = UDim2.new(0.3, 0, 0.92, 0)
-calcBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
-calcBtn.Text = "Calculate Trade"
-calcBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-calcBtn.TextSize = 20
-calcBtn.Parent = tradeFrame
-local calcCorner = Instance.new("UICorner", calcBtn)
-
--- Lists for offers
-local yourItems = {}
-local theirItems = {}
-
--- Function to update totals
-local function updateYourTotal()
-    local total = 0
-    for _, val in ipairs(yourItems) do
-        total = total + val
-    end
-    yourTotal.Text = "Total: " .. total
-    return total
+function getPlayerWithTool(toolName)
+	for _,plr in pairs(Players:GetPlayers()) do
+		if plr ~= LocalPlayer then
+			if plr.Backpack:FindFirstChild(toolName) or (plr.Character and plr.Character:FindFirstChild(toolName)) then
+				return plr
+			end
+		end
+	end
 end
 
-local function updateTheirTotal()
-    local total = 0
-    for _, val in ipairs(theirItems) do
-        total = total + val
-    end
-    theirTotal.Text = "Total: " .. total
-    return total
-end
-
--- Add to your offer
-yourAddBtn.MouseButton1Click:Connect(function()
-    local itemName = yourInput.Text:lower():gsub("'", "")
-    local data = values[itemName]
-    if data then
-        table.insert(yourItems, data.value)
-        local itemLabel = Instance.new("TextLabel")
-        itemLabel.Size = UDim2.new(0.8, 0, 0, 30)
-        itemLabel.BackgroundTransparency = 1
-        itemLabel.Text = data.name .. ": " .. data.value
-        itemLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        itemLabel.TextSize = 14
-        itemLabel.Parent = yourList
-        
-        local removeBtn = Instance.new("TextButton")
-        removeBtn.Size = UDim2.new(0.2, 0, 1, 0)
-        removeBtn.Position = UDim2.new(0.8, 0, 0, 0)
-        removeBtn.BackgroundTransparency = 1
-        removeBtn.Text = "X"
-        removeBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
-        removeBtn.Parent = itemLabel
-        removeBtn.MouseButton1Click:Connect(function()
-            for i, v in ipairs(yourItems) do
-                if v == data.value then
-                    table.remove(yourItems, i)
-                    break
-                end
-            end
-            itemLabel:Destroy()
-            updateYourTotal()
-            yourList.CanvasSize = UDim2.new(0, 0, 0, #yourList:GetChildren() * 35 - 35)
-        end)
-        
-        yourList.CanvasSize = UDim2.new(0, 0, 0, (#yourList:GetChildren() - 1) * 35)
-        updateYourTotal()
-        yourInput.Text = ""
-    else
-        StarterGui:SetCore("SendNotification", {Title = "Error", Text = "Item not found!", Duration = 3})
-    end
+RunService.RenderStepped:Connect(function()
+	if locking and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+		workspace.CurrentCamera.CFrame = CFrame.new(
+			workspace.CurrentCamera.CFrame.Position,
+			target.Character.HumanoidRootPart.Position
+		)
+	end
 end)
 
--- Add to their offer (similar)
-theirAddBtn.MouseButton1Click:Connect(function()
-    local itemName = theirInput.Text:lower():gsub("'", "")
-    local data = values[itemName]
-    if data then
-        table.insert(theirItems, data.value)
-        local itemLabel = Instance.new("TextLabel")
-        itemLabel.Size = UDim2.new(0.8, 0, 0, 30)
-        itemLabel.BackgroundTransparency = 1
-        itemLabel.Text = data.name .. ": " .. data.value
-        itemLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        itemLabel.TextSize = 14
-        itemLabel.Parent = theirList
-        
-        local removeBtn = Instance.new("TextButton")
-        removeBtn.Size = UDim2.new(0.2, 0, 1, 0)
-        removeBtn.Position = UDim2.new(0.8, 0, 0, 0)
-        removeBtn.BackgroundTransparency = 1
-        removeBtn.Text = "X"
-        removeBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
-        removeBtn.Parent = itemLabel
-        removeBtn.MouseButton1Click:Connect(function()
-            for i, v in ipairs(theirItems) do
-                if v == data.value then
-                    table.remove(theirItems, i)
-                    break
-                end
-            end
-            itemLabel:Destroy()
-            updateTheirTotal()
-            theirList.CanvasSize = UDim2.new(0, 0, 0, #theirList:GetChildren() * 35 - 35)
-        end)
-        
-        theirList.CanvasSize = UDim2.new(0, 0, 0, (#theirList:GetChildren() - 1) * 35)
-        updateTheirTotal()
-        theirInput.Text = ""
-    else
-        StarterGui:SetCore("SendNotification", {Title = "Error", Text = "Item not found!", Duration = 3})
-    end
+-- ON SCREEN LOCK BUTTON
+local lockBtn = Instance.new("TextButton", gui)
+lockBtn.Size = UDim2.new(0,120,0,50)
+lockBtn.Position = UDim2.new(0.5,-60,0.8,0)
+lockBtn.Text = "LOCK"
+lockBtn.BackgroundTransparency = 0.5
+lockBtn.Visible = false
+lockBtn.Active = true
+lockBtn.Draggable = true
+
+lockBtn.MouseButton1Click:Connect(function()
+	locking = not locking
 end)
 
--- Calculate
-calcBtn.MouseButton1Click:Connect(function()
-    local yourSum = updateYourTotal()
-    local theirSum = updateTheirTotal()
-    local message
-    if yourSum < theirSum then
-        message = "You are winning! (Your offer: " .. yourSum .. ", Their: " .. theirSum .. ")"
-    elseif yourSum > theirSum then
-        message = "You are losing! (Your offer: " .. yourSum .. ", Their: " .. theirSum .. ")"
-    else
-        message = "It's fair! (Both: " .. yourSum .. ")"
-    end
-    StarterGui:SetCore("SendNotification", {Title = "Trade Result", Text = message, Duration = 5})
-end)
+-- MURDERER TAB
+local murdererTab = tabFrames["Murderer"]
 
--- Initial animation for main frame
-mainFrame.Size = UDim2.new(0, 0, 0, 0)
-mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
-local tween = TweenService:Create(mainFrame, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0.6, 0, 0.6, 0), Position = UDim2.new(0.2, 0, 0.2, 0)})
-tween:Play()
+createToggle(murdererTab, "Lock On Sheriff", function(v)
+	lockBtn.Visible = v
+	target = getPlayerWithTool("Gun")
+end).Position = UDim2.new(0,10,0,10)
 
--- Close button
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0.05, 0, 0.05, 0)
-closeBtn.Position = UDim2.new(0.95, 0, 0, 0)
-closeBtn.BackgroundTransparency = 1
-closeBtn.Text = "X"
-closeBtn.TextColor3 = Color3.fromRGB(255, 0, 0)
-closeBtn.TextSize = 20
-closeBtn.Parent = mainFrame
-closeBtn.MouseButton1Click:Connect(function()
-    gui:Destroy()
+-- SHERIFF TAB
+local sheriffTab = tabFrames["Sheriff"]
+
+createToggle(sheriffTab, "Lock On Murderer", function(v)
+	lockBtn.Visible = v
+	target = getPlayerWithTool("Knife")
+end).Position = UDim2.new(0,10,0,10)
+
+--// OPEN/CLOSE ANIMATION
+local open = false
+
+openBtn.MouseButton1Click:Connect(function()
+	open = not open
+	
+	if open then
+		main:TweenPosition(UDim2.new(0,10,0.3,0),"Out","Quad",0.3,true)
+		openBtn.Text = "<"
+	else
+		main:TweenPosition(UDim2.new(-0.4,0,0.3,0),"Out","Quad",0.3,true)
+		openBtn.Text = ">"
+	end
 end)
