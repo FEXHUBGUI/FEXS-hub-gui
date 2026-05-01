@@ -1,118 +1,108 @@
 --// SERVICES
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
---// GUI CREATION
-local gui = Instance.new("ScreenGui", game.CoreGui)
-gui.Name = "MM2HelperUI"
+--// SETTINGS SAVE
+local settings = {
+	ESP = false,
+	Potato = false,
+	Glossy = false
+}
 
--- OPEN BUTTON
-local openBtn = Instance.new("TextButton", gui)
-openBtn.Size = UDim2.new(0, 50, 0, 100)
-openBtn.Position = UDim2.new(0, 0, 0.4, 0)
-openBtn.Text = ">"
-openBtn.BackgroundColor3 = Color3.fromRGB(30,30,30)
-openBtn.TextColor3 = Color3.new(1,1,1)
-openBtn.Active = true
-openBtn.Draggable = true
+pcall(function()
+	local saved = game:GetService("HttpService"):JSONDecode(readfile("mm2ui_settings.json"))
+	settings = saved
+end)
+
+function saveSettings()
+	pcall(function()
+		writefile("mm2ui_settings.json", game:GetService("HttpService"):JSONEncode(settings))
+	end)
+end
+
+--// GUI
+local gui = Instance.new("ScreenGui", game.CoreGui)
+gui.Name = "BlueUI"
+
+-- SIDE BUTTON
+local toggleBtn = Instance.new("TextButton", gui)
+toggleBtn.Size = UDim2.new(0, 35, 0, 80)
+toggleBtn.Position = UDim2.new(0, 0, 0.4, 0)
+toggleBtn.Text = "≡"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.Draggable = true
 
 -- MAIN FRAME
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 350, 0, 300)
-main.Position = UDim2.new(-0.4, 0, 0.3, 0)
-main.BackgroundColor3 = Color3.fromRGB(20,20,20)
-
--- DRAG
+main.Size = UDim2.new(0, 320, 0, 280)
+main.Position = UDim2.new(-1, 0, 0.3, 0)
+main.BackgroundColor3 = Color3.fromRGB(15,15,25)
 main.Active = true
 main.Draggable = true
 
--- TABS
-local tabs = {"Murderer","Sheriff","Visual"}
-local tabFrames = {}
+-- TITLE
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "Blue Panel"
+title.TextColor3 = Color3.fromRGB(0,170,255)
+title.BackgroundTransparency = 1
 
-local tabHolder = Instance.new("Frame", main)
-tabHolder.Size = UDim2.new(1,0,0,30)
+-- CLOSE BUTTON
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.new(0, 25, 0, 25)
+close.Position = UDim2.new(1,-30,0,5)
+close.Text = "X"
+close.BackgroundColor3 = Color3.fromRGB(0,120,255)
 
-local content = Instance.new("Frame", main)
-content.Position = UDim2.new(0,0,0,30)
-content.Size = UDim2.new(1,0,1,-30)
+-- CONTENT
+local container = Instance.new("Frame", main)
+container.Position = UDim2.new(0,0,0,35)
+container.Size = UDim2.new(1,0,1,-35)
+container.BackgroundTransparency = 1
 
--- CREATE TABS
-for i,v in pairs(tabs) do
-	local btn = Instance.new("TextButton", tabHolder)
-	btn.Size = UDim2.new(1/#tabs,0,1,0)
-	btn.Position = UDim2.new((i-1)/#tabs,0,0,0)
-	btn.Text = v
-	btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+-- BUTTON CREATOR
+function createButton(text, y, callback)
+	local btn = Instance.new("TextButton", container)
+	btn.Size = UDim2.new(0,280,0,40)
+	btn.Position = UDim2.new(0,20,0,y)
+	btn.BackgroundColor3 = Color3.fromRGB(25,25,40)
 	btn.TextColor3 = Color3.new(1,1,1)
 
-	local frame = Instance.new("Frame", content)
-	frame.Size = UDim2.new(1,0,1,0)
-	frame.Visible = false
-	frame.BackgroundTransparency = 1
-	
-	tabFrames[v] = frame
-	
+	local function update()
+		btn.Text = text.." ["..(settings[text] and "ON" or "OFF").."]"
+	end
+
+	update()
+
 	btn.MouseButton1Click:Connect(function()
-		for _,f in pairs(tabFrames) do f.Visible = false end
-		frame.Visible = true
+		settings[text] = not settings[text]
+		update()
+		saveSettings()
+		callback(settings[text])
 	end)
 end
 
-tabFrames["Visual"].Visible = true
-
---// TOGGLE FUNCTION
-function createToggle(parent, text, callback)
-	local btn = Instance.new("TextButton", parent)
-	btn.Size = UDim2.new(0,200,0,40)
-	btn.Text = text.." [OFF]"
-	btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-	btn.TextColor3 = Color3.new(1,1,1)
-
-	local state = false
-
-	btn.MouseButton1Click:Connect(function()
-		state = not state
-		btn.Text = text.." ["..(state and "ON" or "OFF").."]"
-		callback(state)
-	end)
-
-	return btn
-end
-
---// ESP
-local espEnabled = {
-	Innocent = false,
-	Murderer = false,
-	Sheriff = false
-}
-
+-- ESP SYSTEM
 function updateESP()
 	for _,plr in pairs(Players:GetPlayers()) do
 		if plr ~= LocalPlayer and plr.Character then
 			local char = plr.Character
-			
+
 			if char:FindFirstChild("Highlight") then
 				char.Highlight:Destroy()
 			end
-			
-			local highlight = Instance.new("Highlight", char)
 
-			if espEnabled.Innocent then
-				highlight.FillColor = Color3.fromRGB(0,255,0)
-			end
-			
-			if plr.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife") then
-				if espEnabled.Murderer then
-					highlight.FillColor = Color3.fromRGB(255,0,0)
-				end
-			end
-			
-			if plr.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun") then
-				if espEnabled.Sheriff then
-					highlight.FillColor = Color3.fromRGB(0,0,255)
+			if settings.ESP then
+				local h = Instance.new("Highlight", char)
+
+				if plr.Backpack:FindFirstChild("Knife") or char:FindFirstChild("Knife") then
+					h.FillColor = Color3.fromRGB(255,0,0)
+				elseif plr.Backpack:FindFirstChild("Gun") or char:FindFirstChild("Gun") then
+					h.FillColor = Color3.fromRGB(0,100,255)
+				else
+					h.FillColor = Color3.fromRGB(0,255,0)
 				end
 			end
 		end
@@ -121,106 +111,47 @@ end
 
 RunService.RenderStepped:Connect(updateESP)
 
---// VISUAL TAB
-local visual = tabFrames["Visual"]
-
-createToggle(visual, "Innocent ESP", function(v)
-	espEnabled.Innocent = v
-end).Position = UDim2.new(0,10,0,10)
-
-createToggle(visual, "Murderer ESP", function(v)
-	espEnabled.Murderer = v
-end).Position = UDim2.new(0,10,0,60)
-
-createToggle(visual, "Sheriff ESP", function(v)
-	espEnabled.Sheriff = v
-end).Position = UDim2.new(0,10,0,110)
-
 -- POTATO MODE
-createToggle(visual, "Potato Mode", function(v)
+function applyPotato(v)
 	for _,obj in pairs(workspace:GetDescendants()) do
 		if obj:IsA("Texture") or obj:IsA("Decal") then
 			obj:Destroy()
 		end
 	end
-	
 	game.Lighting.GlobalShadows = not v
-	game.Lighting.FogEnd = v and 50 or 100000
-end).Position = UDim2.new(0,10,0,160)
+end
 
 -- GLOSSY MODE
-createToggle(visual, "Glossy Mode", function(v)
-	for _,part in pairs(workspace:GetDescendants()) do
-		if part:IsA("BasePart") then
-			part.Material = v and Enum.Material.Neon or Enum.Material.Plastic
-		end
-	end
-end).Position = UDim2.new(0,10,0,210)
-
---// CAMERA LOCK
-local locking = false
-local target = nil
-
-function getPlayerWithTool(toolName)
-	for _,plr in pairs(Players:GetPlayers()) do
-		if plr ~= LocalPlayer then
-			if plr.Backpack:FindFirstChild(toolName) or (plr.Character and plr.Character:FindFirstChild(toolName)) then
-				return plr
-			end
+function applyGlossy(v)
+	for _,p in pairs(workspace:GetDescendants()) do
+		if p:IsA("BasePart") then
+			p.Material = v and Enum.Material.Neon or Enum.Material.Plastic
 		end
 	end
 end
 
-RunService.RenderStepped:Connect(function()
-	if locking and target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
-		workspace.CurrentCamera.CFrame = CFrame.new(
-			workspace.CurrentCamera.CFrame.Position,
-			target.Character.HumanoidRootPart.Position
-		)
-	end
-end)
+-- BUTTONS
+createButton("ESP", 10, function(v) end)
+createButton("Potato", 60, applyPotato)
+createButton("Glossy", 110, applyGlossy)
 
--- ON SCREEN LOCK BUTTON
-local lockBtn = Instance.new("TextButton", gui)
-lockBtn.Size = UDim2.new(0,120,0,50)
-lockBtn.Position = UDim2.new(0.5,-60,0.8,0)
-lockBtn.Text = "LOCK"
-lockBtn.BackgroundTransparency = 0.5
-lockBtn.Visible = false
-lockBtn.Active = true
-lockBtn.Draggable = true
+-- APPLY SAVED STATES
+applyPotato(settings.Potato)
+applyGlossy(settings.Glossy)
 
-lockBtn.MouseButton1Click:Connect(function()
-	locking = not locking
-end)
-
--- MURDERER TAB
-local murdererTab = tabFrames["Murderer"]
-
-createToggle(murdererTab, "Lock On Sheriff", function(v)
-	lockBtn.Visible = v
-	target = getPlayerWithTool("Gun")
-end).Position = UDim2.new(0,10,0,10)
-
--- SHERIFF TAB
-local sheriffTab = tabFrames["Sheriff"]
-
-createToggle(sheriffTab, "Lock On Murderer", function(v)
-	lockBtn.Visible = v
-	target = getPlayerWithTool("Knife")
-end).Position = UDim2.new(0,10,0,10)
-
---// OPEN/CLOSE ANIMATION
+-- OPEN/CLOSE
 local open = false
 
-openBtn.MouseButton1Click:Connect(function()
+toggleBtn.MouseButton1Click:Connect(function()
 	open = not open
-	
 	if open then
-		main:TweenPosition(UDim2.new(0,10,0.3,0),"Out","Quad",0.3,true)
-		openBtn.Text = "<"
+		main:TweenPosition(UDim2.new(0,10,0.3,0),"Out","Quad",0.25,true)
 	else
-		main:TweenPosition(UDim2.new(-0.4,0,0.3,0),"Out","Quad",0.3,true)
-		openBtn.Text = ">"
+		main:TweenPosition(UDim2.new(-1,0,0.3,0),"Out","Quad",0.25,true)
 	end
+end)
+
+close.MouseButton1Click:Connect(function()
+	open = false
+	main:TweenPosition(UDim2.new(-1,0,0.3,0),"Out","Quad",0.25,true)
 end)
