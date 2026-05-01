@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES GRAB GUN TP INSTA
+--         SERVICES grab fixer
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -24,12 +24,13 @@ local fakeSpeedOn   = false
 local espHighlights = {}
 
 -- Gun TP state
-local gunTpActive        = false   -- is the feature on?
-local gunLastPos         = nil     -- where the sheriff died
-local myReturnPos        = nil     -- where WE were before teleporting
-local gunTpDone          = false   -- have we already tped to gun pos?
-local trackedSheriff     = nil     -- the player we're watching
-local gunTpWatchConn     = nil     -- connection watching sheriff death
+local gunTpActive          = false  -- is the feature on?
+local gunLastPos           = nil    -- last recorded position of sheriff (always updated)
+local myReturnPos          = nil    -- where WE were before tp
+local gunTpDone            = false  -- already tp'd this round?
+local currentSheriff       = nil    -- whoever currently has the gun tool
+local sheriffDiedConn      = nil    -- Died event connection on current sheriff's humanoid
+local sheriffLastChar      = nil    -- last character we hooked Died onto
 
 -- ══════════════════════════════════════
 --     RAIN HUB WELCOME BANNER
@@ -669,80 +670,41 @@ end)
 local gunTpOnColor  = Color3.fromRGB(40, 180, 110)
 local gunTpOffColor = Color3.fromRGB(30, 130, 90)
 
-local function stopGunTpWatch()
-	if gunTpWatchConn then
-		gunTpWatchConn:Disconnect()
-		gunTpWatchConn = nil
+-- Disconnect any existing Died hook
+local function clearSheriffDiedConn()
+	if sheriffDiedConn then
+		sheriffDiedConn:Disconnect()
+		sheriffDiedConn = nil
 	end
-	trackedSheriff = nil
 end
 
-local function startWatchingSheriff(sheriff)
-	stopGunTpWatch()
-	trackedSheriff = sheriff
-	gunLastPos     = nil  -- clear any stale position
+-- Hook the Died event onto a sheriff character.
+-- This runs regardless of whether gunTpActive is on —
+-- so the hook is always live and ready.
+local function hookSheriffDied(sheriff, char)
+	clearSheriffDiedConn()
+	sheriffLastChar = char
+	local hum = char:FindFirstChildOfClass("Humanoid")
+	if not hum then return end
 
-	local char = getCharacter(sheriff)
-	if not char then return end
-	local hum  = char:FindFirstChildOfClass("Humanoid")
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if not hum or not root then return end
+	sheriffDiedConn = hum.Died:Connect(function()
+		-- Always record that the sheriff died and where.
+		-- gunLastPos is already the last position tracked in heartbeat.
 
-	-- Confirm they are actually alive right now — refuse to set up if already dead
-	if hum.Health <= 0 then
-		gunTpStatus.Text       = "Already dead"
-		gunTpStatus.TextColor3 = Color3.fromRGB(255, 130, 60)
-		stopGunTpWatch()
-		return
-	end
-
-	-- Heartbeat: ONLY used to record position while sheriff is alive & healthy.
-	-- Never teleports — that is strictly the Died event's job.
-	gunTpWatchConn = RunService.Heartbeat:Connect(function()
-		if not gunTpActive then stopGunTpWatch() return end
-
-		local c = getCharacter(trackedSheriff)
-		if not c then stopGunTpWatch() return end
-
-		local r = c:FindFirstChild("HumanoidRootPart")
-		local h = c:FindFirstChildOfClass("Humanoid")
-
-		-- Only save position while clearly alive (health > 0)
-		if r and h and h.Health > 0 then
-			gunLastPos = r.Position
-		end
-	end)
-
-	-- Died event: this is the ONLY place a teleport can happen.
-	-- Fires exactly once when the humanoid health reaches 0.
-	hum.Died:Connect(function()
+		-- Only actually teleport if the button is ON
 		if not gunTpActive or gunTpDone then return end
+		if not gunLastPos then return end
 
-		-- gunLastPos was saved every frame while alive, so it holds
-		-- the exact position from just before health hit 0.
-		if not gunLastPos then
-			gunTpStatus.Text       = "No position saved"
-			gunTpStatus.TextColor3 = Color3.fromRGB(255, 130, 60)
-			stopGunTpWatch()
-			return
-		end
-
-		-- Save our own position ONLY at the moment of their death
 		local myChar = getCharacter(LocalPlayer)
 		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-		if myRoot then
-			myReturnPos = myRoot.Position
-		end
+		if not myRoot then return end
 
-		-- Teleport to where they died — strictly gated to this death event
-		if myRoot then
-			myRoot.CFrame = CFrame.new(gunLastPos + Vector3.new(0, 3, 0))
-			gunTpDone = true
-			gunTpStatus.Text       = "TP'd! Get gun"
-			gunTpStatus.TextColor3 = Color3.fromRGB(80, 255, 160)
-		end
-
-		stopGunTpWatch()
+		myReturnPos = myRoot.Position
+		myRoot.CFrame = CFrame.new(gunLastPos + Vector3.new(0, 3, 0))
+		gunTpDone = true
+		gunTpStatus.Text       = "TP'd! Get gun"
+		gunTpStatus.TextColor3 = Color3.fromRGB(80, 255, 160)
+		clearSheriffDiedConn()
 	end)
 end
 
@@ -750,27 +712,32 @@ gunTpBtn.MouseButton1Click:Connect(function()
 	gunTpActive = not gunTpActive
 
 	if gunTpActive then
-		-- Reset state
-		gunLastPos    = nil
-		myReturnPos   = nil
-		gunTpDone     = false
+		-- Reset tp state only — do NOT wipe gunLastPos since we
+		-- may have already been tracking the sheriff passively
+		myReturnPos = nil
+		gunTpDone   = false
 		gunTpBtn.BackgroundColor3 = gunTpOnColor
 
-		-- Find the sheriff right now
-		local sheriff = findPlayerWithTool(SHERIFF_TOOL)
+		-- Check if sheriff is already dead right now and we have a position
+		local sheriff = currentSheriff
 		if sheriff then
-			startWatchingSheriff(sheriff)
-			gunTpStatus.Text       = "Watching: " .. sheriff.Name
-			gunTpStatus.TextColor3 = Color3.fromRGB(100, 255, 180)
+			local char = getCharacter(sheriff)
+			local hum  = char and char:FindFirstChildOfClass("Humanoid")
+			if hum and hum.Health <= 0 and gunLastPos then
+				-- Sheriff already dead — tp will fire in next heartbeat tick
+				gunTpStatus.Text       = "Sheriff dead — tp'ing..."
+				gunTpStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
+			else
+				gunTpStatus.Text       = "Tracking: " .. sheriff.Name
+				gunTpStatus.TextColor3 = Color3.fromRGB(100, 255, 180)
+			end
 		else
 			gunTpStatus.Text       = "No sheriff yet"
 			gunTpStatus.TextColor3 = Color3.fromRGB(255, 200, 80)
 		end
 	else
-		-- Turn off
-		stopGunTpWatch()
+		-- Turn off — keep tracking passively but reset tp state
 		gunTpDone   = false
-		gunLastPos  = nil
 		myReturnPos = nil
 		gunTpBtn.BackgroundColor3 = gunTpOffColor
 		gunTpStatus.Text          = "Standby"
@@ -805,13 +772,53 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Gun TP: auto-find sheriff if not tracked yet
-	if gunTpActive and not trackedSheriff and not gunTpDone then
+	-- Gun TP: ALWAYS track sheriff position and hook Died — regardless of button state
+	do
 		local sheriff = findPlayerWithTool(SHERIFF_TOOL)
-		if sheriff then
-			startWatchingSheriff(sheriff)
-			gunTpStatus.Text       = "Watching: " .. sheriff.Name
-			gunTpStatus.TextColor3 = Color3.fromRGB(100, 255, 180)
+		if sheriff ~= currentSheriff then
+			-- Sheriff changed (new round, different player picked it up)
+			currentSheriff = sheriff
+			gunLastPos     = nil
+			clearSheriffDiedConn()
+			if sheriff then
+				local char = getCharacter(sheriff)
+				if char then
+					hookSheriffDied(sheriff, char)
+				end
+			end
+		end
+
+		-- Always update gunLastPos every frame while sheriff is alive
+		if currentSheriff then
+			local char = getCharacter(currentSheriff)
+			if char then
+				-- Re-hook if character respawned
+				if char ~= sheriffLastChar then
+					hookSheriffDied(currentSheriff, char)
+				end
+				local root = char:FindFirstChild("HumanoidRootPart")
+				local hum  = char:FindFirstChildOfClass("Humanoid")
+				if root and hum and hum.Health > 0 then
+					gunLastPos = root.Position
+				end
+			end
+		end
+	end
+
+	-- Gun TP: if button is ON and sheriff already dead, tp immediately using saved pos
+	if gunTpActive and not gunTpDone and currentSheriff then
+		local char = getCharacter(currentSheriff)
+		local hum  = char and char:FindFirstChildOfClass("Humanoid")
+		if hum and hum.Health <= 0 and gunLastPos then
+			local myChar = getCharacter(LocalPlayer)
+			local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+			if myRoot then
+				myReturnPos = myRoot.Position
+				myRoot.CFrame = CFrame.new(gunLastPos + Vector3.new(0, 3, 0))
+				gunTpDone = true
+				gunTpStatus.Text       = "TP'd! Get gun"
+				gunTpStatus.TextColor3 = Color3.fromRGB(80, 255, 160)
+			end
 		end
 	end
 
@@ -874,6 +881,11 @@ Players.PlayerRemoving:Connect(function(player)
 		stopCameraLock()
 		sheriffStatus.Text = "Left"
 		murdStatus.Text    = "Left"
+	end
+	if currentSheriff == player then
+		currentSheriff = nil
+		clearSheriffDiedConn()
+		gunLastPos = nil
 	end
 end)
 
