@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES
+--         SERVICES2
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -676,9 +676,11 @@ end
 sheriffBtn.MouseButton1Click:Connect(toggleSheriff)
 murdBtn.MouseButton1Click:Connect(toggleMurd)
 
--- Keybinds — defined HERE so toggleSheriff/toggleMurd already exist
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then return end
+-- Keybinds — gameProcessed is intentionally ignored because Roblox
+-- marks F/G as processed due to default hotkey bindings, which would
+-- silently swallow every keypress if we checked it
+UserInputService.InputBegan:Connect(function(input)
+	if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
 	if input.KeyCode == Enum.KeyCode.G then
 		toggleSheriff()
 	elseif input.KeyCode == Enum.KeyCode.F then
