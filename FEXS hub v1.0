@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES1231232
+--         SERVICES
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -411,52 +411,33 @@ local gunTpBtn, gunTpStatus = makePanel(
 
 -- ══════════════════════════════════════
 --         PC KEYBIND LABELS
---   Small pill beside Sheriff and Murd
+--   Badge sits inside the cube bottom
 --   only shown on PC (no touch device)
 -- ══════════════════════════════════════
 local UserInputService = game:GetService("UserInputService")
 
+local function addKeybindBadge(cubeBtn, keyText)
+	-- Small dark badge pinned to the bottom-center of the cube
+	local badge = Instance.new("TextLabel")
+	badge.Size = UDim2.new(0, 26, 0, 16)
+	badge.AnchorPoint = Vector2.new(0.5, 1)
+	badge.Position = UDim2.new(0.5, 0, 1, -6)
+	badge.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+	badge.BackgroundTransparency = 0.15
+	badge.BorderSizePixel = 0
+	badge.Text = "[" .. keyText .. "]"
+	badge.TextColor3 = Color3.fromRGB(255, 220, 80)
+	badge.TextSize = 10
+	badge.Font = Enum.Font.GothamBold
+	badge.TextXAlignment = Enum.TextXAlignment.Center
+	badge.ZIndex = 6
+	badge.Parent = cubeBtn  -- parented INTO the cube so it moves with it
+	Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 4)
+end
+
 if not UserInputService.TouchEnabled then
-	local function makeKeybindLabel(attachedBtn, keyText)
-		local lbl = Instance.new("TextLabel")
-		lbl.Size = UDim2.new(0, 34, 0, 22)
-		-- sits to the right of the cube button
-		lbl.Position = UDim2.new(
-			attachedBtn.Position.X.Scale,
-			attachedBtn.Position.X.Offset + CUBE_SIZE + 6,
-			attachedBtn.Position.Y.Scale,
-			attachedBtn.Position.Y.Offset + (CUBE_SIZE / 2) - 11
-		)
-		lbl.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-		lbl.BackgroundTransparency = 0.2
-		lbl.BorderSizePixel = 0
-		lbl.Text = keyText
-		lbl.TextColor3 = Color3.fromRGB(220, 220, 220)
-		lbl.TextSize = 12
-		lbl.Font = Enum.Font.GothamBold
-		lbl.TextXAlignment = Enum.TextXAlignment.Center
-		lbl.ZIndex = 5
-		lbl.Parent = screenGui
-		Instance.new("UICorner", lbl).CornerRadius = UDim.new(0, 6)
-		local stroke = Instance.new("UIStroke")
-		stroke.Color = Color3.fromRGB(90, 90, 90)
-		stroke.Thickness = 1
-		stroke.Parent = lbl
-		return lbl
-	end
-
-	makeKeybindLabel(sheriffBtn, "G")
-	makeKeybindLabel(murdBtn,    "F")
-
-	-- Hook actual keypresses
-	UserInputService.InputBegan:Connect(function(input, gameProcessed)
-		if gameProcessed then return end
-		if input.KeyCode == Enum.KeyCode.G then
-			sheriffBtn.MouseButton1Click:Fire()
-		elseif input.KeyCode == Enum.KeyCode.F then
-			murdBtn.MouseButton1Click:Fire()
-		end
-	end)
+	addKeybindBadge(sheriffBtn, "G")
+	addKeybindBadge(murdBtn,    "F")
 end
 
 -- ══════════════════════════════════════
@@ -694,6 +675,16 @@ end
 
 sheriffBtn.MouseButton1Click:Connect(toggleSheriff)
 murdBtn.MouseButton1Click:Connect(toggleMurd)
+
+-- Keybinds — defined HERE so toggleSheriff/toggleMurd already exist
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then return end
+	if input.KeyCode == Enum.KeyCode.G then
+		toggleSheriff()
+	elseif input.KeyCode == Enum.KeyCode.F then
+		toggleMurd()
+	end
+end)
 
 -- ══════════════════════════════════════
 --        FAKE SPEED BUTTON
