@@ -1,7 +1,7 @@
 -- ══════════════════════════════════════
---  Changed: Shoot Murd order fixed —
---  equip gun → firetouchinterest HRP
---  → THEN unequip after shot lands
+--  Changed: Shoot Murd fires MM2's
+--  SheriffShoot remote directly on
+--  murderer's HRP — works PC + Mobile
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -576,10 +576,15 @@ end
 --
 --   EXACT ORDER:
 --   1. Equip Gun
---   2. Wait for equip to fully register
---   3. firetouchinterest BEGIN on murderer's HRP  ← the actual shot
---   4. firetouchinterest END on murderer's HRP    ← cleanup
---   5. ONLY AFTER touch fires → UnequipTools
+--   2. Wait 0.2s for equip to register
+--   3. Find murderer's HRP
+--   4. Fire the MM2 shoot remote directly
+--      on the gun tool → passes murderer's
+--      HRP as the target, same as a real
+--      in-game shot. No input simulation,
+--      works on PC and Mobile.
+--   5. Wait 0.5s
+--   6. Unequip Gun
 -- ══════════════════════════════════════
 sheriffBtn.MouseButton1Click:Connect(function()
 
@@ -599,7 +604,7 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		return
 	end
 
-	-- Find murderer first so we can bail early before equipping
+	-- Find murderer before equipping so we bail early if none
 	local murd = findPlayerWithTool(MURD_TOOL)
 	if not murd then
 		sheriffStatus.Text       = "No Murd!"
@@ -613,50 +618,74 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
 		return
 	end
-	local myRoot = char:FindFirstChild("HumanoidRootPart")
-	if not myRoot then
-		sheriffStatus.Text       = "My HRP missing"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		return
-	end
 
 	-- STEP 1: Equip the Gun
 	local gunTool = char:FindFirstChild(SHERIFF_TOOL)
 	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
-	if gunTool and gunTool.Parent ~= char then
+	if not gunTool then
+		sheriffStatus.Text       = "Gun missing"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
+	end
+	if gunTool.Parent ~= char then
 		hum:EquipTool(gunTool)
 	end
 	sheriffStatus.Text       = "🔫 Equipping..."
 	sheriffStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
 
-	-- STEP 2: Wait for equip animation to fully register
+	-- STEP 2: Wait for equip animation to register
 	task.wait(0.2)
 
-	-- STEP 3: Click on murderer's HumanoidRootPart (touch begin)
-	-- firetouchinterest fires the Touched event on murdRoot
-	-- as if our character physically contacted it — this is what
-	-- the gun script detects. Works on PC and Mobile, zero input changes.
-	pcall(function()
-		firetouchinterest(murdRoot, myRoot, 0)
-	end)
+	-- Re-grab gun now that it's equipped in the character
+	local equippedGun = char:FindFirstChild(SHERIFF_TOOL)
+	if not equippedGun then
+		sheriffStatus.Text       = "Equip failed"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
+	end
 
-	-- STEP 4: Touch end — clean up the touch signal
-	task.wait(0.05)
-	pcall(function()
-		firetouchinterest(murdRoot, myRoot, 1)
-	end)
+	-- STEP 3 & 4: Fire the MM2 shoot remote on the gun
+	-- MM2 guns use a RemoteEvent called "SheriffShoot" inside the tool.
+	-- It takes the target's HumanoidRootPart as the argument.
+	-- This is identical to what happens when a player manually shoots.
+	local shootRemote = equippedGun:FindFirstChild("SheriffShoot")
+	                 or equippedGun:FindFirstChild("Shoot")
+	                 or equippedGun:FindFirstChild("Fire")
+	                 or equippedGun:FindFirstChild("shoot")
+	                 or equippedGun:FindFirstChildOfClass("RemoteEvent")
 
-	sheriffStatus.Text       = "🔫 Shot " .. murd.Name
-	sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
+	if shootRemote and shootRemote:IsA("RemoteEvent") then
+		-- Primary call: pass murderer's HRP directly
+		shootRemote:FireServer(murdRoot)
+		sheriffStatus.Text       = "🔫 Shot " .. murd.Name
+		sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
+	else
+		-- Fallback: blast every RemoteEvent inside the gun with the HRP
+		local fired = false
+		for _, v in ipairs(equippedGun:GetDescendants()) do
+			if v:IsA("RemoteEvent") then
+				pcall(function() v:FireServer(murdRoot) end)
+				fired = true
+			end
+		end
+		if fired then
+			sheriffStatus.Text       = "🔫 Shot (fallback) " .. murd.Name
+			sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
+		else
+			sheriffStatus.Text       = "No remote found!"
+			sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		end
+	end
 
-	-- STEP 5: NOW unequip — only after the shot has fully fired
-	task.wait(0.2)
+	-- STEP 5: Wait 0.5s before putting gun away
+	task.wait(0.5)
+
+	-- STEP 6: Unequip the Gun
 	pcall(function()
 		local h = char:FindFirstChildOfClass("Humanoid")
 		if h then h:UnequipTools() end
 	end)
 
-	-- Reset status after a moment
 	task.delay(1.5, function()
 		sheriffStatus.Text       = "Idle"
 		sheriffStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
@@ -789,7 +818,6 @@ RunService.Heartbeat:Connect(function()
 	updateESP()
 	updateCameraLock()
 
-	-- Auto-switch murd lock if target loses knife
 	if lockedTarget and lockMode == "Murd" then
 		if not hasTool(lockedTarget, MURD_TOOL) or not getCharacter(lockedTarget) then
 			local newTarget = findPlayerWithTool(MURD_TOOL)
@@ -807,7 +835,6 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Gun TP: always passively track sheriff position + hook Died
 	do
 		local sheriff = findPlayerWithTool(SHERIFF_TOOL)
 		if sheriff ~= currentSheriff then
@@ -835,7 +862,6 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Gun TP: button ON + sheriff already dead → tp immediately
 	if gunTpActive and not gunTpDone and currentSheriff then
 		local char = getCharacter(currentSheriff)
 		local h    = char and char:FindFirstChildOfClass("Humanoid")
@@ -852,7 +878,6 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Gun TP: auto-return once we pick up the gun
 	if gunTpActive and gunTpDone and myReturnPos then
 		if hasTool(LocalPlayer, SHERIFF_TOOL) then
 			local myChar = getCharacter(LocalPlayer)
@@ -873,7 +898,6 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Fake Speed — airborne only, must have a tool equipped
 	if fakeSpeedOn then
 		local char = getCharacter(LocalPlayer)
 		if not char then return end
