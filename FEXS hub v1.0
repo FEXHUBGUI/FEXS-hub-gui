@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES grab fixer2
+--         SERVICES grab fixer
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -24,13 +24,13 @@ local fakeSpeedOn   = false
 local espHighlights = {}
 
 -- Gun TP state
-local gunTpActive          = false
-local gunLastPos           = nil
-local myReturnPos          = nil
-local gunTpDone            = false
-local currentSheriff       = nil
-local sheriffDiedConn      = nil
-local sheriffLastChar      = nil
+local gunTpActive     = false
+local gunLastPos      = nil
+local myReturnPos     = nil
+local gunTpDone       = false
+local currentSheriff  = nil
+local sheriffDiedConn = nil
+local sheriffLastChar = nil
 
 -- ══════════════════════════════════════
 --     RAIN HUB WELCOME BANNER
@@ -362,15 +362,16 @@ end
 --         BUILD THE CUBE PANELS
 -- ══════════════════════════════════════
 
--- ── Shoot Murd button (replaces old Sheriff Lock) ──
+-- Blue = Shoot Murd (pulls gun, fires at knife holder)
 local sheriffBtn, sheriffStatus = makePanel(
 	UDim2.new(0, 20, 0, 140),
 	Color3.fromRGB(30, 90, 200),
-	"Murd",        -- bottom label
-	"Shoot",       -- top label
+	"Murd",
+	"Shoot",
 	"Idle"
 )
 
+-- Red = Lock Murd (camera lock on knife holder)
 local murdBtn, murdStatus = makePanel(
 	UDim2.new(0, 110, 0, 140),
 	Color3.fromRGB(180, 35, 35),
@@ -379,6 +380,7 @@ local murdBtn, murdStatus = makePanel(
 	"Idle"
 )
 
+-- Purple = Fake Speed
 local speedBtn, speedStatus = makePanel(
 	UDim2.new(0, 200, 0, 140),
 	Color3.fromRGB(80, 35, 160),
@@ -387,6 +389,7 @@ local speedBtn, speedStatus = makePanel(
 	"Off"
 )
 
+-- Green = Gun TP
 local gunTpBtn, gunTpStatus = makePanel(
 	UDim2.new(0, 290, 0, 140),
 	Color3.fromRGB(30, 130, 90),
@@ -514,7 +517,6 @@ local function applyESP(player, fillColor, outlineColor)
 	end
 
 	bb.Adornee = root
-
 	espHighlights[player] = { hl = hl, billboard = bb }
 end
 
@@ -568,45 +570,57 @@ local function updateCameraLock()
 	local targetChar = getCharacter(lockedTarget)
 	local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
 	if not targetRoot then return end
-
 	Camera.CameraType = Enum.CameraType.Custom
 	Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetRoot.Position)
 end
 
 -- ══════════════════════════════════════
 --   SHOOT MURD BUTTON LOGIC
---   Equips Gun → fires at Knife holder's HRP
---   Works on PC and Mobile (no input needed)
+--   Step 1: Check we have Gun
+--   Step 2: Equip Gun via Humanoid:EquipTool
+--   Step 3: Find Knife holder's HumanoidRootPart
+--   Step 4: Point mouse.Hit at murderer's HRP CFrame
+--   Step 5: Fire tool.Activated (= exactly what left-click/tap does)
+--   Step 6: FireServer fallbacks with every arg combo
 -- ══════════════════════════════════════
 sheriffBtn.MouseButton1Click:Connect(function()
-	-- 1. Make sure we have the Gun
+
+	-- Step 1: Do we have the Gun at all?
 	if not hasTool(LocalPlayer, SHERIFF_TOOL) then
 		sheriffStatus.Text       = "No Gun!"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
 		return
 	end
 
-	-- 2. Equip the Gun from backpack if not already equipped
 	local char     = getCharacter(LocalPlayer)
 	local backpack = LocalPlayer:FindFirstChild("Backpack")
-	local gunTool  = (char and char:FindFirstChild(SHERIFF_TOOL))
-	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
+	local hum      = char and char:FindFirstChildOfClass("Humanoid")
 
-	if gunTool and gunTool.Parent ~= char then
-		local hum = char and char:FindFirstChildOfClass("Humanoid")
-		if hum then
-			hum:EquipTool(gunTool)
-		end
+	if not char or not hum then
+		sheriffStatus.Text       = "No character"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
 	end
 
-	-- 3. Find the murderer (whoever has the Knife)
+	-- Step 2: Equip the Gun if it's sitting in backpack
+	local gunTool = char:FindFirstChild(SHERIFF_TOOL)
+	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
+	if not gunTool then
+		sheriffStatus.Text       = "Gun missing"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
+	end
+	if gunTool.Parent ~= char then
+		hum:EquipTool(gunTool)
+	end
+
+	-- Step 3: Find the murderer (whoever holds the Knife)
 	local murd = findPlayerWithTool(MURD_TOOL)
 	if not murd then
 		sheriffStatus.Text       = "No Murd!"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
 		return
 	end
-
 	local murdChar = getCharacter(murd)
 	local murdRoot = murdChar and murdChar:FindFirstChild("HumanoidRootPart")
 	if not murdRoot then
@@ -615,44 +629,55 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		return
 	end
 
-	-- 4. Short wait so equip registers, then fire at murderer's HRP
-	task.wait(0.05)
+	-- Small wait so EquipTool registers before we fire
+	task.wait(0.1)
 
-	local equippedGun = char and char:FindFirstChild(SHERIFF_TOOL)
-	if equippedGun then
-		-- Try named shoot remotes first
-		local shootRemote = equippedGun:FindFirstChild("Shoot")
-		                 or equippedGun:FindFirstChild("Fire")
-		                 or equippedGun:FindFirstChild("ShootEvent")
-		                 or equippedGun:FindFirstChildOfClass("RemoteEvent")
-
-		if shootRemote and shootRemote:IsA("RemoteEvent") then
-			shootRemote:FireServer(murdRoot)
-			sheriffStatus.Text       = "🔫 Shot " .. murd.Name
-			sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
-		else
-			-- Fallback: try ClickDetector on gun or murderer's HRP
-			local clickDet = equippedGun:FindFirstChildOfClass("ClickDetector")
-			             or murdRoot:FindFirstChildOfClass("ClickDetector")
-			if clickDet then
-				fireclickdetector(clickDet)
-				sheriffStatus.Text       = "🔫 Clicked " .. murd.Name
-				sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
-			else
-				-- Last resort: blast every RemoteEvent in the gun with murdRoot as arg
-				for _, v in ipairs(equippedGun:GetDescendants()) do
-					if v:IsA("RemoteEvent") then
-						pcall(function() v:FireServer(murdRoot) end)
-					end
-				end
-				sheriffStatus.Text       = "🔫 Fired!"
-				sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
-			end
-		end
-	else
+	-- Re-grab the gun now that it should be in the character
+	local equippedGun = char:FindFirstChild(SHERIFF_TOOL)
+	if not equippedGun then
 		sheriffStatus.Text       = "Equip failed"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
 	end
+
+	-- Step 4: Warp mouse.Hit to murderer's HRP so the gun script
+	--         reads the right world position when it fires
+	local mouse = LocalPlayer:GetMouse()
+	pcall(function()
+		-- Some executors allow writing these directly
+		mouse.Target = murdRoot
+		mouse.Hit    = murdRoot.CFrame
+	end)
+
+	-- Step 5: Fire Activated on the tool.
+	--         This is the EXACT signal Roblox sends to a tool's LocalScript
+	--         when the player left-clicks or taps while holding it.
+	pcall(function()
+		equippedGun.Activated:Fire()
+	end)
+
+	-- Step 6: FireServer fallbacks — covers games that use a custom
+	--         RemoteEvent instead of / in addition to Activated.
+	--         We send every argument combination the server might expect.
+	for _, v in ipairs(equippedGun:GetDescendants()) do
+		if v:IsA("RemoteEvent") then
+			pcall(function() v:FireServer(murdRoot) end)
+			pcall(function() v:FireServer(murdRoot.Position) end)
+			pcall(function() v:FireServer(murdRoot, murdRoot.Position) end)
+			pcall(function() v:FireServer(murdRoot.CFrame) end)
+			pcall(function() v:FireServer(murdRoot, murdRoot.CFrame) end)
+		end
+	end
+
+	-- ClickDetector fallback (rare but some guns use it)
+	local clickDet = equippedGun:FindFirstChildOfClass("ClickDetector")
+	             or murdRoot:FindFirstChildOfClass("ClickDetector")
+	if clickDet then
+		pcall(function() fireclickdetector(clickDet) end)
+	end
+
+	sheriffStatus.Text       = "🔫 Shot " .. murd.Name
+	sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
 end)
 
 -- ══════════════════════════════════════
@@ -703,8 +728,8 @@ speedBtn.MouseButton1Click:Connect(function()
 		speedStatus.Text          = "Off"
 		speedStatus.TextColor3    = Color3.fromRGB(200, 200, 200)
 		local char = getCharacter(LocalPlayer)
-		local hum  = char and char:FindFirstChildOfClass("Humanoid")
-		if hum then hum.WalkSpeed = 16 end
+		local h    = char and char:FindFirstChildOfClass("Humanoid")
+		if h then h.WalkSpeed = 16 end
 	end
 end)
 
@@ -724,17 +749,15 @@ end
 local function hookSheriffDied(sheriff, char)
 	clearSheriffDiedConn()
 	sheriffLastChar = char
-	local hum = char:FindFirstChildOfClass("Humanoid")
-	if not hum then return end
+	local h = char:FindFirstChildOfClass("Humanoid")
+	if not h then return end
 
-	sheriffDiedConn = hum.Died:Connect(function()
+	sheriffDiedConn = h.Died:Connect(function()
 		if not gunTpActive or gunTpDone then return end
 		if not gunLastPos then return end
-
 		local myChar = getCharacter(LocalPlayer)
 		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 		if not myRoot then return end
-
 		myReturnPos = myRoot.Position
 		myRoot.CFrame = CFrame.new(gunLastPos + Vector3.new(0, 3, 0))
 		gunTpDone = true
@@ -755,8 +778,8 @@ gunTpBtn.MouseButton1Click:Connect(function()
 		local sheriff = currentSheriff
 		if sheriff then
 			local char = getCharacter(sheriff)
-			local hum  = char and char:FindFirstChildOfClass("Humanoid")
-			if hum and hum.Health <= 0 and gunLastPos then
+			local h    = char and char:FindFirstChildOfClass("Humanoid")
+			if h and h.Health <= 0 and gunLastPos then
 				gunTpStatus.Text       = "Sheriff dead — tp'ing..."
 				gunTpStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
 			else
@@ -783,27 +806,25 @@ RunService.Heartbeat:Connect(function()
 	updateESP()
 	updateCameraLock()
 
-	-- Auto-switch lock if target loses tool (only for Murd lock now)
-	if lockedTarget then
-		local toolToCheck = MURD_TOOL
-		if not hasTool(lockedTarget, toolToCheck) or not getCharacter(lockedTarget) then
-			local newTarget = findPlayerWithTool(toolToCheck)
-			local statusLbl = murdStatus
+	-- Auto-switch murd camera lock if target loses knife
+	if lockedTarget and lockMode == "Murd" then
+		if not hasTool(lockedTarget, MURD_TOOL) or not getCharacter(lockedTarget) then
+			local newTarget = findPlayerWithTool(MURD_TOOL)
 			if newTarget then
-				lockedTarget         = newTarget
-				statusLbl.Text       = "Auto: " .. newTarget.Name
-				statusLbl.TextColor3 = Color3.fromRGB(255, 220, 60)
+				lockedTarget          = newTarget
+				murdStatus.Text       = "Auto: " .. newTarget.Name
+				murdStatus.TextColor3 = Color3.fromRGB(255, 220, 60)
 			else
-				lockedTarget         = nil
-				lockMode             = nil
+				lockedTarget = nil
+				lockMode     = nil
 				stopCameraLock()
-				statusLbl.Text       = "Lost tool"
-				statusLbl.TextColor3 = Color3.fromRGB(255, 130, 60)
+				murdStatus.Text       = "Lost tool"
+				murdStatus.TextColor3 = Color3.fromRGB(255, 130, 60)
 			end
 		end
 	end
 
-	-- Gun TP: ALWAYS track sheriff position and hook Died
+	-- Gun TP: always passively track sheriff position + hook Died
 	do
 		local sheriff = findPlayerWithTool(SHERIFF_TOOL)
 		if sheriff ~= currentSheriff then
@@ -812,9 +833,7 @@ RunService.Heartbeat:Connect(function()
 			clearSheriffDiedConn()
 			if sheriff then
 				local char = getCharacter(sheriff)
-				if char then
-					hookSheriffDied(sheriff, char)
-				end
+				if char then hookSheriffDied(sheriff, char) end
 			end
 		end
 
@@ -825,19 +844,19 @@ RunService.Heartbeat:Connect(function()
 					hookSheriffDied(currentSheriff, char)
 				end
 				local root = char:FindFirstChild("HumanoidRootPart")
-				local hum  = char:FindFirstChildOfClass("Humanoid")
-				if root and hum and hum.Health > 0 then
+				local h    = char:FindFirstChildOfClass("Humanoid")
+				if root and h and h.Health > 0 then
 					gunLastPos = root.Position
 				end
 			end
 		end
 	end
 
-	-- Gun TP: if button ON and sheriff already dead, tp immediately
+	-- Gun TP: button ON + sheriff already dead → tp immediately
 	if gunTpActive and not gunTpDone and currentSheriff then
 		local char = getCharacter(currentSheriff)
-		local hum  = char and char:FindFirstChildOfClass("Humanoid")
-		if hum and hum.Health <= 0 and gunLastPos then
+		local h    = char and char:FindFirstChildOfClass("Humanoid")
+		if h and h.Health <= 0 and gunLastPos then
 			local myChar = getCharacter(LocalPlayer)
 			local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 			if myRoot then
@@ -850,7 +869,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Gun TP: auto-return after picking up the gun
+	-- Gun TP: auto-return once we pick up the gun
 	if gunTpActive and gunTpDone and myReturnPos then
 		if hasTool(LocalPlayer, SHERIFF_TOOL) then
 			local myChar = getCharacter(LocalPlayer)
@@ -871,26 +890,26 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Fake Speed — airborne only, requires tool equipped
+	-- Fake Speed — airborne only, must have a tool equipped
 	if fakeSpeedOn then
 		local char = getCharacter(LocalPlayer)
 		if not char then return end
-		local hum = char:FindFirstChildOfClass("Humanoid")
-		if not hum then return end
+		local h = char:FindFirstChildOfClass("Humanoid")
+		if not h then return end
 
 		if not hasAnyToolEquipped(LocalPlayer) then
-			hum.WalkSpeed          = 16
+			h.WalkSpeed            = 16
 			speedStatus.Text       = "Equip tool!"
 			speedStatus.TextColor3 = Color3.fromRGB(255, 180, 60)
 			return
 		end
 
-		if hum.FloorMaterial == Enum.Material.Air then
-			hum.WalkSpeed          = FAKE_SPEED
+		if h.FloorMaterial == Enum.Material.Air then
+			h.WalkSpeed            = FAKE_SPEED
 			speedStatus.Text       = "🚀 Boost!"
 			speedStatus.TextColor3 = Color3.fromRGB(140, 255, 180)
 		else
-			hum.WalkSpeed          = 16
+			h.WalkSpeed            = 16
 			speedStatus.Text       = "Jump!"
 			speedStatus.TextColor3 = Color3.fromRGB(200, 160, 255)
 		end
