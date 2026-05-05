@@ -494,8 +494,7 @@ local coinOrigTransparency = {}  -- [part] = originalTransparency
 local function removeCoinESP(part)
 	local data = coinEspParts[part]
 	if data then
-		if data.hl        then pcall(function() data.hl:Destroy()        end) end
-		if data.billboard then pcall(function() data.billboard:Destroy() end) end
+		if data.hl then pcall(function() data.hl:Destroy() end) end
 		-- Restore original transparency if part still exists
 		if part and part.Parent then
 			pcall(function()
@@ -532,43 +531,24 @@ local function applyCoinESP(part, rainbowColor)
 	hl.FillColor    = rainbowColor
 	hl.OutlineColor = rainbowColor
 
-	local bb = data and data.billboard
-	if not bb or not bb.Parent then
-		bb = Instance.new("BillboardGui")
-		bb.AlwaysOnTop    = true
-		bb.StudsOffset    = Vector3.new(0, 2.5, 0)
-		bb.Size           = UDim2.new(0, 40, 0, 20)
-		bb.ResetOnSpawn   = false
-		bb.LightInfluence = 0
-		bb.Parent         = Camera
-
-		local lbl = Instance.new("TextLabel")
-		lbl.Size                   = UDim2.new(1, 0, 1, 0)
-		lbl.BackgroundTransparency = 1
-		lbl.TextColor3             = Color3.new(1, 1, 1)
-		lbl.TextSize               = 10
-		lbl.Font                   = Enum.Font.GothamBold
-		lbl.Text                   = "💰 " .. COIN_NAME
-		lbl.TextStrokeTransparency = 0.3
-		lbl.TextStrokeColor3       = Color3.new(0, 0, 0)
-		lbl.ZIndex                 = 6
-		lbl.Name                   = "CoinLabel"
-		lbl.Parent                 = bb
-	end
-
-	bb.Adornee = part
-
-	local lbl = bb:FindFirstChild("CoinLabel")
-	if lbl then lbl.TextColor3 = rainbowColor end
-
-	coinEspParts[part] = { hl = hl, billboard = bb }
+	coinEspParts[part] = { hl = hl }
 end
 
--- DescendantRemoving fires the instant a part leaves workspace
--- so ESP is destroyed immediately — no polling needed for cleanup
+-- Instant cleanup + farm retarget the moment a coin leaves workspace
 workspace.DescendantRemoving:Connect(function(obj)
-	if obj.Name == COIN_NAME and obj:IsA("BasePart") and coinEspParts[obj] then
+	if not (obj.Name == COIN_NAME and obj:IsA("BasePart")) then return end
+	if coinEspParts[obj] then
 		removeCoinESP(obj)
+	end
+	-- If farm was heading to this coin, cancel tween immediately so
+	-- farmLoop picks the next closest on the very next iteration
+	if farmActive and farmCurrentCoin == obj then
+		farmCurrentCoin = nil
+		farmTweening    = false
+		if farmTweenObj then
+			farmTweenObj:Cancel()
+			farmTweenObj = nil
+		end
 	end
 end)
 
