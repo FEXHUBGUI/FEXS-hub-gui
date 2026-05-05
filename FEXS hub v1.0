@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---  Rain Hub — Updates:
+--  Rain Hub — Updates:1
 --  • Replaced "Shoot Murd" with Auto Farm
 --    – Noclips player through all parts
 --    – Tweens to nearest Coin_Server parts
@@ -9,7 +9,7 @@
 --    with rainbow color applied to the part itself
 --  • ESP now instantly cleans up via
 --    DescendantRemoving — no lingering highlights
---  • Despawned coins excluded from farm targeting123
+--  • Despawned coins excluded from farm targeting
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -494,12 +494,10 @@ local coinOrigTransparency = {}  -- [part] = originalTransparency
 local function removeCoinESP(part)
 	local data = coinEspParts[part]
 	if data then
-		if data.hl then pcall(function() data.hl:Destroy() end) end
-		-- Restore original transparency if part still exists
+		if data.hl        then pcall(function() data.hl:Destroy()              end) end
+		if data.touchConn then pcall(function() data.touchConn:Disconnect()    end) end
 		if part and part.Parent then
-			pcall(function()
-				part.Transparency = coinOrigTransparency[part] or 0
-			end)
+			pcall(function() part.Transparency = coinOrigTransparency[part] or 0 end)
 		end
 		coinOrigTransparency[part] = nil
 		coinEspParts[part] = nil
@@ -509,29 +507,54 @@ end
 local function applyCoinESP(part, rainbowColor)
 	if not part or not part.Parent then return end
 
-	-- Set transparency to 0.5 and store original if first time seeing this part
-	if not coinEspParts[part] then
+	local data = coinEspParts[part]
+
+	-- First time we see this coin: set transparency, hook Touched
+	if not data then
 		coinOrigTransparency[part] = part.Transparency
 		part.Transparency = 0.5
+
+		-- Touched: wait 0.2s then cancel tween so farmLoop retargets next coin
+		local touchConn
+		touchConn = part.Touched:Connect(function(hit)
+			-- only care if it's our character touching it
+			local char = getCharacter(LocalPlayer)
+			if not char or not hit:IsDescendantOf(char) then return end
+			if not farmActive then return end
+			touchConn:Disconnect()
+			task.wait(0.2)
+			-- cancel current tween so farmLoop immediately picks next closest
+			farmCurrentCoin = nil
+			farmTweening    = false
+			if farmTweenObj then
+				farmTweenObj:Cancel()
+				farmTweenObj = nil
+			end
+		end)
+
+		-- store conn so we can disconnect on cleanup
+		data = { hl = nil, touchConn = touchConn }
+		coinEspParts[part] = data
 	end
 
 	-- Apply rainbow color directly to the part
 	pcall(function() part.Color = rainbowColor end)
 
-	local data = coinEspParts[part]
-	local hl   = data and data.hl
+	-- Highlight parented TO THE PART so AlwaysOnTop works through walls reliably
+	local hl = data.hl
 	if not hl or not hl.Parent then
 		hl = Instance.new("Highlight")
 		hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
 		hl.FillTransparency    = 0.45
 		hl.OutlineTransparency = 0
-		hl.Parent              = Camera
+		hl.Adornee             = part
+		hl.Parent              = part   -- parented to part, not Camera
 	end
-	hl.Adornee      = part
 	hl.FillColor    = rainbowColor
 	hl.OutlineColor = rainbowColor
 
-	coinEspParts[part] = { hl = hl }
+	data.hl = hl
+	coinEspParts[part] = data
 end
 
 -- Instant cleanup + farm retarget the moment a coin leaves workspace
