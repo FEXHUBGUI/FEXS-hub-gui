@@ -9,7 +9,7 @@
 --    with rainbow color applied to the part itself
 --  • ESP now instantly cleans up via
 --    DescendantRemoving — no lingering highlights
---  • Despawned coins excluded from farm targeting
+--  • Despawned coins excluded from farm targeting123
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
