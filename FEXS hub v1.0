@@ -1,7 +1,12 @@
 -- ══════════════════════════════════════
---  Changed: Shoot Murd fires MM2's
---  SheriffShoot remote directly on
---  murderer's HRP — works PC + Mobile
+--  Rain Hub — Updates:
+--  • Replaced "Shoot Murd" with Auto Farm
+--    – Noclips player through all parts
+--    – Tweens to nearest Coin_Server parts
+--    – Auto re-targets on despawn
+--    – Rainbow animated ESP on all coins
+--  • ESP now shows rainbow glow on
+--    Coin_Server parts for debugging
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -13,9 +18,11 @@ local Camera      = workspace.CurrentCamera
 -- ══════════════════════════════════════
 --         CONFIGURATION
 -- ══════════════════════════════════════
-local SHERIFF_TOOL = "Gun"
-local MURD_TOOL    = "Knife"
-local FAKE_SPEED   = 100
+local SHERIFF_TOOL  = "Gun"
+local MURD_TOOL     = "Knife"
+local FAKE_SPEED    = 100
+local COIN_NAME     = "Coin_Server"   -- exact Name of coin parts in workspace
+local FARM_TWEEN_T  = 0.18            -- seconds to tween per coin (lower = faster)
 
 -- ══════════════════════════════════════
 --              STATE
@@ -24,6 +31,14 @@ local lockedTarget  = nil
 local lockMode      = nil
 local fakeSpeedOn   = false
 local espHighlights = {}
+
+-- Auto Farm state
+local farmActive       = false
+local farmNoclipOn     = false
+local farmCurrentCoin  = nil
+local farmTweening     = false
+local coinEspParts     = {}   -- [part] = { hl = Highlight, bb = BillboardGui }
+local rainbowHue       = 0
 
 -- Gun TP state
 local gunTpActive     = false
@@ -364,12 +379,12 @@ end
 --         BUILD THE CUBE PANELS
 -- ══════════════════════════════════════
 
-local sheriffBtn, sheriffStatus = makePanel(
+local farmBtn, farmStatus = makePanel(
 	UDim2.new(0, 20, 0, 140),
-	Color3.fromRGB(30, 90, 200),
-	"Murd",
-	"Shoot",
-	"Idle"
+	Color3.fromRGB(200, 140, 20),
+	"Farm",
+	"Auto",
+	"Off"
 )
 
 local murdBtn, murdStatus = makePanel(
@@ -430,7 +445,233 @@ local function findPlayerWithTool(toolName)
 end
 
 -- ══════════════════════════════════════
+--   NOCLIP HELPERS
+-- ══════════════════════════════════════
+local noclipConn = nil
+
+local function enableNoclip()
+	if noclipConn then return end
+	noclipConn = RunService.Stepped:Connect(function()
+		local char = getCharacter(LocalPlayer)
+		if not char then return end
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = false
+			end
+		end
+	end)
+end
+
+local function disableNoclip()
+	if noclipConn then
+		noclipConn:Disconnect()
+		noclipConn = nil
+	end
+	-- Restore collision on character parts
+	local char = getCharacter(LocalPlayer)
+	if char then
+		for _, part in ipairs(char:GetDescendants()) do
+			if part:IsA("BasePart") then
+				part.CanCollide = true
+			end
+		end
+	end
+end
+
+-- ══════════════════════════════════════
+--   COIN ESP (RAINBOW ANIMATED)
+-- ══════════════════════════════════════
+local function removeCoinESP(part)
+	local data = coinEspParts[part]
+	if data then
+		if data.hl        then pcall(function() data.hl:Destroy()        end) end
+		if data.billboard then pcall(function() data.billboard:Destroy() end) end
+		coinEspParts[part] = nil
+	end
+end
+
+local function applyCoinESP(part, rainbowColor)
+	if not part or not part.Parent then return end
+
+	local data = coinEspParts[part]
+	local hl   = data and data.hl
+	if not hl or not hl.Parent then
+		hl = Instance.new("Highlight")
+		hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
+		hl.FillTransparency    = 0.45
+		hl.OutlineTransparency = 0
+		hl.Parent              = Camera
+	end
+	hl.Adornee      = part
+	hl.FillColor    = rainbowColor
+	hl.OutlineColor = rainbowColor
+
+	local bb = data and data.billboard
+	if not bb or not bb.Parent then
+		bb = Instance.new("BillboardGui")
+		bb.AlwaysOnTop    = true
+		bb.StudsOffset    = Vector3.new(0, 2.5, 0)
+		bb.Size           = UDim2.new(0, 40, 0, 20)
+		bb.ResetOnSpawn   = false
+		bb.LightInfluence = 0
+		bb.Parent         = Camera
+
+		local lbl = Instance.new("TextLabel")
+		lbl.Size                   = UDim2.new(1, 0, 1, 0)
+		lbl.BackgroundTransparency = 1
+		lbl.TextColor3             = Color3.new(1, 1, 1)
+		lbl.TextSize               = 10
+		lbl.Font                   = Enum.Font.GothamBold
+		lbl.Text                   = "💰 " .. COIN_NAME
+		lbl.TextStrokeTransparency = 0.3
+		lbl.TextStrokeColor3       = Color3.new(0, 0, 0)
+		lbl.ZIndex                 = 6
+		lbl.Name                   = "CoinLabel"
+		lbl.Parent                 = bb
+	end
+
+	bb.Adornee = part
+
+	-- Update label color to rainbow
+	local lbl = bb:FindFirstChild("CoinLabel")
+	if lbl then lbl.TextColor3 = rainbowColor end
+
+	coinEspParts[part] = { hl = hl, billboard = bb }
+end
+
+local function updateCoinESP(rainbowColor)
+	-- Scan workspace for Coin_Server parts
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj.Name == COIN_NAME and obj:IsA("BasePart") then
+			applyCoinESP(obj, rainbowColor)
+		end
+	end
+	-- Clean up ESPs whose parts are gone
+	for part in pairs(coinEspParts) do
+		if not part or not part.Parent then
+			removeCoinESP(part)
+		end
+	end
+end
+
+-- ══════════════════════════════════════
+--   AUTO FARM — FIND CLOSEST COIN
+-- ══════════════════════════════════════
+local function getClosestCoin()
+	local char = getCharacter(LocalPlayer)
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root then return nil end
+
+	local closest, closestDist = nil, math.huge
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj.Name == COIN_NAME and obj:IsA("BasePart") then
+			local dist = (obj.Position - root.Position).Magnitude
+			if dist < closestDist then
+				closest     = obj
+				closestDist = dist
+			end
+		end
+	end
+	return closest
+end
+
+local farmTweenObj = nil
+
+local function farmTweenTo(part, onDone)
+	if farmTweenObj then
+		farmTweenObj:Cancel()
+		farmTweenObj = nil
+	end
+	local char = getCharacter(LocalPlayer)
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	if not root or not part or not part.Parent then
+		if onDone then onDone(false) end
+		return
+	end
+
+	local dist     = (part.Position - root.Position).Magnitude
+	local duration = math.clamp(dist * FARM_TWEEN_T * 0.1, 0.08, 1.2)
+
+	farmTweenObj = TweenService:Create(
+		root,
+		TweenInfo.new(duration, Enum.EasingStyle.Linear),
+		{ CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0)) }
+	)
+	farmTweenObj.Completed:Connect(function(state)
+		farmTweenObj = nil
+		if onDone then onDone(state == Enum.PlaybackState.Completed) end
+	end)
+	farmTweenObj:Play()
+end
+
+local function farmLoop()
+	while farmActive do
+		local coin = getClosestCoin()
+		if not coin then
+			farmStatus.Text       = "No coins!"
+			farmStatus.TextColor3 = Color3.fromRGB(255, 200, 80)
+			task.wait(0.3)
+		else
+			farmCurrentCoin = coin
+			local coinName  = coin.Name
+			farmStatus.Text       = "→ " .. coinName
+			farmStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
+			farmTweening = true
+
+			local reached = false
+			farmTweenTo(coin, function(ok)
+				reached  = ok
+				farmTweening = false
+			end)
+
+			-- Wait until tween finishes or coin disappears
+			local t = 0
+			while farmTweening and farmActive do
+				if not coin.Parent then
+					-- coin despawned mid-tween, cancel and re-target
+					if farmTweenObj then farmTweenObj:Cancel() end
+					farmTweening = false
+					break
+				end
+				t += task.wait()
+			end
+		end
+		task.wait(0.05)
+	end
+end
+
+-- ══════════════════════════════════════
+--   AUTO FARM BUTTON
+-- ══════════════════════════════════════
+local farmOnColor  = Color3.fromRGB(220, 160, 20)
+local farmOffColor = Color3.fromRGB(200, 140, 20)
+
+farmBtn.MouseButton1Click:Connect(function()
+	farmActive = not farmActive
+
+	if farmActive then
+		farmBtn.BackgroundColor3 = farmOnColor
+		farmStatus.Text          = "Starting..."
+		farmStatus.TextColor3    = Color3.fromRGB(255, 220, 80)
+		enableNoclip()
+		task.spawn(farmLoop)
+	else
+		farmActive = false
+		farmBtn.BackgroundColor3 = farmOffColor
+		farmStatus.Text          = "Off"
+		farmStatus.TextColor3    = Color3.fromRGB(200, 200, 200)
+		if farmTweenObj then
+			farmTweenObj:Cancel()
+			farmTweenObj = nil
+		end
+		disableNoclip()
+		farmCurrentCoin = nil
+	end
+end)
+
+-- ══════════════════════════════════════
 --   ESP: CHAMS (Highlight) + BOX ESP
+--   for PLAYERS (unchanged)
 -- ══════════════════════════════════════
 local function removeESP(player)
 	local data = espHighlights[player]
@@ -518,7 +759,7 @@ local function applyESP(player, fillColor, outlineColor)
 	espHighlights[player] = { hl = hl, billboard = bb }
 end
 
-local function updateESP()
+local function updatePlayerESP()
 	for player in pairs(espHighlights) do
 		if not player or not player.Parent then removeESP(player) end
 	end
@@ -572,127 +813,6 @@ local function updateCameraLock()
 end
 
 -- ══════════════════════════════════════
---   SHOOT MURD BUTTON
---
---   EXACT ORDER:
---   1. Equip Gun
---   2. Wait 0.2s for equip to register
---   3. Find murderer's HRP
---   4. Fire the MM2 shoot remote directly
---      on the gun tool → passes murderer's
---      HRP as the target, same as a real
---      in-game shot. No input simulation,
---      works on PC and Mobile.
---   5. Wait 0.5s
---   6. Unequip Gun
--- ══════════════════════════════════════
-sheriffBtn.MouseButton1Click:Connect(function()
-
-	-- Check we have the Gun
-	if not hasTool(LocalPlayer, SHERIFF_TOOL) then
-		sheriffStatus.Text       = "No Gun!"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		return
-	end
-
-	local char     = getCharacter(LocalPlayer)
-	local backpack = LocalPlayer:FindFirstChild("Backpack")
-	local hum      = char and char:FindFirstChildOfClass("Humanoid")
-	if not char or not hum then
-		sheriffStatus.Text       = "No character"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		return
-	end
-
-	-- Find murderer before equipping so we bail early if none
-	local murd = findPlayerWithTool(MURD_TOOL)
-	if not murd then
-		sheriffStatus.Text       = "No Murd!"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
-		return
-	end
-	local murdChar = getCharacter(murd)
-	local murdRoot = murdChar and murdChar:FindFirstChild("HumanoidRootPart")
-	if not murdRoot then
-		sheriffStatus.Text       = "Murd no char"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
-		return
-	end
-
-	-- STEP 1: Equip the Gun
-	local gunTool = char:FindFirstChild(SHERIFF_TOOL)
-	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
-	if not gunTool then
-		sheriffStatus.Text       = "Gun missing"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		return
-	end
-	if gunTool.Parent ~= char then
-		hum:EquipTool(gunTool)
-	end
-	sheriffStatus.Text       = "🔫 Equipping..."
-	sheriffStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
-
-	-- STEP 2: Wait for equip animation to register
-	task.wait(0.2)
-
-	-- Re-grab gun now that it's equipped in the character
-	local equippedGun = char:FindFirstChild(SHERIFF_TOOL)
-	if not equippedGun then
-		sheriffStatus.Text       = "Equip failed"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		return
-	end
-
-	-- STEP 3 & 4: Fire the MM2 shoot remote on the gun
-	-- MM2 guns use a RemoteEvent called "SheriffShoot" inside the tool.
-	-- It takes the target's HumanoidRootPart as the argument.
-	-- This is identical to what happens when a player manually shoots.
-	local shootRemote = equippedGun:FindFirstChild("SheriffShoot")
-	                 or equippedGun:FindFirstChild("Shoot")
-	                 or equippedGun:FindFirstChild("Fire")
-	                 or equippedGun:FindFirstChild("shoot")
-	                 or equippedGun:FindFirstChildOfClass("RemoteEvent")
-
-	if shootRemote and shootRemote:IsA("RemoteEvent") then
-		-- Primary call: pass murderer's HRP directly
-		shootRemote:FireServer(murdRoot)
-		sheriffStatus.Text       = "🔫 Shot " .. murd.Name
-		sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
-	else
-		-- Fallback: blast every RemoteEvent inside the gun with the HRP
-		local fired = false
-		for _, v in ipairs(equippedGun:GetDescendants()) do
-			if v:IsA("RemoteEvent") then
-				pcall(function() v:FireServer(murdRoot) end)
-				fired = true
-			end
-		end
-		if fired then
-			sheriffStatus.Text       = "🔫 Shot (fallback) " .. murd.Name
-			sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
-		else
-			sheriffStatus.Text       = "No remote found!"
-			sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		end
-	end
-
-	-- STEP 5: Wait 0.5s before putting gun away
-	task.wait(0.5)
-
-	-- STEP 6: Unequip the Gun
-	pcall(function()
-		local h = char:FindFirstChildOfClass("Humanoid")
-		if h then h:UnequipTools() end
-	end)
-
-	task.delay(1.5, function()
-		sheriffStatus.Text       = "Idle"
-		sheriffStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
-	end)
-end)
-
--- ══════════════════════════════════════
 --   LOCK MURD BUTTON LOGIC
 -- ══════════════════════════════════════
 local function doLock(toolName, label, statusLbl, otherStatusLbl)
@@ -719,7 +839,7 @@ murdBtn.MouseButton1Click:Connect(function()
 		murdStatus.Text       = "Unlocked"
 		murdStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
 	else
-		doLock(MURD_TOOL, "Murd", murdStatus, sheriffStatus)
+		doLock(MURD_TOOL, "Murd", murdStatus, farmStatus)
 	end
 end)
 
@@ -814,9 +934,15 @@ end)
 -- ══════════════════════════════════════
 --            MAIN HEARTBEAT LOOP
 -- ══════════════════════════════════════
-RunService.Heartbeat:Connect(function()
-	updateESP()
+RunService.Heartbeat:Connect(function(dt)
+	-- Advance rainbow hue for coin ESP
+	rainbowHue = (rainbowHue + dt * 80) % 360
+	local rainbowColor = Color3.fromHSV(rainbowHue / 360, 0.55, 1)
+
+	updatePlayerESP()
 	updateCameraLock()
+	-- Always update coin ESP (rainbow) regardless of farm toggle
+	updateCoinESP(rainbowColor)
 
 	if lockedTarget and lockMode == "Murd" then
 		if not hasTool(lockedTarget, MURD_TOOL) or not getCharacter(lockedTarget) then
@@ -941,4 +1067,4 @@ Players.PlayerRemoving:Connect(function(player)
 	end
 end)
 
-print("[Rain Hub] Loaded.")
+print("[Rain Hub] Loaded. Auto Farm + Rainbow Coin ESP active.")
