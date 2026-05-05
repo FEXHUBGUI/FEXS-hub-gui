@@ -1,7 +1,7 @@
 -- ══════════════════════════════════════
---  Changed: Shoot Murd now uses
---  firetouchinterest on murderer's HRP
---  works on PC + Mobile, no input lock
+--  Changed: Shoot Murd order fixed —
+--  equip gun → firetouchinterest HRP
+--  → THEN unequip after shot lands
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -574,24 +574,16 @@ end
 -- ══════════════════════════════════════
 --   SHOOT MURD BUTTON
 --
---   Full flow (PC + Mobile, no input lock):
---   1. Check we have Gun
---   2. Equip Gun via Humanoid:EquipTool
---   3. Wait 1 frame for equip to register
---   4. Find murderer's HumanoidRootPart
---   5. firetouchinterest(murdRoot, myRoot, 0)
---      → fires the touch BEGIN signal on their HRP
---        using our HRP as the toucher — this is what
---        the gun's hit detection listens for, works on
---        both PC and Mobile, never touches your camera
---        or movement input at all
---   6. firetouchinterest(murdRoot, myRoot, 1)
---      → fires the touch END signal to clean it up
---   7. Unequip Gun
+--   EXACT ORDER:
+--   1. Equip Gun
+--   2. Wait for equip to fully register
+--   3. firetouchinterest BEGIN on murderer's HRP  ← the actual shot
+--   4. firetouchinterest END on murderer's HRP    ← cleanup
+--   5. ONLY AFTER touch fires → UnequipTools
 -- ══════════════════════════════════════
 sheriffBtn.MouseButton1Click:Connect(function()
 
-	-- 1. Do we have the Gun?
+	-- Check we have the Gun
 	if not hasTool(LocalPlayer, SHERIFF_TOOL) then
 		sheriffStatus.Text       = "No Gun!"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -607,31 +599,11 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		return
 	end
 
-	-- 2. Equip Gun from backpack if not already in hand
-	local gunTool = char:FindFirstChild(SHERIFF_TOOL)
-	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
-	if not gunTool then
-		sheriffStatus.Text       = "Gun missing"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		return
-	end
-	if gunTool.Parent ~= char then
-		hum:EquipTool(gunTool)
-	end
-
-	sheriffStatus.Text       = "Equipping..."
-	sheriffStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
-
-	-- 3. Wait for equip to register
-	task.wait(0.12)
-
-	-- 4. Find murderer's HumanoidRootPart
+	-- Find murderer first so we can bail early before equipping
 	local murd = findPlayerWithTool(MURD_TOOL)
 	if not murd then
 		sheriffStatus.Text       = "No Murd!"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
-		-- still unequip cleanly
-		pcall(function() hum:UnequipTools() end)
 		return
 	end
 	local murdChar = getCharacter(murd)
@@ -639,41 +611,55 @@ sheriffBtn.MouseButton1Click:Connect(function()
 	if not murdRoot then
 		sheriffStatus.Text       = "Murd no char"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
-		pcall(function() hum:UnequipTools() end)
 		return
 	end
-
 	local myRoot = char:FindFirstChild("HumanoidRootPart")
 	if not myRoot then
 		sheriffStatus.Text       = "My HRP missing"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		pcall(function() hum:UnequipTools() end)
 		return
 	end
 
-	-- 5 & 6. firetouchinterest on the murderer's HumanoidRootPart
-	--   arg1 = the part being touched (murderer's HRP)
-	--   arg2 = the part doing the touching (our HRP)
-	--   arg3 = 0 (touch begin) / 1 (touch end)
-	--   This fires the Touched event on murdRoot as if our character
-	--   physically walked into it — the gun's hit detection picks this
-	--   up and registers a valid shot. No input simulation, no camera
-	--   changes, works identically on PC and Mobile.
+	-- STEP 1: Equip the Gun
+	local gunTool = char:FindFirstChild(SHERIFF_TOOL)
+	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
+	if gunTool and gunTool.Parent ~= char then
+		hum:EquipTool(gunTool)
+	end
+	sheriffStatus.Text       = "🔫 Equipping..."
+	sheriffStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
+
+	-- STEP 2: Wait for equip animation to fully register
+	task.wait(0.2)
+
+	-- STEP 3: Click on murderer's HumanoidRootPart (touch begin)
+	-- firetouchinterest fires the Touched event on murdRoot
+	-- as if our character physically contacted it — this is what
+	-- the gun script detects. Works on PC and Mobile, zero input changes.
 	pcall(function()
-		firetouchinterest(murdRoot, myRoot, 0) -- touch begin = shot registers
+		firetouchinterest(murdRoot, myRoot, 0)
 	end)
+
+	-- STEP 4: Touch end — clean up the touch signal
 	task.wait(0.05)
 	pcall(function()
-		firetouchinterest(murdRoot, myRoot, 1) -- touch end = clean up
+		firetouchinterest(murdRoot, myRoot, 1)
 	end)
 
 	sheriffStatus.Text       = "🔫 Shot " .. murd.Name
 	sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
 
-	-- 7. Unequip Gun after shot
-	task.wait(0.1)
+	-- STEP 5: NOW unequip — only after the shot has fully fired
+	task.wait(0.2)
 	pcall(function()
-		hum:UnequipTools()
+		local h = char:FindFirstChildOfClass("Humanoid")
+		if h then h:UnequipTools() end
+	end)
+
+	-- Reset status after a moment
+	task.delay(1.5, function()
+		sheriffStatus.Text       = "Idle"
+		sheriffStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
 	end)
 end)
 
