@@ -5,8 +5,11 @@
 --    – Tweens to nearest Coin_Server parts
 --    – Auto re-targets on despawn
 --    – Rainbow animated ESP on all coins
---  • ESP now shows rainbow glow on
---    Coin_Server parts for debugging
+--  • Coin_Server parts set to 0.5 transparency
+--    with rainbow color applied to the part itself
+--  • ESP now instantly cleans up via
+--    DescendantRemoving — no lingering highlights
+--  • Despawned coins excluded from farm targeting
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -480,18 +483,41 @@ end
 
 -- ══════════════════════════════════════
 --   COIN ESP (RAINBOW ANIMATED)
+--   • Instantly removed via DescendantRemoving
+--   • Sets part Transparency to 0.5
+--   • Applies rainbow color to the part itself
 -- ══════════════════════════════════════
+
+-- Track original transparencies so we restore on cleanup
+local coinOrigTransparency = {}  -- [part] = originalTransparency
+
 local function removeCoinESP(part)
 	local data = coinEspParts[part]
 	if data then
 		if data.hl        then pcall(function() data.hl:Destroy()        end) end
 		if data.billboard then pcall(function() data.billboard:Destroy() end) end
+		-- Restore original transparency if part still exists
+		if part and part.Parent then
+			pcall(function()
+				part.Transparency = coinOrigTransparency[part] or 0
+			end)
+		end
+		coinOrigTransparency[part] = nil
 		coinEspParts[part] = nil
 	end
 end
 
 local function applyCoinESP(part, rainbowColor)
 	if not part or not part.Parent then return end
+
+	-- Set transparency to 0.5 and store original if first time seeing this part
+	if not coinEspParts[part] then
+		coinOrigTransparency[part] = part.Transparency
+		part.Transparency = 0.5
+	end
+
+	-- Apply rainbow color directly to the part
+	pcall(function() part.Color = rainbowColor end)
 
 	local data = coinEspParts[part]
 	local hl   = data and data.hl
@@ -532,21 +558,28 @@ local function applyCoinESP(part, rainbowColor)
 
 	bb.Adornee = part
 
-	-- Update label color to rainbow
 	local lbl = bb:FindFirstChild("CoinLabel")
 	if lbl then lbl.TextColor3 = rainbowColor end
 
 	coinEspParts[part] = { hl = hl, billboard = bb }
 end
 
+-- DescendantRemoving fires the instant a part leaves workspace
+-- so ESP is destroyed immediately — no polling needed for cleanup
+workspace.DescendantRemoving:Connect(function(obj)
+	if obj.Name == COIN_NAME and obj:IsA("BasePart") and coinEspParts[obj] then
+		removeCoinESP(obj)
+	end
+end)
+
 local function updateCoinESP(rainbowColor)
-	-- Scan workspace for Coin_Server parts
+	-- Apply/update ESP on all current Coin_Server parts
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj.Name == COIN_NAME and obj:IsA("BasePart") then
 			applyCoinESP(obj, rainbowColor)
 		end
 	end
-	-- Clean up ESPs whose parts are gone
+	-- Secondary safety pass: clear any stale entries missed by the event
 	for part in pairs(coinEspParts) do
 		if not part or not part.Parent then
 			removeCoinESP(part)
