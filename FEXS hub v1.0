@@ -1,5 +1,6 @@
 -- ══════════════════════════════════════
---         SERVICES grab fixer
+--  Changed: Shoot Murd now equips Gun,
+--  clicks murderer's HRP, then unequips
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -362,7 +363,7 @@ end
 --         BUILD THE CUBE PANELS
 -- ══════════════════════════════════════
 
--- Blue = Shoot Murd (pulls gun, fires at knife holder)
+-- Blue = Shoot Murd
 local sheriffBtn, sheriffStatus = makePanel(
 	UDim2.new(0, 20, 0, 140),
 	Color3.fromRGB(30, 90, 200),
@@ -371,7 +372,7 @@ local sheriffBtn, sheriffStatus = makePanel(
 	"Idle"
 )
 
--- Red = Lock Murd (camera lock on knife holder)
+-- Red = Lock Murd
 local murdBtn, murdStatus = makePanel(
 	UDim2.new(0, 110, 0, 140),
 	Color3.fromRGB(180, 35, 35),
@@ -575,17 +576,21 @@ local function updateCameraLock()
 end
 
 -- ══════════════════════════════════════
---   SHOOT MURD BUTTON LOGIC
---   Step 1: Check we have Gun
---   Step 2: Equip Gun via Humanoid:EquipTool
---   Step 3: Find Knife holder's HumanoidRootPart
---   Step 4: Point mouse.Hit at murderer's HRP CFrame
---   Step 5: Fire tool.Activated (= exactly what left-click/tap does)
---   Step 6: FireServer fallbacks with every arg combo
+--   SHOOT MURD BUTTON
+--
+--   Flow:
+--   1. Check we have Gun
+--   2. Equip Gun via Humanoid:EquipTool
+--   3. Find Knife holder's HumanoidRootPart
+--   4. Wait a frame for equip to register
+--   5. mouse1click on the murderer's HRP
+--      (executor fn — simulates a real left click on that part,
+--       which is exactly what shooting does in-game)
+--   6. Wait a tiny moment then unequip the Gun
 -- ══════════════════════════════════════
 sheriffBtn.MouseButton1Click:Connect(function()
 
-	-- Step 1: Do we have the Gun at all?
+	-- 1. Do we have the Gun?
 	if not hasTool(LocalPlayer, SHERIFF_TOOL) then
 		sheriffStatus.Text       = "No Gun!"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
@@ -602,7 +607,7 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		return
 	end
 
-	-- Step 2: Equip the Gun if it's sitting in backpack
+	-- 2. Equip Gun (move from backpack into character hand)
 	local gunTool = char:FindFirstChild(SHERIFF_TOOL)
 	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
 	if not gunTool then
@@ -614,7 +619,7 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		hum:EquipTool(gunTool)
 	end
 
-	-- Step 3: Find the murderer (whoever holds the Knife)
+	-- 3. Find the murderer's HumanoidRootPart
 	local murd = findPlayerWithTool(MURD_TOOL)
 	if not murd then
 		sheriffStatus.Text       = "No Murd!"
@@ -629,55 +634,40 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		return
 	end
 
-	-- Small wait so EquipTool registers before we fire
+	sheriffStatus.Text       = "Equipping..."
+	sheriffStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
+
+	-- 4. Wait for equip animation to register (2 frames)
 	task.wait(0.1)
 
-	-- Re-grab the gun now that it should be in the character
-	local equippedGun = char:FindFirstChild(SHERIFF_TOOL)
-	if not equippedGun then
-		sheriffStatus.Text       = "Equip failed"
-		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
-		return
-	end
-
-	-- Step 4: Warp mouse.Hit to murderer's HRP so the gun script
-	--         reads the right world position when it fires
-	local mouse = LocalPlayer:GetMouse()
+	-- 5. mouse1click on the murderer's HumanoidRootPart
+	--    This is the executor-level function that simulates a real
+	--    left-click directly on a BasePart — identical to the player
+	--    physically clicking on the part in-game while holding a tool.
+	--    The gun's LocalScript sees this as a normal shoot input.
 	pcall(function()
-		-- Some executors allow writing these directly
-		mouse.Target = murdRoot
-		mouse.Hit    = murdRoot.CFrame
+		mouse1click(murdRoot)
 	end)
 
-	-- Step 5: Fire Activated on the tool.
-	--         This is the EXACT signal Roblox sends to a tool's LocalScript
-	--         when the player left-clicks or taps while holding it.
+	-- Also try mouse1press + mouse1release in case the gun uses hold-to-shoot
 	pcall(function()
-		equippedGun.Activated:Fire()
+		mouse1press(murdRoot)
+		task.wait(0.05)
+		mouse1release(murdRoot)
 	end)
-
-	-- Step 6: FireServer fallbacks — covers games that use a custom
-	--         RemoteEvent instead of / in addition to Activated.
-	--         We send every argument combination the server might expect.
-	for _, v in ipairs(equippedGun:GetDescendants()) do
-		if v:IsA("RemoteEvent") then
-			pcall(function() v:FireServer(murdRoot) end)
-			pcall(function() v:FireServer(murdRoot.Position) end)
-			pcall(function() v:FireServer(murdRoot, murdRoot.Position) end)
-			pcall(function() v:FireServer(murdRoot.CFrame) end)
-			pcall(function() v:FireServer(murdRoot, murdRoot.CFrame) end)
-		end
-	end
-
-	-- ClickDetector fallback (rare but some guns use it)
-	local clickDet = equippedGun:FindFirstChildOfClass("ClickDetector")
-	             or murdRoot:FindFirstChildOfClass("ClickDetector")
-	if clickDet then
-		pcall(function() fireclickdetector(clickDet) end)
-	end
 
 	sheriffStatus.Text       = "🔫 Shot " .. murd.Name
 	sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
+
+	-- 6. Unequip Gun shortly after the shot registers
+	task.wait(0.15)
+	pcall(function()
+		-- Unequip by calling UnequipTools on the humanoid
+		local h = char:FindFirstChildOfClass("Humanoid")
+		if h then
+			h:UnequipTools()
+		end
+	end)
 end)
 
 -- ══════════════════════════════════════
@@ -806,7 +796,7 @@ RunService.Heartbeat:Connect(function()
 	updateESP()
 	updateCameraLock()
 
-	-- Auto-switch murd camera lock if target loses knife
+	-- Auto-switch murd lock if target loses knife
 	if lockedTarget and lockMode == "Murd" then
 		if not hasTool(lockedTarget, MURD_TOOL) or not getCharacter(lockedTarget) then
 			local newTarget = findPlayerWithTool(MURD_TOOL)
