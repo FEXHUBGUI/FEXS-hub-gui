@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---         SERVICES2
+--         SERVICES grab fixer
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -24,13 +24,13 @@ local fakeSpeedOn   = false
 local espHighlights = {}
 
 -- Gun TP state
-local gunTpActive          = false  -- is the feature on?
-local gunLastPos           = nil    -- last recorded position of sheriff (always updated)
-local myReturnPos          = nil    -- where WE were before tp
-local gunTpDone            = false  -- already tp'd this round?
-local currentSheriff       = nil    -- whoever currently has the gun tool
-local sheriffDiedConn      = nil    -- Died event connection on current sheriff's humanoid
-local sheriffLastChar      = nil    -- last character we hooked Died onto
+local gunTpActive          = false
+local gunLastPos           = nil
+local myReturnPos          = nil
+local gunTpDone            = false
+local currentSheriff       = nil
+local sheriffDiedConn      = nil
+local sheriffLastChar      = nil
 
 -- ══════════════════════════════════════
 --     RAIN HUB WELCOME BANNER
@@ -183,7 +183,6 @@ screenGui.Parent = LocalPlayer.PlayerGui
 local fadeDuration = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
 local function fadeOutBtn(btn, statusLbl, xBtn)
-	-- Fade everything out smoothly
 	tw(btn,       {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
 	tw(statusLbl, {TextTransparency = 1},                             fadeDuration)
 	tw(xBtn,      {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
@@ -191,7 +190,6 @@ local function fadeOutBtn(btn, statusLbl, xBtn)
 		btn.Visible       = false
 		statusLbl.Visible = false
 		xBtn.Visible      = false
-		-- Reset transparency for when it comes back
 		btn.BackgroundTransparency       = 0
 		btn.TextTransparency             = 0
 		statusLbl.TextTransparency       = 0
@@ -216,15 +214,10 @@ end
 
 -- ══════════════════════════════════════
 --   CUBE BUTTON BUILDER
---   Square shape, mobile-friendly size
---   Close = fade out, reopen = small pill
 -- ══════════════════════════════════════
-
--- Size of each square button
-local CUBE_SIZE = 80  -- width and height equal = square/cube look
+local CUBE_SIZE = 80
 
 local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
-	-- ── Main cube button ──────────────────
 	local btn = Instance.new("TextButton")
 	btn.Size = UDim2.new(0, CUBE_SIZE, 0, CUBE_SIZE)
 	btn.Position = startPos
@@ -236,7 +229,6 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 	btn.Parent = screenGui
 	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 14)
 
-	-- Top line of text inside cube (e.g. "Lock")
 	local labelTop = Instance.new("TextLabel")
 	labelTop.Size = UDim2.new(1, -8, 0, 22)
 	labelTop.Position = UDim2.new(0, 4, 0, 14)
@@ -249,7 +241,6 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 	labelTop.ZIndex = 3
 	labelTop.Parent = btn
 
-	-- Bottom line of text inside cube (e.g. "Sheriff")
 	local labelBot = Instance.new("TextLabel")
 	labelBot.Size = UDim2.new(1, -8, 0, 20)
 	labelBot.Position = UDim2.new(0, 4, 0, 36)
@@ -262,7 +253,6 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 	labelBot.ZIndex = 3
 	labelBot.Parent = btn
 
-	-- Status text below the cube
 	local status = Instance.new("TextLabel")
 	status.Size = UDim2.new(0, CUBE_SIZE, 0, 16)
 	status.Position = UDim2.new(
@@ -280,7 +270,6 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 	status.ZIndex = 2
 	status.Parent = screenGui
 
-	-- Small X close button (top-right corner of cube)
 	local xBtn = Instance.new("TextButton")
 	xBtn.Size = UDim2.new(0, 22, 0, 22)
 	xBtn.Position = UDim2.new(
@@ -297,9 +286,8 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 	xBtn.Font = Enum.Font.GothamBold
 	xBtn.ZIndex = 4
 	xBtn.Parent = screenGui
-	Instance.new("UICorner", xBtn).CornerRadius = UDim.new(1, 0)  -- full circle X
+	Instance.new("UICorner", xBtn).CornerRadius = UDim.new(1, 0)
 
-	-- Small reopen pill button (shows when closed)
 	local reopenBtn = Instance.new("TextButton")
 	reopenBtn.Size = UDim2.new(0, CUBE_SIZE, 0, 28)
 	reopenBtn.Position = startPos
@@ -315,7 +303,6 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 	reopenBtn.Parent = screenGui
 	Instance.new("UICorner", reopenBtn).CornerRadius = UDim.new(0, 8)
 
-	-- ── Close logic (fade out then show reopen pill) ──
 	xBtn.MouseButton1Click:Connect(function()
 		fadeOutBtn(btn, status, xBtn)
 		task.delay(0.38, function()
@@ -326,7 +313,6 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 		end)
 	end)
 
-	-- ── Reopen logic (fade in cube, hide pill) ──
 	reopenBtn.MouseButton1Click:Connect(function()
 		tw(reopenBtn, {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
 		task.delay(0.36, function()
@@ -337,7 +323,6 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 		end)
 	end)
 
-	-- ── Dragging on the cube ──────────────────
 	local dragging, dragStart, startPos2 = false, nil, nil
 
 	btn.InputBegan:Connect(function(input)
@@ -363,10 +348,10 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 			local newX = startPos2.X.Offset + delta.X
 			local newY = startPos2.Y.Offset + delta.Y
 
-			btn.Position      = UDim2.new(startPos2.X.Scale, newX,                      startPos2.Y.Scale, newY)
-			xBtn.Position     = UDim2.new(startPos2.X.Scale, newX + CUBE_SIZE - 10,     startPos2.Y.Scale, newY - 12)
-			status.Position   = UDim2.new(startPos2.X.Scale, newX,                      startPos2.Y.Scale, newY + CUBE_SIZE + 4)
-			reopenBtn.Position = UDim2.new(startPos2.X.Scale, newX,                     startPos2.Y.Scale, newY)
+			btn.Position       = UDim2.new(startPos2.X.Scale, newX,                  startPos2.Y.Scale, newY)
+			xBtn.Position      = UDim2.new(startPos2.X.Scale, newX + CUBE_SIZE - 10, startPos2.Y.Scale, newY - 12)
+			status.Position    = UDim2.new(startPos2.X.Scale, newX,                  startPos2.Y.Scale, newY + CUBE_SIZE + 4)
+			reopenBtn.Position = UDim2.new(startPos2.X.Scale, newX,                  startPos2.Y.Scale, newY)
 		end
 	end)
 
@@ -374,14 +359,15 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 end
 
 -- ══════════════════════════════════════
---         BUILD THE 3 CUBE PANELS
---   Laid out in a column, left side
+--         BUILD THE CUBE PANELS
 -- ══════════════════════════════════════
+
+-- ── Shoot Murd button (replaces old Sheriff Lock) ──
 local sheriffBtn, sheriffStatus = makePanel(
 	UDim2.new(0, 20, 0, 140),
 	Color3.fromRGB(30, 90, 200),
-	"Sheriff",
-	"Lock",
+	"Murd",        -- bottom label
+	"Shoot",       -- top label
 	"Idle"
 )
 
@@ -408,37 +394,6 @@ local gunTpBtn, gunTpStatus = makePanel(
 	"Gun",
 	"Standby"
 )
-
--- ══════════════════════════════════════
---         PC KEYBIND LABELS
---   Badge sits inside the cube bottom
---   only shown on PC (no touch device)
--- ══════════════════════════════════════
-local UserInputService = game:GetService("UserInputService")
-
-local function addKeybindBadge(cubeBtn, keyText)
-	-- Small dark badge pinned to the bottom-center of the cube
-	local badge = Instance.new("TextLabel")
-	badge.Size = UDim2.new(0, 26, 0, 16)
-	badge.AnchorPoint = Vector2.new(0.5, 1)
-	badge.Position = UDim2.new(0.5, 0, 1, -6)
-	badge.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
-	badge.BackgroundTransparency = 0.15
-	badge.BorderSizePixel = 0
-	badge.Text = "[" .. keyText .. "]"
-	badge.TextColor3 = Color3.fromRGB(255, 220, 80)
-	badge.TextSize = 10
-	badge.Font = Enum.Font.GothamBold
-	badge.TextXAlignment = Enum.TextXAlignment.Center
-	badge.ZIndex = 6
-	badge.Parent = cubeBtn  -- parented INTO the cube so it moves with it
-	Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 4)
-end
-
-if not UserInputService.TouchEnabled then
-	addKeybindBadge(sheriffBtn, "G")
-	addKeybindBadge(murdBtn,    "F")
-end
 
 -- ══════════════════════════════════════
 --         UTILITY FUNCTIONS
@@ -475,7 +430,6 @@ end
 
 -- ══════════════════════════════════════
 --   ESP: CHAMS (Highlight) + BOX ESP
---   espHighlights[player] = { hl, billboard }
 -- ══════════════════════════════════════
 local function removeESP(player)
 	local data = espHighlights[player]
@@ -494,7 +448,6 @@ local function applyESP(player, fillColor, outlineColor)
 
 	local data = espHighlights[player]
 
-	-- ── CHAMS (through-wall fill + outline) ──────────────
 	local hl = data and data.hl
 	if not hl or not hl.Parent then
 		hl = Instance.new("Highlight")
@@ -503,58 +456,54 @@ local function applyESP(player, fillColor, outlineColor)
 		hl.OutlineTransparency = 0
 		hl.Parent              = Camera
 	end
-	hl.Adornee    = char
+	hl.Adornee      = char
 	hl.FillColor    = fillColor
 	hl.OutlineColor = outlineColor
 
-	-- ── BOX ESP (BillboardGui drawn as a border box) ─────
 	local bb = data and data.billboard
 	if not bb or not bb.Parent then
 		bb = Instance.new("BillboardGui")
 		bb.AlwaysOnTop    = true
-		bb.StudsOffset    = Vector3.new(0, 3.5, 0)   -- sits above head
-		bb.Size           = UDim2.new(0, 50, 0, 80)  -- box dimensions on screen
+		bb.StudsOffset    = Vector3.new(0, 3.5, 0)
+		bb.Size           = UDim2.new(0, 50, 0, 80)
 		bb.ResetOnSpawn   = false
 		bb.LightInfluence = 0
 
-		-- Four border lines (top, bottom, left, right) to form a box
 		local function makeLine(anchorPoint, size, position, color)
 			local f = Instance.new("Frame")
-			f.AnchorPoint          = anchorPoint
-			f.Size                 = size
-			f.Position             = position
-			f.BackgroundColor3     = color
+			f.AnchorPoint            = anchorPoint
+			f.Size                   = size
+			f.Position               = position
+			f.BackgroundColor3       = color
 			f.BackgroundTransparency = 0
-			f.BorderSizePixel      = 0
-			f.ZIndex               = 5
-			f.Parent               = bb
+			f.BorderSizePixel        = 0
+			f.ZIndex                 = 5
+			f.Parent                 = bb
 			return f
 		end
 
 		local thickness = UDim2.new(1, 0, 0, 2)
 		local side      = UDim2.new(0, 2, 1, 0)
-		makeLine(Vector2.new(0.5, 0), thickness,         UDim2.new(0.5, 0, 0, 0),   outlineColor) -- top
-		makeLine(Vector2.new(0.5, 1), thickness,         UDim2.new(0.5, 0, 1, 0),   outlineColor) -- bottom
-		makeLine(Vector2.new(0, 0.5), side,              UDim2.new(0, 0, 0.5, 0),   outlineColor) -- left
-		makeLine(Vector2.new(1, 0.5), side,              UDim2.new(1, 0, 0.5, 0),   outlineColor) -- right
+		makeLine(Vector2.new(0.5, 0), thickness, UDim2.new(0.5, 0, 0, 0), outlineColor)
+		makeLine(Vector2.new(0.5, 1), thickness, UDim2.new(0.5, 0, 1, 0), outlineColor)
+		makeLine(Vector2.new(0, 0.5), side,      UDim2.new(0, 0, 0.5, 0), outlineColor)
+		makeLine(Vector2.new(1, 0.5), side,      UDim2.new(1, 0, 0.5, 0), outlineColor)
 
-		-- Name label above the box
 		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size                  = UDim2.new(1, 0, 0, 16)
-		nameLabel.Position              = UDim2.new(0, 0, 0, -18)
+		nameLabel.Size                   = UDim2.new(1, 0, 0, 16)
+		nameLabel.Position               = UDim2.new(0, 0, 0, -18)
 		nameLabel.BackgroundTransparency = 1
-		nameLabel.TextColor3            = outlineColor
-		nameLabel.TextSize              = 11
-		nameLabel.Font                  = Enum.Font.GothamBold
+		nameLabel.TextColor3             = outlineColor
+		nameLabel.TextSize               = 11
+		nameLabel.Font                   = Enum.Font.GothamBold
 		nameLabel.TextStrokeTransparency = 0.4
-		nameLabel.TextStrokeColor3      = Color3.new(0, 0, 0)
-		nameLabel.Text                  = player.Name
-		nameLabel.ZIndex                = 6
-		nameLabel.Name                  = "NameLabel"
-		nameLabel.Parent                = bb
+		nameLabel.TextStrokeColor3       = Color3.new(0, 0, 0)
+		nameLabel.Text                   = player.Name
+		nameLabel.ZIndex                 = 6
+		nameLabel.Name                   = "NameLabel"
+		nameLabel.Parent                 = bb
 	end
 
-	-- Update box line colors and name label color to match role
 	for _, child in ipairs(bb:GetChildren()) do
 		if child:IsA("Frame") then
 			child.BackgroundColor3 = outlineColor
@@ -570,7 +519,6 @@ local function applyESP(player, fillColor, outlineColor)
 end
 
 local function updateESP()
-	-- Cleanup players who left
 	for player in pairs(espHighlights) do
 		if not player or not player.Parent then removeESP(player) end
 	end
@@ -594,7 +542,6 @@ local function updateESP()
 
 		applyESP(player, fillColor, outlineColor)
 
-		-- Keep highlight adornee up to date if character respawned
 		local data = espHighlights[player]
 		if data and data.hl and data.hl.Adornee ~= char then
 			data.hl.Adornee = char
@@ -604,8 +551,6 @@ end
 
 -- ══════════════════════════════════════
 --   CAMERA HARD LOCK-ON
---   Snaps instantly every frame — no lerp,
---   no smoothing, no delay whatsoever
 -- ══════════════════════════════════════
 local camLockActive = false
 
@@ -625,13 +570,93 @@ local function updateCameraLock()
 	if not targetRoot then return end
 
 	Camera.CameraType = Enum.CameraType.Custom
-
-	-- Hard instant snap directly onto HumanoidRootPart — no offset, no smoothing
 	Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetRoot.Position)
 end
 
 -- ══════════════════════════════════════
---        LOCK BUTTON LOGIC
+--   SHOOT MURD BUTTON LOGIC
+--   Equips Gun → fires at Knife holder's HRP
+--   Works on PC and Mobile (no input needed)
+-- ══════════════════════════════════════
+sheriffBtn.MouseButton1Click:Connect(function()
+	-- 1. Make sure we have the Gun
+	if not hasTool(LocalPlayer, SHERIFF_TOOL) then
+		sheriffStatus.Text       = "No Gun!"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		return
+	end
+
+	-- 2. Equip the Gun from backpack if not already equipped
+	local char     = getCharacter(LocalPlayer)
+	local backpack = LocalPlayer:FindFirstChild("Backpack")
+	local gunTool  = (char and char:FindFirstChild(SHERIFF_TOOL))
+	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
+
+	if gunTool and gunTool.Parent ~= char then
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum:EquipTool(gunTool)
+		end
+	end
+
+	-- 3. Find the murderer (whoever has the Knife)
+	local murd = findPlayerWithTool(MURD_TOOL)
+	if not murd then
+		sheriffStatus.Text       = "No Murd!"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
+		return
+	end
+
+	local murdChar = getCharacter(murd)
+	local murdRoot = murdChar and murdChar:FindFirstChild("HumanoidRootPart")
+	if not murdRoot then
+		sheriffStatus.Text       = "Murd no char"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
+		return
+	end
+
+	-- 4. Short wait so equip registers, then fire at murderer's HRP
+	task.wait(0.05)
+
+	local equippedGun = char and char:FindFirstChild(SHERIFF_TOOL)
+	if equippedGun then
+		-- Try named shoot remotes first
+		local shootRemote = equippedGun:FindFirstChild("Shoot")
+		                 or equippedGun:FindFirstChild("Fire")
+		                 or equippedGun:FindFirstChild("ShootEvent")
+		                 or equippedGun:FindFirstChildOfClass("RemoteEvent")
+
+		if shootRemote and shootRemote:IsA("RemoteEvent") then
+			shootRemote:FireServer(murdRoot)
+			sheriffStatus.Text       = "🔫 Shot " .. murd.Name
+			sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
+		else
+			-- Fallback: try ClickDetector on gun or murderer's HRP
+			local clickDet = equippedGun:FindFirstChildOfClass("ClickDetector")
+			             or murdRoot:FindFirstChildOfClass("ClickDetector")
+			if clickDet then
+				fireclickdetector(clickDet)
+				sheriffStatus.Text       = "🔫 Clicked " .. murd.Name
+				sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
+			else
+				-- Last resort: blast every RemoteEvent in the gun with murdRoot as arg
+				for _, v in ipairs(equippedGun:GetDescendants()) do
+					if v:IsA("RemoteEvent") then
+						pcall(function() v:FireServer(murdRoot) end)
+					end
+				end
+				sheriffStatus.Text       = "🔫 Fired!"
+				sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
+			end
+		end
+	else
+		sheriffStatus.Text       = "Equip failed"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+	end
+end)
+
+-- ══════════════════════════════════════
+--   LOCK MURD BUTTON LOGIC
 -- ══════════════════════════════════════
 local function doLock(toolName, label, statusLbl, otherStatusLbl)
 	local target = findPlayerWithTool(toolName)
@@ -649,19 +674,7 @@ local function doLock(toolName, label, statusLbl, otherStatusLbl)
 	end
 end
 
-local function toggleSheriff()
-	if lockedTarget and lockMode == "Sheriff" then
-		lockedTarget = nil
-		lockMode     = nil
-		stopCameraLock()
-		sheriffStatus.Text       = "Unlocked"
-		sheriffStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
-	else
-		doLock(SHERIFF_TOOL, "Sheriff", sheriffStatus, murdStatus)
-	end
-end
-
-local function toggleMurd()
+murdBtn.MouseButton1Click:Connect(function()
 	if lockedTarget and lockMode == "Murd" then
 		lockedTarget = nil
 		lockMode     = nil
@@ -670,21 +683,6 @@ local function toggleMurd()
 		murdStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
 	else
 		doLock(MURD_TOOL, "Murd", murdStatus, sheriffStatus)
-	end
-end
-
-sheriffBtn.MouseButton1Click:Connect(toggleSheriff)
-murdBtn.MouseButton1Click:Connect(toggleMurd)
-
--- Keybinds — gameProcessed is intentionally ignored because Roblox
--- marks F/G as processed due to default hotkey bindings, which would
--- silently swallow every keypress if we checked it
-UserInputService.InputBegan:Connect(function(input)
-	if input.UserInputType ~= Enum.UserInputType.Keyboard then return end
-	if input.KeyCode == Enum.KeyCode.G then
-		toggleSheriff()
-	elseif input.KeyCode == Enum.KeyCode.F then
-		toggleMurd()
 	end
 end)
 
@@ -716,7 +714,6 @@ end)
 local gunTpOnColor  = Color3.fromRGB(40, 180, 110)
 local gunTpOffColor = Color3.fromRGB(30, 130, 90)
 
--- Disconnect any existing Died hook
 local function clearSheriffDiedConn()
 	if sheriffDiedConn then
 		sheriffDiedConn:Disconnect()
@@ -724,9 +721,6 @@ local function clearSheriffDiedConn()
 	end
 end
 
--- Hook the Died event onto a sheriff character.
--- This runs regardless of whether gunTpActive is on —
--- so the hook is always live and ready.
 local function hookSheriffDied(sheriff, char)
 	clearSheriffDiedConn()
 	sheriffLastChar = char
@@ -734,10 +728,6 @@ local function hookSheriffDied(sheriff, char)
 	if not hum then return end
 
 	sheriffDiedConn = hum.Died:Connect(function()
-		-- Always record that the sheriff died and where.
-		-- gunLastPos is already the last position tracked in heartbeat.
-
-		-- Only actually teleport if the button is ON
 		if not gunTpActive or gunTpDone then return end
 		if not gunLastPos then return end
 
@@ -758,19 +748,15 @@ gunTpBtn.MouseButton1Click:Connect(function()
 	gunTpActive = not gunTpActive
 
 	if gunTpActive then
-		-- Reset tp state only — do NOT wipe gunLastPos since we
-		-- may have already been tracking the sheriff passively
 		myReturnPos = nil
 		gunTpDone   = false
 		gunTpBtn.BackgroundColor3 = gunTpOnColor
 
-		-- Check if sheriff is already dead right now and we have a position
 		local sheriff = currentSheriff
 		if sheriff then
 			local char = getCharacter(sheriff)
 			local hum  = char and char:FindFirstChildOfClass("Humanoid")
 			if hum and hum.Health <= 0 and gunLastPos then
-				-- Sheriff already dead — tp will fire in next heartbeat tick
 				gunTpStatus.Text       = "Sheriff dead — tp'ing..."
 				gunTpStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
 			else
@@ -782,7 +768,6 @@ gunTpBtn.MouseButton1Click:Connect(function()
 			gunTpStatus.TextColor3 = Color3.fromRGB(255, 200, 80)
 		end
 	else
-		-- Turn off — keep tracking passively but reset tp state
 		gunTpDone   = false
 		myReturnPos = nil
 		gunTpBtn.BackgroundColor3 = gunTpOffColor
@@ -798,12 +783,12 @@ RunService.Heartbeat:Connect(function()
 	updateESP()
 	updateCameraLock()
 
-	-- Auto-switch lock if target loses tool
+	-- Auto-switch lock if target loses tool (only for Murd lock now)
 	if lockedTarget then
-		local toolToCheck = lockMode == "Sheriff" and SHERIFF_TOOL or MURD_TOOL
+		local toolToCheck = MURD_TOOL
 		if not hasTool(lockedTarget, toolToCheck) or not getCharacter(lockedTarget) then
 			local newTarget = findPlayerWithTool(toolToCheck)
-			local statusLbl = lockMode == "Sheriff" and sheriffStatus or murdStatus
+			local statusLbl = murdStatus
 			if newTarget then
 				lockedTarget         = newTarget
 				statusLbl.Text       = "Auto: " .. newTarget.Name
@@ -818,11 +803,10 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Gun TP: ALWAYS track sheriff position and hook Died — regardless of button state
+	-- Gun TP: ALWAYS track sheriff position and hook Died
 	do
 		local sheriff = findPlayerWithTool(SHERIFF_TOOL)
 		if sheriff ~= currentSheriff then
-			-- Sheriff changed (new round, different player picked it up)
 			currentSheriff = sheriff
 			gunLastPos     = nil
 			clearSheriffDiedConn()
@@ -834,11 +818,9 @@ RunService.Heartbeat:Connect(function()
 			end
 		end
 
-		-- Always update gunLastPos every frame while sheriff is alive
 		if currentSheriff then
 			local char = getCharacter(currentSheriff)
 			if char then
-				-- Re-hook if character respawned
 				if char ~= sheriffLastChar then
 					hookSheriffDied(currentSheriff, char)
 				end
@@ -851,7 +833,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Gun TP: if button is ON and sheriff already dead, tp immediately using saved pos
+	-- Gun TP: if button ON and sheriff already dead, tp immediately
 	if gunTpActive and not gunTpDone and currentSheriff then
 		local char = getCharacter(currentSheriff)
 		local hum  = char and char:FindFirstChildOfClass("Humanoid")
@@ -868,7 +850,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Gun TP: auto-return if WE picked up the gun after teleporting
+	-- Gun TP: auto-return after picking up the gun
 	if gunTpActive and gunTpDone and myReturnPos then
 		if hasTool(LocalPlayer, SHERIFF_TOOL) then
 			local myChar = getCharacter(LocalPlayer)
@@ -877,7 +859,6 @@ RunService.Heartbeat:Connect(function()
 				myRoot.CFrame = CFrame.new(myReturnPos + Vector3.new(0, 3, 0))
 				gunTpStatus.Text       = "Returned home!"
 				gunTpStatus.TextColor3 = Color3.fromRGB(80, 200, 255)
-				-- Reset so it doesn't keep teleporting
 				myReturnPos = nil
 				gunTpDone   = false
 				gunTpActive = false
@@ -890,7 +871,7 @@ RunService.Heartbeat:Connect(function()
 		end
 	end
 
-	-- Fake Speed — airborne only
+	-- Fake Speed — airborne only, requires tool equipped
 	if fakeSpeedOn then
 		local char = getCharacter(LocalPlayer)
 		if not char then return end
@@ -925,8 +906,7 @@ Players.PlayerRemoving:Connect(function(player)
 		lockedTarget = nil
 		lockMode     = nil
 		stopCameraLock()
-		sheriffStatus.Text = "Left"
-		murdStatus.Text    = "Left"
+		murdStatus.Text = "Left"
 	end
 	if currentSheriff == player then
 		currentSheriff = nil
