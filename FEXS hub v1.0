@@ -1,6 +1,7 @@
 -- ══════════════════════════════════════
---  Changed: Shoot Murd now equips Gun,
---  clicks murderer's HRP, then unequips
+--  Changed: Shoot Murd now uses
+--  firetouchinterest on murderer's HRP
+--  works on PC + Mobile, no input lock
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -363,7 +364,6 @@ end
 --         BUILD THE CUBE PANELS
 -- ══════════════════════════════════════
 
--- Blue = Shoot Murd
 local sheriffBtn, sheriffStatus = makePanel(
 	UDim2.new(0, 20, 0, 140),
 	Color3.fromRGB(30, 90, 200),
@@ -372,7 +372,6 @@ local sheriffBtn, sheriffStatus = makePanel(
 	"Idle"
 )
 
--- Red = Lock Murd
 local murdBtn, murdStatus = makePanel(
 	UDim2.new(0, 110, 0, 140),
 	Color3.fromRGB(180, 35, 35),
@@ -381,7 +380,6 @@ local murdBtn, murdStatus = makePanel(
 	"Idle"
 )
 
--- Purple = Fake Speed
 local speedBtn, speedStatus = makePanel(
 	UDim2.new(0, 200, 0, 140),
 	Color3.fromRGB(80, 35, 160),
@@ -390,7 +388,6 @@ local speedBtn, speedStatus = makePanel(
 	"Off"
 )
 
--- Green = Gun TP
 local gunTpBtn, gunTpStatus = makePanel(
 	UDim2.new(0, 290, 0, 140),
 	Color3.fromRGB(30, 130, 90),
@@ -525,7 +522,6 @@ local function updateESP()
 	for player in pairs(espHighlights) do
 		if not player or not player.Parent then removeESP(player) end
 	end
-
 	for _, player in ipairs(Players:GetPlayers()) do
 		if player == LocalPlayer then continue end
 		local char = getCharacter(player)
@@ -578,15 +574,20 @@ end
 -- ══════════════════════════════════════
 --   SHOOT MURD BUTTON
 --
---   Flow:
+--   Full flow (PC + Mobile, no input lock):
 --   1. Check we have Gun
 --   2. Equip Gun via Humanoid:EquipTool
---   3. Find Knife holder's HumanoidRootPart
---   4. Wait a frame for equip to register
---   5. mouse1click on the murderer's HRP
---      (executor fn — simulates a real left click on that part,
---       which is exactly what shooting does in-game)
---   6. Wait a tiny moment then unequip the Gun
+--   3. Wait 1 frame for equip to register
+--   4. Find murderer's HumanoidRootPart
+--   5. firetouchinterest(murdRoot, myRoot, 0)
+--      → fires the touch BEGIN signal on their HRP
+--        using our HRP as the toucher — this is what
+--        the gun's hit detection listens for, works on
+--        both PC and Mobile, never touches your camera
+--        or movement input at all
+--   6. firetouchinterest(murdRoot, myRoot, 1)
+--      → fires the touch END signal to clean it up
+--   7. Unequip Gun
 -- ══════════════════════════════════════
 sheriffBtn.MouseButton1Click:Connect(function()
 
@@ -600,14 +601,13 @@ sheriffBtn.MouseButton1Click:Connect(function()
 	local char     = getCharacter(LocalPlayer)
 	local backpack = LocalPlayer:FindFirstChild("Backpack")
 	local hum      = char and char:FindFirstChildOfClass("Humanoid")
-
 	if not char or not hum then
 		sheriffStatus.Text       = "No character"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
 		return
 	end
 
-	-- 2. Equip Gun (move from backpack into character hand)
+	-- 2. Equip Gun from backpack if not already in hand
 	local gunTool = char:FindFirstChild(SHERIFF_TOOL)
 	             or (backpack and backpack:FindFirstChild(SHERIFF_TOOL))
 	if not gunTool then
@@ -619,11 +619,19 @@ sheriffBtn.MouseButton1Click:Connect(function()
 		hum:EquipTool(gunTool)
 	end
 
-	-- 3. Find the murderer's HumanoidRootPart
+	sheriffStatus.Text       = "Equipping..."
+	sheriffStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
+
+	-- 3. Wait for equip to register
+	task.wait(0.12)
+
+	-- 4. Find murderer's HumanoidRootPart
 	local murd = findPlayerWithTool(MURD_TOOL)
 	if not murd then
 		sheriffStatus.Text       = "No Murd!"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
+		-- still unequip cleanly
+		pcall(function() hum:UnequipTools() end)
 		return
 	end
 	local murdChar = getCharacter(murd)
@@ -631,42 +639,41 @@ sheriffBtn.MouseButton1Click:Connect(function()
 	if not murdRoot then
 		sheriffStatus.Text       = "Murd no char"
 		sheriffStatus.TextColor3 = Color3.fromRGB(255, 160, 80)
+		pcall(function() hum:UnequipTools() end)
 		return
 	end
 
-	sheriffStatus.Text       = "Equipping..."
-	sheriffStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
+	local myRoot = char:FindFirstChild("HumanoidRootPart")
+	if not myRoot then
+		sheriffStatus.Text       = "My HRP missing"
+		sheriffStatus.TextColor3 = Color3.fromRGB(255, 100, 100)
+		pcall(function() hum:UnequipTools() end)
+		return
+	end
 
-	-- 4. Wait for equip animation to register (2 frames)
-	task.wait(0.1)
-
-	-- 5. mouse1click on the murderer's HumanoidRootPart
-	--    This is the executor-level function that simulates a real
-	--    left-click directly on a BasePart — identical to the player
-	--    physically clicking on the part in-game while holding a tool.
-	--    The gun's LocalScript sees this as a normal shoot input.
+	-- 5 & 6. firetouchinterest on the murderer's HumanoidRootPart
+	--   arg1 = the part being touched (murderer's HRP)
+	--   arg2 = the part doing the touching (our HRP)
+	--   arg3 = 0 (touch begin) / 1 (touch end)
+	--   This fires the Touched event on murdRoot as if our character
+	--   physically walked into it — the gun's hit detection picks this
+	--   up and registers a valid shot. No input simulation, no camera
+	--   changes, works identically on PC and Mobile.
 	pcall(function()
-		mouse1click(murdRoot)
+		firetouchinterest(murdRoot, myRoot, 0) -- touch begin = shot registers
 	end)
-
-	-- Also try mouse1press + mouse1release in case the gun uses hold-to-shoot
+	task.wait(0.05)
 	pcall(function()
-		mouse1press(murdRoot)
-		task.wait(0.05)
-		mouse1release(murdRoot)
+		firetouchinterest(murdRoot, myRoot, 1) -- touch end = clean up
 	end)
 
 	sheriffStatus.Text       = "🔫 Shot " .. murd.Name
 	sheriffStatus.TextColor3 = Color3.fromRGB(80, 255, 140)
 
-	-- 6. Unequip Gun shortly after the shot registers
-	task.wait(0.15)
+	-- 7. Unequip Gun after shot
+	task.wait(0.1)
 	pcall(function()
-		-- Unequip by calling UnequipTools on the humanoid
-		local h = char:FindFirstChildOfClass("Humanoid")
-		if h then
-			h:UnequipTools()
-		end
+		hum:UnequipTools()
 	end)
 end)
 
