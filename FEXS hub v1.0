@@ -1,15 +1,20 @@
 -- ══════════════════════════════════════
---  Rain Hub — Updates:1
---  • Replaced "Shoot Murd" with Auto Farm
---    – Noclips player through all parts
---    – Tweens to nearest Coin_Server parts
---    – Auto re-targets on despawn
---    – Rainbow animated ESP on all coins
---  • Coin_Server parts set to 0.5 transparency
---    with rainbow color applied to the part itself
---  • ESP now instantly cleans up via
---    DescendantRemoving — no lingering highlights
---  • Despawned coins excluded from farm targeting
+--  Rain Hub v4.0
+-- ══════════════════════════════════════
+--  v1.0 — Shoot Murd, Lock, Fake Speed,
+--          Gun TP, Player ESP
+--  v2.0 — Auto Farm (replaces Shoot Murd)
+--          Noclip, tween to Coin_Server,
+--          rainbow Highlight + part color,
+--          0.5 transparency on coins,
+--          DescendantRemoving ESP cleanup
+--  v3.0 — Highlight parented to part for
+--          true through-wall visibility,
+--          Touched delay (0.2s) before
+--          retargeting next coin,
+--          touchConn cleanup on despawn
+--  v4.0 — Touch instantly retargets next
+--          closest coin with no wait
 -- ══════════════════════════════════════
 local Players      = game:GetService("Players")
 local RunService   = game:GetService("RunService")
@@ -514,16 +519,13 @@ local function applyCoinESP(part, rainbowColor)
 		coinOrigTransparency[part] = part.Transparency
 		part.Transparency = 0.5
 
-		-- Touched: wait 0.2s then cancel tween so farmLoop retargets next coin
+		-- Touched: instantly drop this coin and move to next closest
 		local touchConn
 		touchConn = part.Touched:Connect(function(hit)
-			-- only care if it's our character touching it
 			local char = getCharacter(LocalPlayer)
 			if not char or not hit:IsDescendantOf(char) then return end
 			if not farmActive then return end
 			touchConn:Disconnect()
-			task.wait(0.2)
-			-- cancel current tween so farmLoop immediately picks next closest
 			farmCurrentCoin = nil
 			farmTweening    = false
 			if farmTweenObj then
