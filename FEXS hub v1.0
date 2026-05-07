@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---  Rain Hub v4.0
+--  Rain Hub v5.0
 -- ══════════════════════════════════════
 --  v1.0 — Shoot Murd, Lock, Fake Speed,
 --          Gun TP, Player ESP
@@ -10,15 +10,21 @@
 --          DescendantRemoving ESP cleanup
 --  v3.0 — Highlight parented to part for
 --          true through-wall visibility,
---          Touched delay (0.2s) before
---          retargeting next coin,
+--          Touched retargets next coin,
 --          touchConn cleanup on despawn
 --  v4.0 — Touch instantly retargets next
 --          closest coin with no wait
+--  v5.0 — Full slide-out MENU (Rain Hub
+--          tab on left edge), pill toggles,
+--          floating badge indicators appear
+--          only when feature is ON,
+--          PC + Mobile drag optimized,
+--          coin ESP through-wall fixed
 -- ══════════════════════════════════════
-local Players      = game:GetService("Players")
-local RunService   = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
+local Players          = game:GetService("Players")
+local RunService       = game:GetService("RunService")
+local TweenService     = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local LocalPlayer = Players.LocalPlayer
 local Camera      = workspace.CurrentCamera
@@ -26,11 +32,11 @@ local Camera      = workspace.CurrentCamera
 -- ══════════════════════════════════════
 --         CONFIGURATION
 -- ══════════════════════════════════════
-local SHERIFF_TOOL  = "Gun"
-local MURD_TOOL     = "Knife"
-local FAKE_SPEED    = 100
-local COIN_NAME     = "Coin_Server"   -- exact Name of coin parts in workspace
-local FARM_TWEEN_T  = 0.18            -- seconds to tween per coin (lower = faster)
+local SHERIFF_TOOL = "Gun"
+local MURD_TOOL    = "Knife"
+local FAKE_SPEED   = 100
+local COIN_NAME    = "Coin_Server"
+local FARM_TWEEN_T = 0.18
 
 -- ══════════════════════════════════════
 --              STATE
@@ -40,15 +46,14 @@ local lockMode      = nil
 local fakeSpeedOn   = false
 local espHighlights = {}
 
--- Auto Farm state
-local farmActive       = false
-local farmNoclipOn     = false
-local farmCurrentCoin  = nil
-local farmTweening     = false
-local coinEspParts     = {}   -- [part] = { hl = Highlight, bb = BillboardGui }
-local rainbowHue       = 0
+local farmActive      = false
+local farmCurrentCoin = nil
+local farmTweening    = false
+local farmTweenObj    = nil
+local coinEspParts    = {}
+local coinOrigTrans   = {}
+local rainbowHue      = 0
 
--- Gun TP state
 local gunTpActive     = false
 local gunLastPos      = nil
 local myReturnPos     = nil
@@ -57,305 +62,149 @@ local currentSheriff  = nil
 local sheriffDiedConn = nil
 local sheriffLastChar = nil
 
+local noclipConn = nil
+
 -- ══════════════════════════════════════
---     RAIN HUB WELCOME BANNER
+--   TWEEN SHORTHAND
+-- ══════════════════════════════════════
+local function tw(obj, props, info)
+	TweenService:Create(obj, info, props):Play()
+end
+local easeOut = TweenInfo.new(0.35, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local easeIn  = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+local fastTw  = TweenInfo.new(0.2,  Enum.EasingStyle.Quad,  Enum.EasingDirection.Out)
+
+-- ══════════════════════════════════════
+--   WELCOME BANNER
 -- ══════════════════════════════════════
 local bannerGui = Instance.new("ScreenGui")
-bannerGui.Name = "RainHubBanner"
-bannerGui.ResetOnSpawn = false
+bannerGui.Name           = "RainHubBanner"
+bannerGui.ResetOnSpawn   = false
 bannerGui.IgnoreGuiInset = true
-bannerGui.Parent = LocalPlayer.PlayerGui
+bannerGui.Parent         = LocalPlayer.PlayerGui
 
-local glow = Instance.new("Frame")
-glow.AnchorPoint = Vector2.new(0.5, 0)
-glow.Size = UDim2.new(0, 520, 0, 64)
-glow.Position = UDim2.new(0.5, 0, 0, 60)
-glow.BackgroundColor3 = Color3.fromRGB(20, 80, 180)
-glow.BackgroundTransparency = 1
-glow.BorderSizePixel = 0
-glow.ZIndex = 9
-glow.Parent = bannerGui
-Instance.new("UICorner", glow).CornerRadius = UDim.new(0, 16)
+local bPanel = Instance.new("Frame")
+bPanel.AnchorPoint            = Vector2.new(0.5, 0)
+bPanel.Size                   = UDim2.new(0, 500, 0, 58)
+bPanel.Position               = UDim2.new(0.5, 0, 0, 60)
+bPanel.BackgroundColor3       = Color3.fromRGB(8, 18, 40)
+bPanel.BackgroundTransparency = 1
+bPanel.BorderSizePixel        = 0
+bPanel.ZIndex                 = 10
+bPanel.Parent                 = bannerGui
+Instance.new("UICorner", bPanel).CornerRadius = UDim.new(0, 12)
 
-local panel = Instance.new("Frame")
-panel.AnchorPoint = Vector2.new(0.5, 0)
-panel.Size = UDim2.new(0, 500, 0, 58)
-panel.Position = UDim2.new(0.5, 0, 0, 60)
-panel.BackgroundColor3 = Color3.fromRGB(8, 18, 40)
-panel.BackgroundTransparency = 1
-panel.BorderSizePixel = 0
-panel.ZIndex = 10
-panel.Parent = bannerGui
-Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
+local bStroke = Instance.new("UIStroke")
+bStroke.Color        = Color3.fromRGB(40, 130, 255)
+bStroke.Thickness    = 2
+bStroke.Transparency = 1
+bStroke.Parent       = bPanel
 
-local panelStroke = Instance.new("UIStroke")
-panelStroke.Color = Color3.fromRGB(40, 130, 255)
-panelStroke.Thickness = 2
-panelStroke.Transparency = 1
-panelStroke.Parent = panel
+local bAccent = Instance.new("Frame")
+bAccent.Size                   = UDim2.new(1, 0, 0, 3)
+bAccent.BackgroundColor3       = Color3.fromRGB(60, 160, 255)
+bAccent.BackgroundTransparency = 1
+bAccent.BorderSizePixel        = 0
+bAccent.ZIndex                 = 11
+bAccent.Parent                 = bPanel
+Instance.new("UICorner", bAccent).CornerRadius = UDim.new(0, 12)
 
-local accentBar = Instance.new("Frame")
-accentBar.Size = UDim2.new(1, 0, 0, 3)
-accentBar.BackgroundColor3 = Color3.fromRGB(60, 160, 255)
-accentBar.BackgroundTransparency = 1
-accentBar.BorderSizePixel = 0
-accentBar.ZIndex = 11
-accentBar.Parent = panel
-Instance.new("UICorner", accentBar).CornerRadius = UDim.new(0, 12)
-
-local grad = Instance.new("UIGradient")
-grad.Color = ColorSequence.new({
+local bGrad = Instance.new("UIGradient")
+bGrad.Color = ColorSequence.new({
 	ColorSequenceKeypoint.new(0,   Color3.fromRGB(20,  100, 220)),
 	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(100, 180, 255)),
 	ColorSequenceKeypoint.new(1,   Color3.fromRGB(20,  100, 220)),
 })
-grad.Parent = accentBar
+bGrad.Parent = bAccent
 
-local icon = Instance.new("TextLabel")
-icon.Size = UDim2.new(0, 36, 0, 36)
-icon.Position = UDim2.new(0, 12, 0.5, -18)
-icon.BackgroundTransparency = 1
-icon.Text = "🌧️"
-icon.TextSize = 22
-icon.Font = Enum.Font.GothamBold
-icon.TextTransparency = 1
-icon.ZIndex = 12
-icon.Parent = panel
+local bIcon = Instance.new("TextLabel")
+bIcon.Size               = UDim2.new(0, 36, 0, 36)
+bIcon.Position           = UDim2.new(0, 12, 0.5, -18)
+bIcon.BackgroundTransparency = 1
+bIcon.Text               = "🌧️"
+bIcon.TextSize           = 22
+bIcon.Font               = Enum.Font.GothamBold
+bIcon.TextTransparency   = 1
+bIcon.ZIndex             = 12
+bIcon.Parent             = bPanel
 
-local mainText = Instance.new("TextLabel")
-mainText.Size = UDim2.new(1, -56, 0, 24)
-mainText.Position = UDim2.new(0, 50, 0, 8)
-mainText.BackgroundTransparency = 1
-mainText.Text = "Welcome to Rain Hub!  ENJOY!"
-mainText.TextColor3 = Color3.fromRGB(160, 210, 255)
-mainText.TextSize = 16
-mainText.Font = Enum.Font.GothamBold
-mainText.TextXAlignment = Enum.TextXAlignment.Left
-mainText.TextTransparency = 1
-mainText.ZIndex = 12
-mainText.Parent = panel
+local bMain = Instance.new("TextLabel")
+bMain.Size             = UDim2.new(1, -56, 0, 24)
+bMain.Position         = UDim2.new(0, 50, 0, 8)
+bMain.BackgroundTransparency = 1
+bMain.Text             = "Welcome to Rain Hub v5.0!  ENJOY!"
+bMain.TextColor3       = Color3.fromRGB(160, 210, 255)
+bMain.TextSize         = 16
+bMain.Font             = Enum.Font.GothamBold
+bMain.TextXAlignment   = Enum.TextXAlignment.Left
+bMain.TextTransparency = 1
+bMain.ZIndex           = 12
+bMain.Parent           = bPanel
 
-local subText = Instance.new("TextLabel")
-subText.Size = UDim2.new(1, -56, 0, 16)
-subText.Position = UDim2.new(0, 50, 0, 32)
-subText.BackgroundTransparency = 1
-subText.Text = "⚡ WE UPDATE ALMOST EVERYDAY!"
-subText.TextColor3 = Color3.fromRGB(80, 160, 255)
-subText.TextSize = 11
-subText.Font = Enum.Font.Gotham
-subText.TextXAlignment = Enum.TextXAlignment.Left
-subText.TextTransparency = 1
-subText.ZIndex = 12
-subText.Parent = panel
+local bSub = Instance.new("TextLabel")
+bSub.Size             = UDim2.new(1, -56, 0, 16)
+bSub.Position         = UDim2.new(0, 50, 0, 32)
+bSub.BackgroundTransparency = 1
+bSub.Text             = "⚡ WE UPDATE ALMOST EVERYDAY!"
+bSub.TextColor3       = Color3.fromRGB(80, 160, 255)
+bSub.TextSize         = 11
+bSub.Font             = Enum.Font.Gotham
+bSub.TextXAlignment   = Enum.TextXAlignment.Left
+bSub.TextTransparency = 1
+bSub.ZIndex           = 12
+bSub.Parent           = bPanel
 
-local easeIn  = TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-local easeOut = TweenInfo.new(0.6,  Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-
-local function tw(obj, props, info)
-	TweenService:Create(obj, info, props):Play()
-end
-
-local function fadeIn()
-	panel.Position = UDim2.new(0.5, 0, 0, 40)
-	glow.Position  = UDim2.new(0.5, 0, 0, 44)
-	tw(panel,       {BackgroundTransparency = 0,    Position = UDim2.new(0.5, 0, 0, 60)}, easeIn)
-	tw(glow,        {BackgroundTransparency = 0.75, Position = UDim2.new(0.5, 0, 0, 64)}, easeIn)
-	tw(panelStroke, {Transparency = 0}, easeIn)
-	tw(accentBar,   {BackgroundTransparency = 0}, easeIn)
-	tw(mainText,    {TextTransparency = 0}, easeIn)
-	tw(subText,     {TextTransparency = 0}, easeIn)
-	tw(icon,        {TextTransparency = 0}, easeIn)
-end
-
-local function fadeOut()
-	tw(panel,       {BackgroundTransparency = 1, Position = UDim2.new(0.5, 0, 0, 40)}, easeOut)
-	tw(glow,        {BackgroundTransparency = 1, Position = UDim2.new(0.5, 0, 0, 44)}, easeOut)
-	tw(panelStroke, {Transparency = 1}, easeOut)
-	tw(accentBar,   {BackgroundTransparency = 1}, easeOut)
-	tw(mainText,    {TextTransparency = 1}, easeOut)
-	tw(subText,     {TextTransparency = 1}, easeOut)
-	tw(icon,        {TextTransparency = 1}, easeOut)
-end
-
-local shimmerAngle = 0
-local shimmerConn = RunService.Heartbeat:Connect(function(dt)
-	shimmerAngle = (shimmerAngle + dt * 60) % 360
-	grad.Rotation = shimmerAngle
+local shimAngle = 0
+local shimConn = RunService.Heartbeat:Connect(function(dt)
+	shimAngle = (shimAngle + dt * 60) % 360
+	bGrad.Rotation = shimAngle
 end)
+
+local bTwIn  = TweenInfo.new(0.55, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+local bTwOut = TweenInfo.new(0.60, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+local function bannerFade(show)
+	local t = show and 0 or 1
+	local pos = show and UDim2.new(0.5,0,0,60) or UDim2.new(0.5,0,0,40)
+	local info = show and bTwIn or bTwOut
+	tw(bPanel,  {BackgroundTransparency = t, Position = pos}, info)
+	tw(bStroke, {Transparency = t}, info)
+	tw(bAccent, {BackgroundTransparency = t}, info)
+	tw(bMain,   {TextTransparency = t}, info)
+	tw(bSub,    {TextTransparency = t}, info)
+	tw(bIcon,   {TextTransparency = t}, info)
+end
 
 task.spawn(function()
-	task.wait(0.3)
-	fadeIn()
-	task.wait(3.8)
-	fadeOut()
-	task.wait(0.9)
-	shimmerConn:Disconnect()
-	bannerGui:Destroy()
+	task.wait(0.3); bannerFade(true)
+	task.wait(3.8); bannerFade(false)
+	task.wait(0.9); shimConn:Disconnect(); bannerGui:Destroy()
 end)
 
 -- ══════════════════════════════════════
---         MAIN SCREEN GUI
+--   MAIN SCREEN GUI
 -- ══════════════════════════════════════
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "DebugPanels"
-screenGui.ResetOnSpawn = false
+screenGui.Name           = "RainHubMain"
+screenGui.ResetOnSpawn   = false
 screenGui.IgnoreGuiInset = true
-screenGui.Parent = LocalPlayer.PlayerGui
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent         = LocalPlayer.PlayerGui
 
 -- ══════════════════════════════════════
---   TWEEN HELPERS FOR BUTTON FADING
+--   PANEL DRAG (works PC + Mobile)
+--   Pass the HANDLE frame and the MOVER
+--   frame (can be same or different)
 -- ══════════════════════════════════════
-local fadeDuration = TweenInfo.new(0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local function makeDraggable(handle, mover)
+	mover = mover or handle
+	local dragging, dragStart, startPos = false, nil, nil
 
-local function fadeOutBtn(btn, statusLbl, xBtn)
-	tw(btn,       {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
-	tw(statusLbl, {TextTransparency = 1},                             fadeDuration)
-	tw(xBtn,      {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
-	task.delay(0.36, function()
-		btn.Visible       = false
-		statusLbl.Visible = false
-		xBtn.Visible      = false
-		btn.BackgroundTransparency       = 0
-		btn.TextTransparency             = 0
-		statusLbl.TextTransparency       = 0
-		xBtn.BackgroundTransparency      = 0
-		xBtn.TextTransparency            = 0
-	end)
-end
-
-local function fadeInBtn(btn, statusLbl, xBtn)
-	btn.BackgroundTransparency       = 1
-	btn.TextTransparency             = 1
-	statusLbl.TextTransparency       = 1
-	xBtn.BackgroundTransparency      = 1
-	xBtn.TextTransparency            = 1
-	btn.Visible       = true
-	statusLbl.Visible = true
-	xBtn.Visible      = true
-	tw(btn,       {BackgroundTransparency = 0, TextTransparency = 0}, fadeDuration)
-	tw(statusLbl, {TextTransparency = 0},                             fadeDuration)
-	tw(xBtn,      {BackgroundTransparency = 0, TextTransparency = 0}, fadeDuration)
-end
-
--- ══════════════════════════════════════
---   CUBE BUTTON BUILDER
--- ══════════════════════════════════════
-local CUBE_SIZE = 80
-
-local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, CUBE_SIZE, 0, CUBE_SIZE)
-	btn.Position = startPos
-	btn.BackgroundColor3 = btnColor
-	btn.BorderSizePixel = 0
-	btn.Text = ""
-	btn.AutoButtonColor = false
-	btn.ZIndex = 2
-	btn.Parent = screenGui
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 14)
-
-	local labelTop = Instance.new("TextLabel")
-	labelTop.Size = UDim2.new(1, -8, 0, 22)
-	labelTop.Position = UDim2.new(0, 4, 0, 14)
-	labelTop.BackgroundTransparency = 1
-	labelTop.Text = topLine
-	labelTop.TextColor3 = Color3.new(1, 1, 1)
-	labelTop.TextSize = 13
-	labelTop.Font = Enum.Font.GothamBold
-	labelTop.TextXAlignment = Enum.TextXAlignment.Center
-	labelTop.ZIndex = 3
-	labelTop.Parent = btn
-
-	local labelBot = Instance.new("TextLabel")
-	labelBot.Size = UDim2.new(1, -8, 0, 20)
-	labelBot.Position = UDim2.new(0, 4, 0, 36)
-	labelBot.BackgroundTransparency = 1
-	labelBot.Text = btnLabel
-	labelBot.TextColor3 = Color3.fromRGB(210, 230, 255)
-	labelBot.TextSize = 11
-	labelBot.Font = Enum.Font.Gotham
-	labelBot.TextXAlignment = Enum.TextXAlignment.Center
-	labelBot.ZIndex = 3
-	labelBot.Parent = btn
-
-	local status = Instance.new("TextLabel")
-	status.Size = UDim2.new(0, CUBE_SIZE, 0, 16)
-	status.Position = UDim2.new(
-		startPos.X.Scale,
-		startPos.X.Offset,
-		startPos.Y.Scale,
-		startPos.Y.Offset + CUBE_SIZE + 4
-	)
-	status.BackgroundTransparency = 1
-	status.Text = statusDefault or ""
-	status.TextColor3 = Color3.fromRGB(200, 200, 200)
-	status.TextSize = 10
-	status.Font = Enum.Font.Gotham
-	status.TextXAlignment = Enum.TextXAlignment.Center
-	status.ZIndex = 2
-	status.Parent = screenGui
-
-	local xBtn = Instance.new("TextButton")
-	xBtn.Size = UDim2.new(0, 22, 0, 22)
-	xBtn.Position = UDim2.new(
-		startPos.X.Scale,
-		startPos.X.Offset + CUBE_SIZE - 10,
-		startPos.Y.Scale,
-		startPos.Y.Offset - 12
-	)
-	xBtn.BackgroundColor3 = Color3.fromRGB(190, 40, 40)
-	xBtn.BorderSizePixel = 0
-	xBtn.Text = "✕"
-	xBtn.TextColor3 = Color3.new(1, 1, 1)
-	xBtn.TextSize = 11
-	xBtn.Font = Enum.Font.GothamBold
-	xBtn.ZIndex = 4
-	xBtn.Parent = screenGui
-	Instance.new("UICorner", xBtn).CornerRadius = UDim.new(1, 0)
-
-	local reopenBtn = Instance.new("TextButton")
-	reopenBtn.Size = UDim2.new(0, CUBE_SIZE, 0, 28)
-	reopenBtn.Position = startPos
-	reopenBtn.BackgroundColor3 = btnColor:Lerp(Color3.new(0, 0, 0), 0.4)
-	reopenBtn.BorderSizePixel = 0
-	reopenBtn.Text = "▶ " .. btnLabel
-	reopenBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-	reopenBtn.TextSize = 10
-	reopenBtn.Font = Enum.Font.GothamBold
-	reopenBtn.AutoButtonColor = false
-	reopenBtn.Visible = false
-	reopenBtn.ZIndex = 2
-	reopenBtn.Parent = screenGui
-	Instance.new("UICorner", reopenBtn).CornerRadius = UDim.new(0, 8)
-
-	xBtn.MouseButton1Click:Connect(function()
-		fadeOutBtn(btn, status, xBtn)
-		task.delay(0.38, function()
-			reopenBtn.BackgroundTransparency = 1
-			reopenBtn.TextTransparency = 1
-			reopenBtn.Visible = true
-			tw(reopenBtn, {BackgroundTransparency = 0, TextTransparency = 0}, fadeDuration)
-		end)
-	end)
-
-	reopenBtn.MouseButton1Click:Connect(function()
-		tw(reopenBtn, {BackgroundTransparency = 1, TextTransparency = 1}, fadeDuration)
-		task.delay(0.36, function()
-			reopenBtn.Visible = false
-		end)
-		task.delay(0.1, function()
-			fadeInBtn(btn, status, xBtn)
-		end)
-	end)
-
-	local dragging, dragStart, startPos2 = false, nil, nil
-
-	btn.InputBegan:Connect(function(input)
+	handle.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1
 		or input.UserInputType == Enum.UserInputType.Touch then
 			dragging  = true
 			dragStart = input.Position
-			startPos2 = btn.Position
+			startPos  = mover.Position
 			input.Changed:Connect(function()
 				if input.UserInputState == Enum.UserInputState.End then
 					dragging = false
@@ -364,275 +213,569 @@ local function makePanel(startPos, btnColor, btnLabel, topLine, statusDefault)
 		end
 	end)
 
-	btn.InputChanged:Connect(function(input)
-		if dragging and (
-			input.UserInputType == Enum.UserInputType.MouseMovement or
-			input.UserInputType == Enum.UserInputType.Touch
-		) then
-			local delta = input.Position - dragStart
-			local newX = startPos2.X.Offset + delta.X
-			local newY = startPos2.Y.Offset + delta.Y
-
-			btn.Position       = UDim2.new(startPos2.X.Scale, newX,                  startPos2.Y.Scale, newY)
-			xBtn.Position      = UDim2.new(startPos2.X.Scale, newX + CUBE_SIZE - 10, startPos2.Y.Scale, newY - 12)
-			status.Position    = UDim2.new(startPos2.X.Scale, newX,                  startPos2.Y.Scale, newY + CUBE_SIZE + 4)
-			reopenBtn.Position = UDim2.new(startPos2.X.Scale, newX,                  startPos2.Y.Scale, newY)
+	UserInputService.InputChanged:Connect(function(input)
+		if not dragging then return end
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+		or input.UserInputType == Enum.UserInputType.Touch then
+			local d = input.Position - dragStart
+			mover.Position = UDim2.new(
+				startPos.X.Scale, startPos.X.Offset + d.X,
+				startPos.Y.Scale, startPos.Y.Offset + d.Y
+			)
 		end
 	end)
-
-	return btn, status
 end
 
 -- ══════════════════════════════════════
---         BUILD THE CUBE PANELS
+--   SIDE TAB (always visible on left)
 -- ══════════════════════════════════════
+local TAB_W  = 36
+local TAB_H  = 110
+local MENU_W = 230
+local MENU_H = 290
 
-local farmBtn, farmStatus = makePanel(
-	UDim2.new(0, 20, 0, 140),
-	Color3.fromRGB(200, 140, 20),
-	"Farm",
-	"Auto",
-	"Off"
-)
+local sideTab = Instance.new("TextButton")
+sideTab.Size             = UDim2.new(0, TAB_W, 0, TAB_H)
+sideTab.Position         = UDim2.new(0, 0, 0.5, -(TAB_H/2))
+sideTab.BackgroundColor3 = Color3.fromRGB(10, 20, 50)
+sideTab.BorderSizePixel  = 0
+sideTab.Text             = ""
+sideTab.AutoButtonColor  = false
+sideTab.ZIndex           = 20
+sideTab.Parent           = screenGui
+Instance.new("UICorner", sideTab).CornerRadius = UDim.new(0, 10)
 
-local murdBtn, murdStatus = makePanel(
-	UDim2.new(0, 110, 0, 140),
-	Color3.fromRGB(180, 35, 35),
-	"Murd",
-	"Lock",
-	"Idle"
-)
+local tabStroke = Instance.new("UIStroke")
+tabStroke.Color     = Color3.fromRGB(40, 100, 220)
+tabStroke.Thickness = 1.5
+tabStroke.Parent    = sideTab
 
-local speedBtn, speedStatus = makePanel(
-	UDim2.new(0, 200, 0, 140),
-	Color3.fromRGB(80, 35, 160),
-	"Speed",
-	"Fake",
-	"Off"
-)
+-- right-edge accent bar on tab
+local tabAccent = Instance.new("Frame")
+tabAccent.Size             = UDim2.new(0, 3, 1, -12)
+tabAccent.Position         = UDim2.new(1, -3, 0, 6)
+tabAccent.BackgroundColor3 = Color3.fromRGB(60, 140, 255)
+tabAccent.BorderSizePixel  = 0
+tabAccent.ZIndex           = 21
+tabAccent.Parent           = sideTab
+Instance.new("UICorner", tabAccent).CornerRadius = UDim.new(0, 4)
 
-local gunTpBtn, gunTpStatus = makePanel(
-	UDim2.new(0, 290, 0, 140),
-	Color3.fromRGB(30, 130, 90),
-	"Gun TP",
-	"Gun",
-	"Standby"
-)
+local tabEmoji = Instance.new("TextLabel")
+tabEmoji.Size                = UDim2.new(1, -4, 0, 28)
+tabEmoji.Position            = UDim2.new(0, 2, 0, 8)
+tabEmoji.BackgroundTransparency = 1
+tabEmoji.Text                = "🌧️"
+tabEmoji.TextSize            = 18
+tabEmoji.Font                = Enum.Font.GothamBold
+tabEmoji.TextColor3          = Color3.fromRGB(160, 210, 255)
+tabEmoji.ZIndex              = 22
+tabEmoji.Parent              = sideTab
+
+local tabWordLabel = Instance.new("TextLabel")
+tabWordLabel.Size                = UDim2.new(1, -4, 0, 56)
+tabWordLabel.Position            = UDim2.new(0, 2, 0, 38)
+tabWordLabel.BackgroundTransparency = 1
+tabWordLabel.Text                = "R\nA\nI\nN"
+tabWordLabel.TextSize            = 10
+tabWordLabel.Font                = Enum.Font.GothamBold
+tabWordLabel.TextColor3          = Color3.fromRGB(90, 160, 255)
+tabWordLabel.ZIndex              = 22
+tabWordLabel.Parent              = sideTab
+
+makeDraggable(sideTab, sideTab)
 
 -- ══════════════════════════════════════
---         UTILITY FUNCTIONS
+--   MENU PANEL
 -- ══════════════════════════════════════
-local function getCharacter(player)
+local menuOpen = false
+
+local menuPanel = Instance.new("Frame")
+menuPanel.Size             = UDim2.new(0, MENU_W, 0, MENU_H)
+menuPanel.Position         = UDim2.new(0, -(MENU_W + 6), 0.5, -(MENU_H/2))
+menuPanel.BackgroundColor3 = Color3.fromRGB(8, 16, 38)
+menuPanel.BorderSizePixel  = 0
+menuPanel.ClipsDescendants = true
+menuPanel.ZIndex           = 15
+menuPanel.Visible          = false
+menuPanel.Parent           = screenGui
+Instance.new("UICorner", menuPanel).CornerRadius = UDim.new(0, 14)
+
+local menuStroke = Instance.new("UIStroke")
+menuStroke.Color     = Color3.fromRGB(35, 90, 210)
+menuStroke.Thickness = 1.5
+menuStroke.Parent    = menuPanel
+
+-- header
+local menuHeader = Instance.new("Frame")
+menuHeader.Size             = UDim2.new(1, 0, 0, 46)
+menuHeader.BackgroundColor3 = Color3.fromRGB(13, 26, 65)
+menuHeader.BorderSizePixel  = 0
+menuHeader.ZIndex           = 16
+menuHeader.Parent           = menuPanel
+Instance.new("UICorner", menuHeader).CornerRadius = UDim.new(0, 14)
+
+-- fill bottom corners of header
+local hFix = Instance.new("Frame")
+hFix.Size             = UDim2.new(1, 0, 0, 14)
+hFix.Position         = UDim2.new(0, 0, 1, -14)
+hFix.BackgroundColor3 = Color3.fromRGB(13, 26, 65)
+hFix.BorderSizePixel  = 0
+hFix.ZIndex           = 16
+hFix.Parent           = menuHeader
+
+local menuTitle = Instance.new("TextLabel")
+menuTitle.Size                = UDim2.new(1, -50, 1, 0)
+menuTitle.Position            = UDim2.new(0, 14, 0, 0)
+menuTitle.BackgroundTransparency = 1
+menuTitle.Text                = "🌧️  Rain Hub"
+menuTitle.TextColor3          = Color3.fromRGB(180, 220, 255)
+menuTitle.TextSize            = 15
+menuTitle.Font                = Enum.Font.GothamBold
+menuTitle.TextXAlignment      = Enum.TextXAlignment.Left
+menuTitle.ZIndex              = 17
+menuTitle.Parent              = menuHeader
+
+local menuVersion = Instance.new("TextLabel")
+menuVersion.Size                = UDim2.new(0, 36, 0, 16)
+menuVersion.Position            = UDim2.new(0, 14, 1, -18)
+menuVersion.BackgroundTransparency = 1
+menuVersion.Text                = "v5.0"
+menuVersion.TextColor3          = Color3.fromRGB(60, 120, 200)
+menuVersion.TextSize            = 9
+menuVersion.Font                = Enum.Font.Gotham
+menuVersion.TextXAlignment      = Enum.TextXAlignment.Left
+menuVersion.ZIndex              = 17
+menuVersion.Parent              = menuHeader
+
+local closeBtn = Instance.new("TextButton")
+closeBtn.Size             = UDim2.new(0, 28, 0, 28)
+closeBtn.Position         = UDim2.new(1, -36, 0.5, -14)
+closeBtn.BackgroundColor3 = Color3.fromRGB(170, 35, 35)
+closeBtn.BorderSizePixel  = 0
+closeBtn.Text             = "✕"
+closeBtn.TextColor3       = Color3.new(1,1,1)
+closeBtn.TextSize         = 12
+closeBtn.Font             = Enum.Font.GothamBold
+closeBtn.AutoButtonColor  = false
+closeBtn.ZIndex           = 18
+closeBtn.Parent           = menuHeader
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(1, 0)
+
+-- scroll area for rows
+local menuScroll = Instance.new("ScrollingFrame")
+menuScroll.Size                = UDim2.new(1, 0, 1, -46)
+menuScroll.Position            = UDim2.new(0, 0, 0, 46)
+menuScroll.BackgroundTransparency = 1
+menuScroll.BorderSizePixel     = 0
+menuScroll.ScrollBarThickness  = 3
+menuScroll.ScrollBarImageColor3 = Color3.fromRGB(60, 130, 255)
+menuScroll.CanvasSize          = UDim2.new(0, 0, 0, 0)
+menuScroll.ZIndex              = 16
+menuScroll.Parent              = menuPanel
+
+local menuList = Instance.new("UIListLayout")
+menuList.FillDirection = Enum.FillDirection.Vertical
+menuList.SortOrder     = Enum.SortOrder.LayoutOrder
+menuList.Padding       = UDim.new(0, 6)
+menuList.Parent        = menuScroll
+
+local menuPad = Instance.new("UIPadding")
+menuPad.PaddingTop    = UDim.new(0, 10)
+menuPad.PaddingLeft   = UDim.new(0, 10)
+menuPad.PaddingRight  = UDim.new(0, 10)
+menuPad.PaddingBottom = UDim.new(0, 10)
+menuPad.Parent        = menuScroll
+
+menuList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	menuScroll.CanvasSize = UDim2.new(0, 0, 0, menuList.AbsoluteContentSize.Y + 20)
+end)
+
+-- header drag moves whole panel
+makeDraggable(menuHeader, menuPanel)
+
+-- ══════════════════════════════════════
+--   MENU OPEN / CLOSE
+-- ══════════════════════════════════════
+local function getMenuOpenPos()
+	-- open just to the right of the sideTab
+	local tabX = sideTab.Position.X.Offset
+	local tabY = sideTab.Position.Y.Offset
+	return UDim2.new(0, tabX + TAB_W + 6, 0, tabY + (TAB_H/2) - (MENU_H/2))
+end
+
+local function openMenu()
+	menuOpen = true
+	menuPanel.Visible = true
+	menuPanel.Position = UDim2.new(
+		0, sideTab.Position.X.Offset - MENU_W - 6,
+		0, sideTab.Position.Y.Offset + (TAB_H/2) - (MENU_H/2)
+	)
+	tw(menuPanel, {Position = getMenuOpenPos()}, easeOut)
+	tw(tabAccent, {BackgroundColor3 = Color3.fromRGB(80, 210, 120)}, fastTw)
+end
+
+local function closeMenu()
+	menuOpen = false
+	local hiddenPos = UDim2.new(0, -(MENU_W + 20),
+		menuPanel.Position.Y.Scale, menuPanel.Position.Y.Offset)
+	tw(menuPanel, {Position = hiddenPos}, easeIn)
+	tw(tabAccent, {BackgroundColor3 = Color3.fromRGB(60, 140, 255)}, fastTw)
+	task.delay(0.3, function()
+		if not menuOpen then menuPanel.Visible = false end
+	end)
+end
+
+sideTab.MouseButton1Click:Connect(function()
+	if menuOpen then closeMenu() else openMenu() end
+end)
+closeBtn.MouseButton1Click:Connect(closeMenu)
+
+-- ══════════════════════════════════════
+--   FLOATING BADGE INDICATORS
+--   Slide in from right when ON,
+--   slide out and vanish when OFF
+-- ══════════════════════════════════════
+local badges    = {}
+local BADGE_W   = 130
+local BADGE_H   = 30
+local BADGE_START_Y = 180
+local BADGE_GAP     = 36
+
+local function reStackBadges()
+	local i = 0
+	for _, b in pairs(badges) do
+		tw(b, {Position = UDim2.new(1, -(BADGE_W + 8), 0, BADGE_START_Y + i * BADGE_GAP)}, fastTw)
+		i += 1
+	end
+end
+
+local function makeBadge(key, label, color)
+	if badges[key] then return end
+	local count = 0
+	for _ in pairs(badges) do count += 1 end
+	local yPos = BADGE_START_Y + count * BADGE_GAP
+
+	local badge = Instance.new("Frame")
+	badge.Size             = UDim2.new(0, BADGE_W, 0, BADGE_H)
+	badge.Position         = UDim2.new(1, 20, 0, yPos) -- off right edge
+	badge.BackgroundColor3 = color
+	badge.BorderSizePixel  = 0
+	badge.ZIndex           = 10
+	badge.Parent           = screenGui
+	Instance.new("UICorner", badge).CornerRadius = UDim.new(0, 8)
+
+	local dot = Instance.new("Frame")
+	dot.Size             = UDim2.new(0, 7, 0, 7)
+	dot.Position         = UDim2.new(0, 9, 0.5, -3)
+	dot.BackgroundColor3 = Color3.new(1,1,1)
+	dot.BackgroundTransparency = 0.3
+	dot.BorderSizePixel  = 0
+	dot.ZIndex           = 11
+	dot.Parent           = badge
+	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+
+	local lbl = Instance.new("TextLabel")
+	lbl.Size                = UDim2.new(1, -24, 1, 0)
+	lbl.Position            = UDim2.new(0, 22, 0, 0)
+	lbl.BackgroundTransparency = 1
+	lbl.Text                = label
+	lbl.TextColor3          = Color3.new(1,1,1)
+	lbl.TextSize            = 10
+	lbl.Font                = Enum.Font.GothamBold
+	lbl.TextXAlignment      = Enum.TextXAlignment.Left
+	lbl.TextTruncate        = Enum.TextTruncate.AtEnd
+	lbl.ZIndex              = 11
+	lbl.Name                = "BadgeLabel"
+	lbl.Parent              = badge
+
+	-- slide in
+	tw(badge, {Position = UDim2.new(1, -(BADGE_W + 8), 0, yPos)}, easeOut)
+	badges[key] = badge
+end
+
+local function removeBadge(key)
+	local badge = badges[key]
+	if not badge then return end
+	badges[key] = nil
+	local offscreen = UDim2.new(1, 20, 0, badge.Position.Y.Offset)
+	tw(badge, {Position = offscreen}, easeIn)
+	task.delay(0.3, function() badge:Destroy() end)
+	task.delay(0.05, reStackBadges)
+end
+
+local function setBadgeLabel(key, text)
+	local b = badges[key]
+	if not b then return end
+	local l = b:FindFirstChild("BadgeLabel")
+	if l then l.Text = text end
+end
+
+-- ══════════════════════════════════════
+--   MENU TOGGLE ROW BUILDER
+--   Returns a setState(bool) function
+--   so heartbeat can force state off
+-- ══════════════════════════════════════
+local rowOrder  = 0
+local COL_ON    = Color3.fromRGB(40, 200, 100)
+local COL_OFF   = Color3.fromRGB(55, 60, 80)
+
+local function makeToggleRow(icon, labelText, hintText, badgeColor, onToggle)
+	rowOrder += 1
+
+	local row = Instance.new("Frame")
+	row.Size             = UDim2.new(1, 0, 0, 56)
+	row.BackgroundColor3 = Color3.fromRGB(13, 26, 62)
+	row.BorderSizePixel  = 0
+	row.LayoutOrder      = rowOrder
+	row.ZIndex           = 17
+	row.Parent           = menuScroll
+	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 10)
+
+	local rs = Instance.new("UIStroke")
+	rs.Color        = Color3.fromRGB(28, 55, 130)
+	rs.Thickness    = 1
+	rs.Transparency = 0.4
+	rs.Parent       = row
+
+	local iconLbl = Instance.new("TextLabel")
+	iconLbl.Size                = UDim2.new(0, 28, 0, 28)
+	iconLbl.Position            = UDim2.new(0, 10, 0.5, -14)
+	iconLbl.BackgroundTransparency = 1
+	iconLbl.Text                = icon
+	iconLbl.TextSize            = 18
+	iconLbl.Font                = Enum.Font.GothamBold
+	iconLbl.ZIndex              = 18
+	iconLbl.Parent              = row
+
+	local nameLbl = Instance.new("TextLabel")
+	nameLbl.Size                = UDim2.new(1, -90, 0, 20)
+	nameLbl.Position            = UDim2.new(0, 44, 0, 10)
+	nameLbl.BackgroundTransparency = 1
+	nameLbl.Text                = labelText
+	nameLbl.TextColor3          = Color3.fromRGB(210, 225, 255)
+	nameLbl.TextSize            = 13
+	nameLbl.Font                = Enum.Font.GothamBold
+	nameLbl.TextXAlignment      = Enum.TextXAlignment.Left
+	nameLbl.ZIndex              = 18
+	nameLbl.Parent              = row
+
+	local hintLbl = Instance.new("TextLabel")
+	hintLbl.Size                = UDim2.new(1, -90, 0, 16)
+	hintLbl.Position            = UDim2.new(0, 44, 0, 30)
+	hintLbl.BackgroundTransparency = 1
+	hintLbl.Text                = hintText
+	hintLbl.TextColor3          = Color3.fromRGB(90, 120, 175)
+	hintLbl.TextSize            = 10
+	hintLbl.Font                = Enum.Font.Gotham
+	hintLbl.TextXAlignment      = Enum.TextXAlignment.Left
+	hintLbl.ZIndex              = 18
+	hintLbl.Name                = "HintLabel"
+	hintLbl.Parent              = row
+
+	-- pill switch
+	local pillBg = Instance.new("Frame")
+	pillBg.Size             = UDim2.new(0, 44, 0, 24)
+	pillBg.Position         = UDim2.new(1, -52, 0.5, -12)
+	pillBg.BackgroundColor3 = COL_OFF
+	pillBg.BorderSizePixel  = 0
+	pillBg.ZIndex           = 18
+	pillBg.Parent           = row
+	Instance.new("UICorner", pillBg).CornerRadius = UDim.new(1, 0)
+
+	local pillKnob = Instance.new("Frame")
+	pillKnob.Size             = UDim2.new(0, 18, 0, 18)
+	pillKnob.Position         = UDim2.new(0, 3, 0.5, -9)
+	pillKnob.BackgroundColor3 = Color3.new(1,1,1)
+	pillKnob.BorderSizePixel  = 0
+	pillKnob.ZIndex           = 19
+	pillKnob.Parent           = pillBg
+	Instance.new("UICorner", pillKnob).CornerRadius = UDim.new(1, 0)
+
+	local isOn = false
+
+	-- invisible button covering whole row
+	local rowBtn = Instance.new("TextButton")
+	rowBtn.Size                = UDim2.new(1, 0, 1, 0)
+	rowBtn.BackgroundTransparency = 1
+	rowBtn.Text                = ""
+	rowBtn.ZIndex              = 20
+	rowBtn.Parent              = row
+
+	local function setState(state)
+		isOn = state
+		if isOn then
+			tw(pillBg,   {BackgroundColor3 = COL_ON},               fastTw)
+			tw(pillKnob, {Position = UDim2.new(0, 23, 0.5, -9)},   fastTw)
+		else
+			tw(pillBg,   {BackgroundColor3 = COL_OFF},              fastTw)
+			tw(pillKnob, {Position = UDim2.new(0, 3, 0.5, -9)},    fastTw)
+		end
+		onToggle(isOn, hintLbl)
+	end
+
+	rowBtn.MouseButton1Click:Connect(function() setState(not isOn) end)
+
+	return setState
+end
+
+-- ══════════════════════════════════════
+--   UTILITY
+-- ══════════════════════════════════════
+local function getChar(player)
 	return player and player.Character
 end
-
 local function hasTool(player, toolName)
-	local char = getCharacter(player)
-	if char and char:FindFirstChild(toolName) then return true end
+	local c = getChar(player)
+	if c and c:FindFirstChild(toolName) then return true end
 	local bp = player:FindFirstChild("Backpack")
-	if bp and bp:FindFirstChild(toolName) then return true end
-	return false
+	return bp and bp:FindFirstChild(toolName) ~= nil
 end
-
-local function hasAnyToolEquipped(player)
-	local char = getCharacter(player)
-	if not char then return false end
-	for _, v in ipairs(char:GetChildren()) do
+local function hasAnyTool(player)
+	local c = getChar(player)
+	if not c then return false end
+	for _, v in ipairs(c:GetChildren()) do
 		if v:IsA("Tool") then return true end
 	end
 	return false
 end
-
-local function findPlayerWithTool(toolName)
+local function findWithTool(toolName)
 	for _, p in ipairs(Players:GetPlayers()) do
-		if p ~= LocalPlayer and hasTool(p, toolName) then
-			return p
-		end
+		if p ~= LocalPlayer and hasTool(p, toolName) then return p end
 	end
 	return nil
 end
 
 -- ══════════════════════════════════════
---   NOCLIP HELPERS
+--   NOCLIP
 -- ══════════════════════════════════════
-local noclipConn = nil
-
 local function enableNoclip()
 	if noclipConn then return end
 	noclipConn = RunService.Stepped:Connect(function()
-		local char = getCharacter(LocalPlayer)
-		if not char then return end
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = false
-			end
+		local c = getChar(LocalPlayer)
+		if not c then return end
+		for _, p in ipairs(c:GetDescendants()) do
+			if p:IsA("BasePart") then p.CanCollide = false end
 		end
 	end)
 end
-
 local function disableNoclip()
-	if noclipConn then
-		noclipConn:Disconnect()
-		noclipConn = nil
-	end
-	-- Restore collision on character parts
-	local char = getCharacter(LocalPlayer)
-	if char then
-		for _, part in ipairs(char:GetDescendants()) do
-			if part:IsA("BasePart") then
-				part.CanCollide = true
-			end
+	if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
+	local c = getChar(LocalPlayer)
+	if c then
+		for _, p in ipairs(c:GetDescendants()) do
+			if p:IsA("BasePart") then p.CanCollide = true end
 		end
 	end
 end
 
 -- ══════════════════════════════════════
---   COIN ESP (RAINBOW ANIMATED)
---   • Instantly removed via DescendantRemoving
---   • Sets part Transparency to 0.5
---   • Applies rainbow color to the part itself
+--   COIN ESP  — parented to part so
+--   AlwaysOnTop works through ALL walls
 -- ══════════════════════════════════════
-
--- Track original transparencies so we restore on cleanup
-local coinOrigTransparency = {}  -- [part] = originalTransparency
-
 local function removeCoinESP(part)
-	local data = coinEspParts[part]
-	if data then
-		if data.hl        then pcall(function() data.hl:Destroy()              end) end
-		if data.touchConn then pcall(function() data.touchConn:Disconnect()    end) end
-		if part and part.Parent then
-			pcall(function() part.Transparency = coinOrigTransparency[part] or 0 end)
-		end
-		coinOrigTransparency[part] = nil
-		coinEspParts[part] = nil
+	local d = coinEspParts[part]
+	if not d then return end
+	if d.hl        then pcall(function() d.hl:Destroy()           end) end
+	if d.touchConn then pcall(function() d.touchConn:Disconnect() end) end
+	if part and part.Parent then
+		pcall(function() part.Transparency = coinOrigTrans[part] or 0 end)
 	end
+	coinOrigTrans[part] = nil
+	coinEspParts[part]  = nil
 end
 
 local function applyCoinESP(part, rainbowColor)
 	if not part or not part.Parent then return end
+	local d = coinEspParts[part]
 
-	local data = coinEspParts[part]
+	if not d then
+		-- first time: store transparency, hook touch
+		coinOrigTrans[part] = part.Transparency
+		part.Transparency   = 0.5
 
-	-- First time we see this coin: set transparency, hook Touched
-	if not data then
-		coinOrigTransparency[part] = part.Transparency
-		part.Transparency = 0.5
-
-		-- Touched: instantly drop this coin and move to next closest
 		local touchConn
 		touchConn = part.Touched:Connect(function(hit)
-			local char = getCharacter(LocalPlayer)
-			if not char or not hit:IsDescendantOf(char) then return end
+			local c = getChar(LocalPlayer)
+			if not c or not hit:IsDescendantOf(c) then return end
 			if not farmActive then return end
 			touchConn:Disconnect()
 			farmCurrentCoin = nil
 			farmTweening    = false
-			if farmTweenObj then
-				farmTweenObj:Cancel()
-				farmTweenObj = nil
-			end
+			if farmTweenObj then farmTweenObj:Cancel(); farmTweenObj = nil end
 		end)
 
-		-- store conn so we can disconnect on cleanup
-		data = { hl = nil, touchConn = touchConn }
-		coinEspParts[part] = data
+		d = { hl = nil, touchConn = touchConn }
+		coinEspParts[part] = d
 	end
 
-	-- Apply rainbow color directly to the part
+	-- rainbow the part's own color
 	pcall(function() part.Color = rainbowColor end)
 
-	-- Highlight parented TO THE PART so AlwaysOnTop works through walls reliably
-	local hl = data.hl
+	-- Highlight parented TO THE PART — this is the fix for through-wall visibility
+	local hl = d.hl
 	if not hl or not hl.Parent then
-		hl = Instance.new("Highlight")
-		hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
-		hl.FillTransparency    = 0.45
+		hl            = Instance.new("Highlight")
+		hl.DepthMode  = Enum.HighlightDepthMode.AlwaysOnTop
+		hl.FillTransparency    = 0.4
 		hl.OutlineTransparency = 0
-		hl.Adornee             = part
-		hl.Parent              = part   -- parented to part, not Camera
+		hl.Adornee    = part
+		hl.Parent     = part   -- NOT Camera — parenting to part is the key
 	end
 	hl.FillColor    = rainbowColor
 	hl.OutlineColor = rainbowColor
-
-	data.hl = hl
-	coinEspParts[part] = data
+	d.hl            = hl
+	coinEspParts[part] = d
 end
 
--- Instant cleanup + farm retarget the moment a coin leaves workspace
 workspace.DescendantRemoving:Connect(function(obj)
 	if not (obj.Name == COIN_NAME and obj:IsA("BasePart")) then return end
-	if coinEspParts[obj] then
-		removeCoinESP(obj)
-	end
-	-- If farm was heading to this coin, cancel tween immediately so
-	-- farmLoop picks the next closest on the very next iteration
+	if coinEspParts[obj] then removeCoinESP(obj) end
 	if farmActive and farmCurrentCoin == obj then
 		farmCurrentCoin = nil
 		farmTweening    = false
-		if farmTweenObj then
-			farmTweenObj:Cancel()
-			farmTweenObj = nil
-		end
+		if farmTweenObj then farmTweenObj:Cancel(); farmTweenObj = nil end
 	end
 end)
 
 local function updateCoinESP(rainbowColor)
-	-- Apply/update ESP on all current Coin_Server parts
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj.Name == COIN_NAME and obj:IsA("BasePart") then
 			applyCoinESP(obj, rainbowColor)
 		end
 	end
-	-- Secondary safety pass: clear any stale entries missed by the event
 	for part in pairs(coinEspParts) do
-		if not part or not part.Parent then
-			removeCoinESP(part)
-		end
+		if not part or not part.Parent then removeCoinESP(part) end
 	end
 end
 
 -- ══════════════════════════════════════
---   AUTO FARM — FIND CLOSEST COIN
+--   AUTO FARM
 -- ══════════════════════════════════════
 local function getClosestCoin()
-	local char = getCharacter(LocalPlayer)
-	local root = char and char:FindFirstChild("HumanoidRootPart")
-	if not root then return nil end
-
-	local closest, closestDist = nil, math.huge
+	local c = getChar(LocalPlayer)
+	local r = c and c:FindFirstChild("HumanoidRootPart")
+	if not r then return nil end
+	local best, bestD = nil, math.huge
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj.Name == COIN_NAME and obj:IsA("BasePart") then
-			local dist = (obj.Position - root.Position).Magnitude
-			if dist < closestDist then
-				closest     = obj
-				closestDist = dist
-			end
+			local d = (obj.Position - r.Position).Magnitude
+			if d < bestD then best = obj; bestD = d end
 		end
 	end
-	return closest
+	return best
 end
 
-local farmTweenObj = nil
-
 local function farmTweenTo(part, onDone)
-	if farmTweenObj then
-		farmTweenObj:Cancel()
-		farmTweenObj = nil
+	if farmTweenObj then farmTweenObj:Cancel(); farmTweenObj = nil end
+	local c = getChar(LocalPlayer)
+	local r = c and c:FindFirstChild("HumanoidRootPart")
+	if not r or not part or not part.Parent then
+		if onDone then onDone(false) end; return
 	end
-	local char = getCharacter(LocalPlayer)
-	local root = char and char:FindFirstChild("HumanoidRootPart")
-	if not root or not part or not part.Parent then
-		if onDone then onDone(false) end
-		return
-	end
-
-	local dist     = (part.Position - root.Position).Magnitude
-	local duration = math.clamp(dist * FARM_TWEEN_T * 0.1, 0.08, 1.2)
-
-	farmTweenObj = TweenService:Create(
-		root,
-		TweenInfo.new(duration, Enum.EasingStyle.Linear),
+	local dist = (part.Position - r.Position).Magnitude
+	local dur  = math.clamp(dist * FARM_TWEEN_T * 0.1, 0.08, 1.2)
+	farmTweenObj = TweenService:Create(r,
+		TweenInfo.new(dur, Enum.EasingStyle.Linear),
 		{ CFrame = CFrame.new(part.Position + Vector3.new(0, 3, 0)) }
 	)
 	farmTweenObj.Completed:Connect(function(state)
@@ -646,32 +789,19 @@ local function farmLoop()
 	while farmActive do
 		local coin = getClosestCoin()
 		if not coin then
-			farmStatus.Text       = "No coins!"
-			farmStatus.TextColor3 = Color3.fromRGB(255, 200, 80)
+			setBadgeLabel("farm", "🌾 No coins!")
 			task.wait(0.3)
 		else
 			farmCurrentCoin = coin
-			local coinName  = coin.Name
-			farmStatus.Text       = "→ " .. coinName
-			farmStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
+			setBadgeLabel("farm", "🌾 Farming...")
 			farmTweening = true
-
-			local reached = false
-			farmTweenTo(coin, function(ok)
-				reached  = ok
-				farmTweening = false
-			end)
-
-			-- Wait until tween finishes or coin disappears
-			local t = 0
+			farmTweenTo(coin, function() farmTweening = false end)
 			while farmTweening and farmActive do
 				if not coin.Parent then
-					-- coin despawned mid-tween, cancel and re-target
 					if farmTweenObj then farmTweenObj:Cancel() end
-					farmTweening = false
-					break
+					farmTweening = false; break
 				end
-				t += task.wait()
+				task.wait()
 			end
 		end
 		task.wait(0.05)
@@ -679,56 +809,23 @@ local function farmLoop()
 end
 
 -- ══════════════════════════════════════
---   AUTO FARM BUTTON
--- ══════════════════════════════════════
-local farmOnColor  = Color3.fromRGB(220, 160, 20)
-local farmOffColor = Color3.fromRGB(200, 140, 20)
-
-farmBtn.MouseButton1Click:Connect(function()
-	farmActive = not farmActive
-
-	if farmActive then
-		farmBtn.BackgroundColor3 = farmOnColor
-		farmStatus.Text          = "Starting..."
-		farmStatus.TextColor3    = Color3.fromRGB(255, 220, 80)
-		enableNoclip()
-		task.spawn(farmLoop)
-	else
-		farmActive = false
-		farmBtn.BackgroundColor3 = farmOffColor
-		farmStatus.Text          = "Off"
-		farmStatus.TextColor3    = Color3.fromRGB(200, 200, 200)
-		if farmTweenObj then
-			farmTweenObj:Cancel()
-			farmTweenObj = nil
-		end
-		disableNoclip()
-		farmCurrentCoin = nil
-	end
-end)
-
--- ══════════════════════════════════════
---   ESP: CHAMS (Highlight) + BOX ESP
---   for PLAYERS (unchanged)
+--   PLAYER ESP
 -- ══════════════════════════════════════
 local function removeESP(player)
-	local data = espHighlights[player]
-	if data then
-		if data.hl        then data.hl:Destroy()        end
-		if data.billboard then data.billboard:Destroy() end
-		espHighlights[player] = nil
-	end
+	local d = espHighlights[player]
+	if not d then return end
+	if d.hl        then d.hl:Destroy()        end
+	if d.billboard then d.billboard:Destroy() end
+	espHighlights[player] = nil
 end
 
-local function applyESP(player, fillColor, outlineColor)
-	local char = getCharacter(player)
-	if not char then return end
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if not root then return end
-
-	local data = espHighlights[player]
-
-	local hl = data and data.hl
+local function applyESP(player, fill, outline)
+	local c = getChar(player)
+	if not c then return end
+	local r = c:FindFirstChild("HumanoidRootPart")
+	if not r then return end
+	local d  = espHighlights[player]
+	local hl = d and d.hl
 	if not hl or not hl.Parent then
 		hl = Instance.new("Highlight")
 		hl.DepthMode           = Enum.HighlightDepthMode.AlwaysOnTop
@@ -736,373 +833,284 @@ local function applyESP(player, fillColor, outlineColor)
 		hl.OutlineTransparency = 0
 		hl.Parent              = Camera
 	end
-	hl.Adornee      = char
-	hl.FillColor    = fillColor
-	hl.OutlineColor = outlineColor
-
-	local bb = data and data.billboard
+	hl.Adornee = c; hl.FillColor = fill; hl.OutlineColor = outline
+	local bb = d and d.billboard
 	if not bb or not bb.Parent then
 		bb = Instance.new("BillboardGui")
-		bb.AlwaysOnTop    = true
-		bb.StudsOffset    = Vector3.new(0, 3.5, 0)
-		bb.Size           = UDim2.new(0, 50, 0, 80)
-		bb.ResetOnSpawn   = false
+		bb.AlwaysOnTop = true; bb.StudsOffset = Vector3.new(0,3.5,0)
+		bb.Size = UDim2.new(0,50,0,80); bb.ResetOnSpawn = false
 		bb.LightInfluence = 0
-
-		local function makeLine(anchorPoint, size, position, color)
+		local function mkLine(ap,sz,pos,col)
 			local f = Instance.new("Frame")
-			f.AnchorPoint            = anchorPoint
-			f.Size                   = size
-			f.Position               = position
-			f.BackgroundColor3       = color
-			f.BackgroundTransparency = 0
-			f.BorderSizePixel        = 0
-			f.ZIndex                 = 5
-			f.Parent                 = bb
-			return f
+			f.AnchorPoint=ap;f.Size=sz;f.Position=pos
+			f.BackgroundColor3=col;f.BackgroundTransparency=0
+			f.BorderSizePixel=0;f.ZIndex=5;f.Parent=bb
 		end
-
-		local thickness = UDim2.new(1, 0, 0, 2)
-		local side      = UDim2.new(0, 2, 1, 0)
-		makeLine(Vector2.new(0.5, 0), thickness, UDim2.new(0.5, 0, 0, 0), outlineColor)
-		makeLine(Vector2.new(0.5, 1), thickness, UDim2.new(0.5, 0, 1, 0), outlineColor)
-		makeLine(Vector2.new(0, 0.5), side,      UDim2.new(0, 0, 0.5, 0), outlineColor)
-		makeLine(Vector2.new(1, 0.5), side,      UDim2.new(1, 0, 0.5, 0), outlineColor)
-
-		local nameLabel = Instance.new("TextLabel")
-		nameLabel.Size                   = UDim2.new(1, 0, 0, 16)
-		nameLabel.Position               = UDim2.new(0, 0, 0, -18)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.TextColor3             = outlineColor
-		nameLabel.TextSize               = 11
-		nameLabel.Font                   = Enum.Font.GothamBold
-		nameLabel.TextStrokeTransparency = 0.4
-		nameLabel.TextStrokeColor3       = Color3.new(0, 0, 0)
-		nameLabel.Text                   = player.Name
-		nameLabel.ZIndex                 = 6
-		nameLabel.Name                   = "NameLabel"
-		nameLabel.Parent                 = bb
+		local th=UDim2.new(1,0,0,2);local si=UDim2.new(0,2,1,0)
+		mkLine(Vector2.new(.5,0),th,UDim2.new(.5,0,0,0),outline)
+		mkLine(Vector2.new(.5,1),th,UDim2.new(.5,0,1,0),outline)
+		mkLine(Vector2.new(0,.5),si,UDim2.new(0,0,.5,0),outline)
+		mkLine(Vector2.new(1,.5),si,UDim2.new(1,0,.5,0),outline)
+		local nl=Instance.new("TextLabel")
+		nl.Size=UDim2.new(1,0,0,16);nl.Position=UDim2.new(0,0,0,-18)
+		nl.BackgroundTransparency=1;nl.TextColor3=outline
+		nl.TextSize=11;nl.Font=Enum.Font.GothamBold
+		nl.TextStrokeTransparency=0.4;nl.TextStrokeColor3=Color3.new(0,0,0)
+		nl.Text=player.Name;nl.ZIndex=6;nl.Name="NL";nl.Parent=bb
 	end
-
-	for _, child in ipairs(bb:GetChildren()) do
-		if child:IsA("Frame") then
-			child.BackgroundColor3 = outlineColor
-		elseif child:IsA("TextLabel") and child.Name == "NameLabel" then
-			child.TextColor3 = outlineColor
-			child.Text       = player.Name
-		end
+	for _,ch in ipairs(bb:GetChildren()) do
+		if ch:IsA("Frame") then ch.BackgroundColor3=outline
+		elseif ch:IsA("TextLabel")and ch.Name=="NL" then
+			ch.TextColor3=outline;ch.Text=player.Name end
 	end
-
-	bb.Adornee = root
-	espHighlights[player] = { hl = hl, billboard = bb }
+	bb.Adornee=r
+	espHighlights[player]={hl=hl,billboard=bb}
 end
 
 local function updatePlayerESP()
-	for player in pairs(espHighlights) do
-		if not player or not player.Parent then removeESP(player) end
+	for p in pairs(espHighlights) do
+		if not p or not p.Parent then removeESP(p) end
 	end
-	for _, player in ipairs(Players:GetPlayers()) do
-		if player == LocalPlayer then continue end
-		local char = getCharacter(player)
-		if not char then removeESP(player) continue end
-
-		local fillColor, outlineColor
-		if hasTool(player, MURD_TOOL) then
-			fillColor    = Color3.fromRGB(200, 20,  20)
-			outlineColor = Color3.fromRGB(255, 70,  70)
-		elseif hasTool(player, SHERIFF_TOOL) then
-			fillColor    = Color3.fromRGB(20,  70,  210)
-			outlineColor = Color3.fromRGB(70,  140, 255)
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p==LocalPlayer then continue end
+		local c=getChar(p)
+		if not c then removeESP(p);continue end
+		local fill,outline
+		if hasTool(p,MURD_TOOL) then
+			fill=Color3.fromRGB(200,20,20);outline=Color3.fromRGB(255,70,70)
+		elseif hasTool(p,SHERIFF_TOOL) then
+			fill=Color3.fromRGB(20,70,210);outline=Color3.fromRGB(70,140,255)
 		else
-			fillColor    = Color3.fromRGB(110, 30,  190)
-			outlineColor = Color3.fromRGB(170, 80,  255)
+			fill=Color3.fromRGB(110,30,190);outline=Color3.fromRGB(170,80,255)
 		end
-
-		applyESP(player, fillColor, outlineColor)
-
-		local data = espHighlights[player]
-		if data and data.hl and data.hl.Adornee ~= char then
-			data.hl.Adornee = char
-		end
+		applyESP(p,fill,outline)
+		local d=espHighlights[p]
+		if d and d.hl and d.hl.Adornee~=c then d.hl.Adornee=c end
 	end
 end
 
 -- ══════════════════════════════════════
---   CAMERA HARD LOCK-ON
+--   CAMERA LOCK
 -- ══════════════════════════════════════
-local camLockActive = false
-
-local function startCameraLock()
-	camLockActive = true
+local camLock = false
+local function startCamLock() camLock = true end
+local function stopCamLock()
+	camLock = false; Camera.CameraType = Enum.CameraType.Custom
 end
-
-local function stopCameraLock()
-	camLockActive = false
+local function updateCamLock()
+	if not camLock or not lockedTarget then return end
+	local tc = getChar(lockedTarget)
+	local tr = tc and tc:FindFirstChild("HumanoidRootPart")
+	if not tr then return end
 	Camera.CameraType = Enum.CameraType.Custom
-end
-
-local function updateCameraLock()
-	if not camLockActive or not lockedTarget then return end
-	local targetChar = getCharacter(lockedTarget)
-	local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-	if not targetRoot then return end
-	Camera.CameraType = Enum.CameraType.Custom
-	Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetRoot.Position)
+	Camera.CFrame = CFrame.new(Camera.CFrame.Position, tr.Position)
 end
 
 -- ══════════════════════════════════════
---   LOCK MURD BUTTON LOGIC
+--   SHERIFF HOOK
 -- ══════════════════════════════════════
-local function doLock(toolName, label, statusLbl, otherStatusLbl)
-	local target = findPlayerWithTool(toolName)
-	if target then
-		lockedTarget = target
-		lockMode     = label
-		startCameraLock()
-		statusLbl.Text       = "🔒 " .. target.Name
-		statusLbl.TextColor3 = Color3.fromRGB(80, 255, 140)
-		otherStatusLbl.Text       = "Idle"
-		otherStatusLbl.TextColor3 = Color3.fromRGB(200, 200, 200)
-	else
-		statusLbl.Text       = "Not found"
-		statusLbl.TextColor3 = Color3.fromRGB(255, 160, 80)
-	end
+local function clearSheriffConn()
+	if sheriffDiedConn then sheriffDiedConn:Disconnect(); sheriffDiedConn = nil end
 end
-
-murdBtn.MouseButton1Click:Connect(function()
-	if lockedTarget and lockMode == "Murd" then
-		lockedTarget = nil
-		lockMode     = nil
-		stopCameraLock()
-		murdStatus.Text       = "Unlocked"
-		murdStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
-	else
-		doLock(MURD_TOOL, "Murd", murdStatus, farmStatus)
-	end
-end)
-
--- ══════════════════════════════════════
---        FAKE SPEED BUTTON
--- ══════════════════════════════════════
-local speedOnColor  = Color3.fromRGB(110, 50, 220)
-local speedOffColor = Color3.fromRGB(80, 35, 160)
-
-speedBtn.MouseButton1Click:Connect(function()
-	fakeSpeedOn = not fakeSpeedOn
-	if fakeSpeedOn then
-		speedBtn.BackgroundColor3 = speedOnColor
-		speedStatus.Text          = "Jump!"
-		speedStatus.TextColor3    = Color3.fromRGB(200, 160, 255)
-	else
-		speedBtn.BackgroundColor3 = speedOffColor
-		speedStatus.Text          = "Off"
-		speedStatus.TextColor3    = Color3.fromRGB(200, 200, 200)
-		local char = getCharacter(LocalPlayer)
-		local h    = char and char:FindFirstChildOfClass("Humanoid")
-		if h then h.WalkSpeed = 16 end
-	end
-end)
-
--- ══════════════════════════════════════
---        GUN TP BUTTON
--- ══════════════════════════════════════
-local gunTpOnColor  = Color3.fromRGB(40, 180, 110)
-local gunTpOffColor = Color3.fromRGB(30, 130, 90)
-
-local function clearSheriffDiedConn()
-	if sheriffDiedConn then
-		sheriffDiedConn:Disconnect()
-		sheriffDiedConn = nil
-	end
-end
-
 local function hookSheriffDied(sheriff, char)
-	clearSheriffDiedConn()
-	sheriffLastChar = char
+	clearSheriffConn(); sheriffLastChar = char
 	local h = char:FindFirstChildOfClass("Humanoid")
 	if not h then return end
-
 	sheriffDiedConn = h.Died:Connect(function()
-		if not gunTpActive or gunTpDone then return end
-		if not gunLastPos then return end
-		local myChar = getCharacter(LocalPlayer)
-		local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-		if not myRoot then return end
-		myReturnPos = myRoot.Position
-		myRoot.CFrame = CFrame.new(gunLastPos + Vector3.new(0, 3, 0))
+		if not gunTpActive or gunTpDone or not gunLastPos then return end
+		local mc = getChar(LocalPlayer)
+		local mr = mc and mc:FindFirstChild("HumanoidRootPart")
+		if not mr then return end
+		myReturnPos = mr.Position
+		mr.CFrame = CFrame.new(gunLastPos + Vector3.new(0,3,0))
 		gunTpDone = true
-		gunTpStatus.Text       = "TP'd! Get gun"
-		gunTpStatus.TextColor3 = Color3.fromRGB(80, 255, 160)
-		clearSheriffDiedConn()
+		setBadgeLabel("guntp","🔫 TP'd! Get gun")
+		clearSheriffConn()
 	end)
 end
 
-gunTpBtn.MouseButton1Click:Connect(function()
-	gunTpActive = not gunTpActive
+-- ══════════════════════════════════════
+--   BUILD THE MENU ROWS
+-- ══════════════════════════════════════
 
-	if gunTpActive then
-		myReturnPos = nil
-		gunTpDone   = false
-		gunTpBtn.BackgroundColor3 = gunTpOnColor
+local setFarm = makeToggleRow("🌾","Auto Farm","Tween to coins",
+	Color3.fromRGB(200,140,20),
+	function(on, hint)
+		farmActive = on
+		if on then
+			hint.Text = "Farming closest..."
+			enableNoclip()
+			makeBadge("farm","🌾 Farming...", Color3.fromRGB(180,125,15))
+			task.spawn(farmLoop)
+		else
+			hint.Text = "Off"
+			if farmTweenObj then farmTweenObj:Cancel(); farmTweenObj=nil end
+			farmCurrentCoin=nil; disableNoclip()
+			removeBadge("farm")
+		end
+	end
+)
 
-		local sheriff = currentSheriff
-		if sheriff then
-			local char = getCharacter(sheriff)
-			local h    = char and char:FindFirstChildOfClass("Humanoid")
-			if h and h.Health <= 0 and gunLastPos then
-				gunTpStatus.Text       = "Sheriff dead — tp'ing..."
-				gunTpStatus.TextColor3 = Color3.fromRGB(255, 220, 80)
+local setMurd; setMurd = makeToggleRow("🔒","Lock Murd","Camera locks to murderer",
+	Color3.fromRGB(180,35,35),
+	function(on, hint)
+		if on then
+			local t = findWithTool(MURD_TOOL)
+			if t then
+				lockedTarget=t; lockMode="Murd"; startCamLock()
+				hint.Text = "Locked: "..t.Name
+				makeBadge("murd","🔒 "..t.Name, Color3.fromRGB(160,30,30))
 			else
-				gunTpStatus.Text       = "Tracking: " .. sheriff.Name
-				gunTpStatus.TextColor3 = Color3.fromRGB(100, 255, 180)
+				hint.Text = "Not found"
+				task.defer(function() setMurd(false) end)
 			end
 		else
-			gunTpStatus.Text       = "No sheriff yet"
-			gunTpStatus.TextColor3 = Color3.fromRGB(255, 200, 80)
+			lockedTarget=nil; lockMode=nil; stopCamLock()
+			hint.Text = "Off"; removeBadge("murd")
 		end
-	else
-		gunTpDone   = false
-		myReturnPos = nil
-		gunTpBtn.BackgroundColor3 = gunTpOffColor
-		gunTpStatus.Text          = "Standby"
-		gunTpStatus.TextColor3    = Color3.fromRGB(200, 200, 200)
 	end
-end)
+)
+
+local setSpeed = makeToggleRow("🚀","Fake Speed","Jump for mid-air boost",
+	Color3.fromRGB(80,35,160),
+	function(on, hint)
+		fakeSpeedOn = on
+		if on then
+			hint.Text = "Active — jump!"
+			makeBadge("speed","🚀 Fake Speed", Color3.fromRGB(70,30,145))
+		else
+			hint.Text = "Off"
+			local c = getChar(LocalPlayer)
+			local h = c and c:FindFirstChildOfClass("Humanoid")
+			if h then h.WalkSpeed=16 end
+			removeBadge("speed")
+		end
+	end
+)
+
+local setGunTp; setGunTp = makeToggleRow("🔫","Gun TP","TP to gun when sheriff dies",
+	Color3.fromRGB(30,130,90),
+	function(on, hint)
+		gunTpActive=on
+		if on then
+			myReturnPos=nil; gunTpDone=false
+			if currentSheriff then
+				hint.Text = "Tracking "..currentSheriff.Name
+				makeBadge("guntp","🔫 Tracking "..currentSheriff.Name, Color3.fromRGB(25,110,78))
+			else
+				hint.Text = "Waiting for sheriff"
+				makeBadge("guntp","🔫 Waiting...", Color3.fromRGB(25,110,78))
+			end
+		else
+			gunTpDone=false; myReturnPos=nil
+			hint.Text="Off"; removeBadge("guntp")
+		end
+	end
+)
 
 -- ══════════════════════════════════════
---            MAIN HEARTBEAT LOOP
+--   MAIN HEARTBEAT
 -- ══════════════════════════════════════
 RunService.Heartbeat:Connect(function(dt)
-	-- Advance rainbow hue for coin ESP
 	rainbowHue = (rainbowHue + dt * 80) % 360
-	local rainbowColor = Color3.fromHSV(rainbowHue / 360, 0.55, 1)
+	local rbColor = Color3.fromHSV(rainbowHue/360, 0.55, 1)
 
 	updatePlayerESP()
-	updateCameraLock()
-	-- Always update coin ESP (rainbow) regardless of farm toggle
-	updateCoinESP(rainbowColor)
+	updateCamLock()
+	updateCoinESP(rbColor)
 
-	if lockedTarget and lockMode == "Murd" then
-		if not hasTool(lockedTarget, MURD_TOOL) or not getCharacter(lockedTarget) then
-			local newTarget = findPlayerWithTool(MURD_TOOL)
-			if newTarget then
-				lockedTarget          = newTarget
-				murdStatus.Text       = "Auto: " .. newTarget.Name
-				murdStatus.TextColor3 = Color3.fromRGB(255, 220, 60)
+	-- murd lock retarget
+	if lockedTarget and lockMode=="Murd" then
+		if not hasTool(lockedTarget,MURD_TOOL) or not getChar(lockedTarget) then
+			local nt = findWithTool(MURD_TOOL)
+			if nt then
+				lockedTarget=nt
+				setBadgeLabel("murd","🔒 "..nt.Name)
 			else
-				lockedTarget = nil
-				lockMode     = nil
-				stopCameraLock()
-				murdStatus.Text       = "Lost tool"
-				murdStatus.TextColor3 = Color3.fromRGB(255, 130, 60)
+				lockedTarget=nil; lockMode=nil; stopCamLock()
+				removeBadge("murd"); setMurd(false)
 			end
 		end
 	end
 
+	-- sheriff tracking
 	do
-		local sheriff = findPlayerWithTool(SHERIFF_TOOL)
-		if sheriff ~= currentSheriff then
-			currentSheriff = sheriff
-			gunLastPos     = nil
-			clearSheriffDiedConn()
-			if sheriff then
-				local char = getCharacter(sheriff)
-				if char then hookSheriffDied(sheriff, char) end
+		local s = findWithTool(SHERIFF_TOOL)
+		if s ~= currentSheriff then
+			currentSheriff=s; gunLastPos=nil; clearSheriffConn()
+			if s then
+				local c=getChar(s)
+				if c then hookSheriffDied(s,c) end
 			end
 		end
-
 		if currentSheriff then
-			local char = getCharacter(currentSheriff)
-			if char then
-				if char ~= sheriffLastChar then
-					hookSheriffDied(currentSheriff, char)
-				end
-				local root = char:FindFirstChild("HumanoidRootPart")
-				local h    = char:FindFirstChildOfClass("Humanoid")
-				if root and h and h.Health > 0 then
-					gunLastPos = root.Position
-				end
+			local c=getChar(currentSheriff)
+			if c then
+				if c~=sheriffLastChar then hookSheriffDied(currentSheriff,c) end
+				local r=c:FindFirstChild("HumanoidRootPart")
+				local h=c:FindFirstChildOfClass("Humanoid")
+				if r and h and h.Health>0 then gunLastPos=r.Position end
 			end
 		end
 	end
 
+	-- gun tp fire
 	if gunTpActive and not gunTpDone and currentSheriff then
-		local char = getCharacter(currentSheriff)
-		local h    = char and char:FindFirstChildOfClass("Humanoid")
-		if h and h.Health <= 0 and gunLastPos then
-			local myChar = getCharacter(LocalPlayer)
-			local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-			if myRoot then
-				myReturnPos = myRoot.Position
-				myRoot.CFrame = CFrame.new(gunLastPos + Vector3.new(0, 3, 0))
-				gunTpDone = true
-				gunTpStatus.Text       = "TP'd! Get gun"
-				gunTpStatus.TextColor3 = Color3.fromRGB(80, 255, 160)
+		local c=getChar(currentSheriff)
+		local h=c and c:FindFirstChildOfClass("Humanoid")
+		if h and h.Health<=0 and gunLastPos then
+			local mc=getChar(LocalPlayer)
+			local mr=mc and mc:FindFirstChild("HumanoidRootPart")
+			if mr then
+				myReturnPos=mr.Position
+				mr.CFrame=CFrame.new(gunLastPos+Vector3.new(0,3,0))
+				gunTpDone=true; setBadgeLabel("guntp","🔫 TP'd! Get gun")
 			end
 		end
 	end
 
+	-- gun tp return
 	if gunTpActive and gunTpDone and myReturnPos then
-		if hasTool(LocalPlayer, SHERIFF_TOOL) then
-			local myChar = getCharacter(LocalPlayer)
-			local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-			if myRoot then
-				myRoot.CFrame = CFrame.new(myReturnPos + Vector3.new(0, 3, 0))
-				gunTpStatus.Text       = "Returned home!"
-				gunTpStatus.TextColor3 = Color3.fromRGB(80, 200, 255)
-				myReturnPos = nil
-				gunTpDone   = false
-				gunTpActive = false
-				gunTpBtn.BackgroundColor3 = gunTpOffColor
-				task.delay(2, function()
-					gunTpStatus.Text       = "Standby"
-					gunTpStatus.TextColor3 = Color3.fromRGB(200, 200, 200)
-				end)
+		if hasTool(LocalPlayer,SHERIFF_TOOL) then
+			local mc=getChar(LocalPlayer)
+			local mr=mc and mc:FindFirstChild("HumanoidRootPart")
+			if mr then
+				mr.CFrame=CFrame.new(myReturnPos+Vector3.new(0,3,0))
+				myReturnPos=nil; gunTpDone=false; gunTpActive=false
+				setBadgeLabel("guntp","🔫 Returned!")
+				task.delay(1.5,function() removeBadge("guntp"); setGunTp(false) end)
 			end
 		end
 	end
 
+	-- fake speed
 	if fakeSpeedOn then
-		local char = getCharacter(LocalPlayer)
-		if not char then return end
-		local h = char:FindFirstChildOfClass("Humanoid")
+		local c=getChar(LocalPlayer)
+		if not c then return end
+		local h=c:FindFirstChildOfClass("Humanoid")
 		if not h then return end
-
-		if not hasAnyToolEquipped(LocalPlayer) then
-			h.WalkSpeed            = 16
-			speedStatus.Text       = "Equip tool!"
-			speedStatus.TextColor3 = Color3.fromRGB(255, 180, 60)
-			return
-		end
-
-		if h.FloorMaterial == Enum.Material.Air then
-			h.WalkSpeed            = FAKE_SPEED
-			speedStatus.Text       = "🚀 Boost!"
-			speedStatus.TextColor3 = Color3.fromRGB(140, 255, 180)
+		if not hasAnyTool(LocalPlayer) then
+			h.WalkSpeed=16; setBadgeLabel("speed","🚀 Equip tool!")
+		elseif h.FloorMaterial==Enum.Material.Air then
+			h.WalkSpeed=FAKE_SPEED; setBadgeLabel("speed","🚀 Boosting!")
 		else
-			h.WalkSpeed            = 16
-			speedStatus.Text       = "Jump!"
-			speedStatus.TextColor3 = Color3.fromRGB(200, 160, 255)
+			h.WalkSpeed=16; setBadgeLabel("speed","🚀 Jump!")
 		end
 	end
 end)
 
 -- ══════════════════════════════════════
---         PLAYER LEAVE CLEANUP
+--   CLEANUP ON PLAYER LEAVE
 -- ══════════════════════════════════════
-Players.PlayerRemoving:Connect(function(player)
-	removeESP(player)
-	if lockedTarget == player then
-		lockedTarget = nil
-		lockMode     = nil
-		stopCameraLock()
-		murdStatus.Text = "Left"
+Players.PlayerRemoving:Connect(function(p)
+	removeESP(p)
+	if lockedTarget==p then
+		lockedTarget=nil; lockMode=nil; stopCamLock()
+		removeBadge("murd"); setMurd(false)
 	end
-	if currentSheriff == player then
-		currentSheriff = nil
-		clearSheriffDiedConn()
-		gunLastPos = nil
+	if currentSheriff==p then
+		currentSheriff=nil; clearSheriffConn(); gunLastPos=nil
 	end
 end)
 
-print("[Rain Hub] Loaded. Auto Farm + Rainbow Coin ESP active.")
+print("[Rain Hub v5.0] Loaded.")
