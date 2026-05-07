@@ -8,3 +8,4 @@ Updates:
 Removed : The Buttons On Screen. Lock Sheriff. Shoot Murderer [Will be back soon had bugs] Coin ESP Text [Not the whole esp just the text]
 Added : Better Coin Farm and Coin Esp Auto Farm. A ENTIRE MAKE OVER FEATURING A NEW MENU FOR  THE HUB AND OPTIMIZATIONS!
 Thats All ENJOY!
+Also its named "FEXS hub v1.0" cus that was my old HUB name and yea
