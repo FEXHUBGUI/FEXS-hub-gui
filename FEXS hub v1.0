@@ -435,8 +435,8 @@ end
 -- ══════════════════════════════════════
 --   SETTINGS PANEL
 -- ══════════════════════════════════════
-local SET_W=300
-local SET_H=460
+local SET_W=220
+local SET_H=340
 
 local settingsPanel=Instance.new("Frame")
 settingsPanel.AnchorPoint=Vector2.new(0.5,0.5)
@@ -451,25 +451,25 @@ local setStroke=Instance.new("UIStroke")
 setStroke.Color=cfgC3("hubAccent");setStroke.Thickness=1.5;setStroke.Parent=settingsPanel
 
 local setHeader=Instance.new("Frame")
-setHeader.Size=UDim2.new(1,0,0,40);setHeader.BackgroundColor3=cfgC3("hubHeader")
+setHeader.Size=UDim2.new(1,0,0,32);setHeader.BackgroundColor3=cfgC3("hubHeader")
 setHeader.BorderSizePixel=0;setHeader.ZIndex=51;setHeader.Parent=settingsPanel
 Instance.new("UICorner",setHeader).CornerRadius=UDim.new(0,14)
 
-local setHFix=Instance.new("Frame");setHFix.Size=UDim2.new(1,0,0,14)
-setHFix.Position=UDim2.new(0,0,1,-14);setHFix.BackgroundColor3=cfgC3("hubHeader")
+local setHFix=Instance.new("Frame");setHFix.Size=UDim2.new(1,0,0,12)
+setHFix.Position=UDim2.new(0,0,1,-12);setHFix.BackgroundColor3=cfgC3("hubHeader")
 setHFix.BorderSizePixel=0;setHFix.ZIndex=51;setHFix.Parent=setHeader
 
 local setTitle=Instance.new("TextLabel")
-setTitle.Size=UDim2.new(1,-44,1,0);setTitle.Position=UDim2.new(0,12,0,0)
+setTitle.Size=UDim2.new(1,-38,1,0);setTitle.Position=UDim2.new(0,10,0,0)
 setTitle.BackgroundTransparency=1;setTitle.Text="⚙️  Settings"
-setTitle.TextColor3=Color3.fromRGB(200,220,255);setTitle.TextSize=14
+setTitle.TextColor3=Color3.fromRGB(200,220,255);setTitle.TextSize=11
 setTitle.Font=Enum.Font.GothamBold;setTitle.TextXAlignment=Enum.TextXAlignment.Left
 setTitle.ZIndex=52;setTitle.Parent=setHeader
 
 local setClose=Instance.new("TextButton")
-setClose.Size=UDim2.new(0,26,0,26);setClose.Position=UDim2.new(1,-32,0.5,-13)
+setClose.Size=UDim2.new(0,22,0,22);setClose.Position=UDim2.new(1,-28,0.5,-11)
 setClose.BackgroundColor3=Color3.fromRGB(170,35,35);setClose.BorderSizePixel=0
-setClose.Text="✕";setClose.TextColor3=Color3.new(1,1,1);setClose.TextSize=11
+setClose.Text="✕";setClose.TextColor3=Color3.new(1,1,1);setClose.TextSize=10
 setClose.Font=Enum.Font.GothamBold;setClose.AutoButtonColor=false
 setClose.ZIndex=52;setClose.Parent=setHeader
 Instance.new("UICorner",setClose).CornerRadius=UDim.new(1,0)
@@ -477,7 +477,7 @@ Instance.new("UICorner",setClose).CornerRadius=UDim.new(1,0)
 makeDraggable(setHeader,settingsPanel)
 
 local setScroll=Instance.new("ScrollingFrame")
-setScroll.Size=UDim2.new(1,0,1,-40);setScroll.Position=UDim2.new(0,0,0,40)
+setScroll.Size=UDim2.new(1,0,1,-32);setScroll.Position=UDim2.new(0,0,0,32)
 setScroll.BackgroundTransparency=1;setScroll.BorderSizePixel=0
 setScroll.ScrollBarThickness=3;setScroll.ScrollBarImageColor3=cfgC3("hubAccent")
 setScroll.CanvasSize=UDim2.new(0,0,0,0);setScroll.ZIndex=51;setScroll.Parent=settingsPanel
@@ -517,36 +517,36 @@ local setRowOrder=0
 local function makeSetSection(title)
 	setRowOrder+=1
 	local f=Instance.new("Frame")
-	f.Size=UDim2.new(1,0,0,24);f.BackgroundTransparency=1
+	f.Size=UDim2.new(1,0,0,18);f.BackgroundTransparency=1
 	f.LayoutOrder=setRowOrder;f.ZIndex=52;f.Parent=setScroll
 	local l=Instance.new("TextLabel");l.Size=UDim2.new(1,0,1,0)
 	l.BackgroundTransparency=1;l.Text=title
-	l.TextColor3=cfgC3("hubAccent");l.TextSize=11;l.Font=Enum.Font.GothamBold
+	l.TextColor3=cfgC3("hubAccent");l.TextSize=9;l.Font=Enum.Font.GothamBold
 	l.TextXAlignment=Enum.TextXAlignment.Left;l.ZIndex=53;l.Parent=f
 end
 
 local function makeSlider(label, minV, maxV, initV, fmt, onChange)
 	setRowOrder+=1
-	local ROW_H=52
+	local ROW_H=42
 	local row=Instance.new("Frame")
 	row.Size=UDim2.new(1,0,0,ROW_H);row.BackgroundColor3=Color3.fromRGB(13,26,62)
 	row.BorderSizePixel=0;row.LayoutOrder=setRowOrder;row.ZIndex=52;row.Parent=setScroll
-	Instance.new("UICorner",row).CornerRadius=UDim.new(0,8)
+	Instance.new("UICorner",row).CornerRadius=UDim.new(0,6)
 
 	local lbl=Instance.new("TextLabel")
-	lbl.Size=UDim2.new(1,-70,0,20);lbl.Position=UDim2.new(0,10,0,6)
+	lbl.Size=UDim2.new(1,-56,0,16);lbl.Position=UDim2.new(0,8,0,5)
 	lbl.BackgroundTransparency=1;lbl.Text=label
-	lbl.TextColor3=Color3.fromRGB(200,220,255);lbl.TextSize=11;lbl.Font=Enum.Font.GothamBold
+	lbl.TextColor3=Color3.fromRGB(200,220,255);lbl.TextSize=9;lbl.Font=Enum.Font.GothamBold
 	lbl.TextXAlignment=Enum.TextXAlignment.Left;lbl.ZIndex=53;lbl.Parent=row
 
 	local valLbl=Instance.new("TextLabel")
-	valLbl.Size=UDim2.new(0,60,0,20);valLbl.Position=UDim2.new(1,-68,0,6)
+	valLbl.Size=UDim2.new(0,50,0,16);valLbl.Position=UDim2.new(1,-54,0,5)
 	valLbl.BackgroundTransparency=1;valLbl.TextColor3=cfgC3("hubAccent")
-	valLbl.TextSize=11;valLbl.Font=Enum.Font.GothamBold
+	valLbl.TextSize=9;valLbl.Font=Enum.Font.GothamBold
 	valLbl.TextXAlignment=Enum.TextXAlignment.Right;valLbl.ZIndex=53;valLbl.Parent=row
 
 	local track=Instance.new("Frame")
-	track.Size=UDim2.new(1,-20,0,6);track.Position=UDim2.new(0,10,0,34)
+	track.Size=UDim2.new(1,-16,0,5);track.Position=UDim2.new(0,8,0,27)
 	track.BackgroundColor3=Color3.fromRGB(30,35,60);track.BorderSizePixel=0
 	track.ZIndex=53;track.Parent=row
 	Instance.new("UICorner",track).CornerRadius=UDim.new(1,0)
@@ -607,25 +607,25 @@ end
 local function makeSetToggle(label, initVal, onChange)
 	setRowOrder+=1
 	local row=Instance.new("Frame")
-	row.Size=UDim2.new(1,0,0,40);row.BackgroundColor3=Color3.fromRGB(13,26,62)
+	row.Size=UDim2.new(1,0,0,30);row.BackgroundColor3=Color3.fromRGB(13,26,62)
 	row.BorderSizePixel=0;row.LayoutOrder=setRowOrder;row.ZIndex=52;row.Parent=setScroll
-	Instance.new("UICorner",row).CornerRadius=UDim.new(0,8)
+	Instance.new("UICorner",row).CornerRadius=UDim.new(0,6)
 
 	local lbl=Instance.new("TextLabel")
-	lbl.Size=UDim2.new(1,-60,1,0);lbl.Position=UDim2.new(0,10,0,0)
+	lbl.Size=UDim2.new(1,-48,1,0);lbl.Position=UDim2.new(0,8,0,0)
 	lbl.BackgroundTransparency=1;lbl.Text=label
-	lbl.TextColor3=Color3.fromRGB(200,220,255);lbl.TextSize=11;lbl.Font=Enum.Font.GothamBold
+	lbl.TextColor3=Color3.fromRGB(200,220,255);lbl.TextSize=9;lbl.Font=Enum.Font.GothamBold
 	lbl.TextXAlignment=Enum.TextXAlignment.Left;lbl.ZIndex=53;lbl.Parent=row
 
 	local pillBg=Instance.new("Frame")
-	pillBg.Size=UDim2.new(0,40,0,20);pillBg.Position=UDim2.new(1,-48,0.5,-10)
+	pillBg.Size=UDim2.new(0,32,0,16);pillBg.Position=UDim2.new(1,-38,0.5,-8)
 	pillBg.BackgroundColor3=initVal and Color3.fromRGB(40,200,100) or Color3.fromRGB(55,60,82)
 	pillBg.BorderSizePixel=0;pillBg.ZIndex=53;pillBg.Parent=row
 	Instance.new("UICorner",pillBg).CornerRadius=UDim.new(1,0)
 
 	local knob=Instance.new("Frame")
-	knob.Size=UDim2.new(0,16,0,16)
-	knob.Position=initVal and UDim2.new(0,21,0.5,-8) or UDim2.new(0,3,0.5,-8)
+	knob.Size=UDim2.new(0,12,0,12)
+	knob.Position=initVal and UDim2.new(0,17,0.5,-6) or UDim2.new(0,2,0.5,-6)
 	knob.BackgroundColor3=Color3.new(1,1,1);knob.BorderSizePixel=0
 	knob.ZIndex=54;knob.Parent=pillBg
 	Instance.new("UICorner",knob).CornerRadius=UDim.new(1,0)
@@ -637,7 +637,7 @@ local function makeSetToggle(label, initVal, onChange)
 	btn.MouseButton1Click:Connect(function()
 		isOn=not isOn
 		tw(pillBg,{BackgroundColor3=isOn and Color3.fromRGB(40,200,100) or Color3.fromRGB(55,60,82)},fastTw)
-		tw(knob,{Position=isOn and UDim2.new(0,21,0.5,-8) or UDim2.new(0,3,0.5,-8)},fastTw)
+		tw(knob,{Position=isOn and UDim2.new(0,17,0.5,-6) or UDim2.new(0,2,0.5,-6)},fastTw)
 		if onChange then onChange(isOn) end
 	end)
 end
@@ -647,21 +647,21 @@ makeSetSection("── COLOR THEMES ──────────────")
 
 setRowOrder+=1
 local themeGrid=Instance.new("Frame")
-themeGrid.Size=UDim2.new(1,0,0,90);themeGrid.BackgroundTransparency=1
+themeGrid.Size=UDim2.new(1,0,0,62);themeGrid.BackgroundTransparency=1
 themeGrid.LayoutOrder=setRowOrder;themeGrid.ZIndex=52;themeGrid.Parent=setScroll
 
 local themeUiGrid=Instance.new("UIGridLayout")
-themeUiGrid.CellSize=UDim2.new(0,50,0,26);themeUiGrid.CellPadding=UDim2.new(0,4,0,4)
+themeUiGrid.CellSize=UDim2.new(0,38,0,20);themeUiGrid.CellPadding=UDim2.new(0,3,0,3)
 themeUiGrid.FillDirection=Enum.FillDirection.Horizontal;themeUiGrid.SortOrder=Enum.SortOrder.LayoutOrder
 themeUiGrid.Parent=themeGrid
 
 for _, theme in ipairs(THEMES) do
 	local tb=Instance.new("TextButton")
-	tb.Size=UDim2.new(0,50,0,26);tb.BackgroundColor3=Color3.fromRGB(theme.hubAccent.r,theme.hubAccent.g,theme.hubAccent.b)
+	tb.Size=UDim2.new(0,38,0,20);tb.BackgroundColor3=Color3.fromRGB(theme.hubAccent.r,theme.hubAccent.g,theme.hubAccent.b)
 	tb.BorderSizePixel=0;tb.Text=theme.name;tb.TextColor3=Color3.new(1,1,1)
-	tb.TextSize=8;tb.Font=Enum.Font.GothamBold;tb.AutoButtonColor=false
+	tb.TextSize=7;tb.Font=Enum.Font.GothamBold;tb.AutoButtonColor=false
 	tb.ZIndex=53;tb.Parent=themeGrid
-	Instance.new("UICorner",tb).CornerRadius=UDim.new(0,6)
+	Instance.new("UICorner",tb).CornerRadius=UDim.new(0,5)
 	tb.MouseButton1Click:Connect(function()
 		applyTheme(theme);applyHubColors()
 		tw(tb,{BackgroundColor3=Color3.fromRGB(255,255,255)},fastTw)
@@ -673,12 +673,12 @@ end
 
 setRowOrder+=1
 local customColorBtn=Instance.new("TextButton")
-customColorBtn.Size=UDim2.new(1,0,0,30);customColorBtn.BackgroundColor3=Color3.fromRGB(40,40,80)
-customColorBtn.BorderSizePixel=0;customColorBtn.Text="🎨  Custom Accent Color (R G B)"
-customColorBtn.TextColor3=Color3.fromRGB(200,210,255);customColorBtn.TextSize=10
+customColorBtn.Size=UDim2.new(1,0,0,22);customColorBtn.BackgroundColor3=Color3.fromRGB(40,40,80)
+customColorBtn.BorderSizePixel=0;customColorBtn.Text="🎨  Custom Accent (R G B)"
+customColorBtn.TextColor3=Color3.fromRGB(200,210,255);customColorBtn.TextSize=9
 customColorBtn.Font=Enum.Font.GothamBold;customColorBtn.AutoButtonColor=false
 customColorBtn.LayoutOrder=setRowOrder;customColorBtn.ZIndex=52;customColorBtn.Parent=setScroll
-Instance.new("UICorner",customColorBtn).CornerRadius=UDim.new(0,8)
+Instance.new("UICorner",customColorBtn).CornerRadius=UDim.new(0,6)
 
 makeSetSection("  Custom R:")
 makeSlider("Red",0,255,cfg.hubAccent.r,"%d",function(v)
@@ -743,12 +743,12 @@ makeSetSection("── RESET ─────────────────
 
 setRowOrder+=1
 local resetBtn=Instance.new("TextButton")
-resetBtn.Size=UDim2.new(1,0,0,34);resetBtn.BackgroundColor3=Color3.fromRGB(180,40,40)
+resetBtn.Size=UDim2.new(1,0,0,26);resetBtn.BackgroundColor3=Color3.fromRGB(180,40,40)
 resetBtn.BorderSizePixel=0;resetBtn.Text="↺  Reset All to Default"
-resetBtn.TextColor3=Color3.new(1,1,1);resetBtn.TextSize=12
+resetBtn.TextColor3=Color3.new(1,1,1);resetBtn.TextSize=10
 resetBtn.Font=Enum.Font.GothamBold;resetBtn.AutoButtonColor=false
 resetBtn.LayoutOrder=setRowOrder;resetBtn.ZIndex=52;resetBtn.Parent=setScroll
-Instance.new("UICorner",resetBtn).CornerRadius=UDim.new(0,8)
+Instance.new("UICorner",resetBtn).CornerRadius=UDim.new(0,6)
 
 resetBtn.MouseButton1Click:Connect(function()
 	for k,v in pairs(DEFAULT_SETTINGS) do
