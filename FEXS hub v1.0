@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---  Rain Hub v7.0
+--  Rain Hub v8.0
 -- ══════════════════════════════════════
 --  v1.0 — Shoot Murd, Lock, Fake Speed,
 --          Gun TP, Player ESP
@@ -23,6 +23,13 @@
 --          clicking it turns lock OFF and
 --          syncs pill in menu both ways,
 --          draggable, status label tracks it
+--  v8.0 — Menu pill ONLY shows/hides the
+--          red float button, does NOT touch
+--          the actual lock. Red float button
+--          is now the sole lock toggle,
+--          stays on screen when menu closed,
+--          auto-retargets new murd if old
+--          one loses knife
 -- ══════════════════════════════════════
 local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
@@ -970,41 +977,63 @@ murdFloatBtn:GetPropertyChangedSignal("Position"):Connect(function()
 	mfStatus.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, p.Y.Offset + CUBE + 4)
 end)
 
-local function showMurdFloat(targetName)
-	mfStatus.Text    = targetName and ("🔒 " .. targetName) or "Idle"
+local murdLockOn  = false  -- actual lock state, controlled by float btn only
+local setMurd     = nil    -- forward declare so hideMurdFloat can call it
+
+local function showMurdFloat()
 	murdFloatBtn.Visible = true
 	mfStatus.Visible     = true
+	mfStatus.Text        = "Click to lock"
 end
 
 local function hideMurdFloat()
+	if murdLockOn then
+		murdLockOn   = false
+		lockedTarget = nil; lockMode = nil; stopCamLock()
+		removeBadge("murd")
+		mfStatus.Text = "Click to lock"
+		murdFloatBtn.BackgroundColor3 = Color3.fromRGB(180, 35, 35)
+	end
 	murdFloatBtn.Visible = false
 	mfStatus.Visible     = false
 end
 
-local setMurd; setMurd = makeToggleRow("🔒","Lock Murd","Camera locks to murderer",
+-- MENU PILL: only shows or hides the red float button
+-- does NOT touch the actual lock at all
+setMurd = makeToggleRow("🔒","Lock Murd","Shows/hides the lock button",
 	function(on, hint)
 		if on then
-			local t = findWithTool(MURD_TOOL)
-			if t then
-				lockedTarget = t; lockMode = "Murd"; startCamLock()
-				hint.Text = "Locked: " .. t.Name
-				makeBadge("murd","🔒 " .. t.Name, Color3.fromRGB(160,30,30))
-				showMurdFloat(t.Name)
-			else
-				hint.Text = "Not found"
-				task.defer(function() setMurd(false) end)
-			end
+			hint.Text = "Button visible"
+			showMurdFloat()
 		else
-			lockedTarget = nil; lockMode = nil; stopCamLock()
-			hint.Text = "Off"; removeBadge("murd")
+			hint.Text = "Off"
 			hideMurdFloat()
 		end
 	end
 )
 
--- clicking the float button turns the lock OFF and syncs pill
+-- RED FLOAT BUTTON: this is what actually toggles the lock on/off
 murdFloatBtn.MouseButton1Click:Connect(function()
-	setMurd(false)
+	if murdLockOn then
+		-- turn lock OFF
+		murdLockOn   = false
+		lockedTarget = nil; lockMode = nil; stopCamLock()
+		removeBadge("murd")
+		mfStatus.Text = "Click to lock"
+		murdFloatBtn.BackgroundColor3 = Color3.fromRGB(180, 35, 35)
+	else
+		-- turn lock ON
+		local t = findWithTool(MURD_TOOL)
+		if t then
+			murdLockOn   = true
+			lockedTarget = t; lockMode = "Murd"; startCamLock()
+			mfStatus.Text = "🔒 " .. t.Name
+			murdFloatBtn.BackgroundColor3 = Color3.fromRGB(220, 60, 60)
+			makeBadge("murd","🔒 " .. t.Name, Color3.fromRGB(160,30,30))
+		else
+			mfStatus.Text = "No murd found!"
+		end
+	end
 end)
 
 local setSpeed = makeToggleRow("🚀","Fake Speed","Jump for mid-air boost",
@@ -1065,19 +1094,22 @@ RunService.Heartbeat:Connect(function(dt)
 	updateCamLock()
 
 	-- murd lock retarget
-	if lockedTarget and lockMode == "Murd" then
+	if murdLockOn and lockedTarget and lockMode == "Murd" then
 		if not hasTool(lockedTarget, MURD_TOOL) or not getChar(lockedTarget) then
 			local nt = findWithTool(MURD_TOOL)
 			if nt then
-				lockedTarget = nt
+				lockedTarget = nt; startCamLock()
 				setBadgeLabel("murd","🔒 "..nt.Name)
-				showMurdFloat(nt.Name)
+				mfStatus.Text = "🔒 "..nt.Name
 			else
+				-- lost murd entirely, turn lock off but keep button visible
+				murdLockOn   = false
 				lockedTarget = nil; lockMode = nil; stopCamLock()
-				removeBadge("murd"); hideMurdFloat(); setMurd(false)
+				removeBadge("murd")
+				mfStatus.Text = "Click to lock"
+				murdFloatBtn.BackgroundColor3 = Color3.fromRGB(180, 35, 35)
 			end
 		else
-			-- keep status label on float button current
 			mfStatus.Text = "🔒 " .. lockedTarget.Name
 		end
 	end
@@ -1149,8 +1181,11 @@ end)
 Players.PlayerRemoving:Connect(function(p)
 	removeESP(p)
 	if lockedTarget == p then
+		murdLockOn   = false
 		lockedTarget = nil; lockMode = nil; stopCamLock()
-		removeBadge("murd"); hideMurdFloat(); setMurd(false)
+		removeBadge("murd")
+		mfStatus.Text = "Click to lock"
+		murdFloatBtn.BackgroundColor3 = Color3.fromRGB(180, 35, 35)
 	end
 	if currentSheriff == p then
 		currentSheriff = nil; clearSheriffConn(); gunLastPos = nil
