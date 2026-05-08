@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---  Rain Hub v6.0
+--  Rain Hub v7.0
 -- ══════════════════════════════════════
 --  v1.0 — Shoot Murd, Lock, Fake Speed,
 --          Gun TP, Player ESP
@@ -17,6 +17,12 @@
 --          TRUE through-wall rainbow glow,
 --          cached coin table kills heartbeat
 --          lag (no more GetDescendants loop)
+--  v7.0 — Floating red Lock Murd cube btn
+--          appears only when Lock Murd ON,
+--          stays visible when menu closed,
+--          clicking it turns lock OFF and
+--          syncs pill in menu both ways,
+--          draggable, status label tracks it
 -- ══════════════════════════════════════
 local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
@@ -902,14 +908,88 @@ local setFarm = makeToggleRow("🌾","Auto Farm","Tween to coins + noclip",
 	end
 )
 
+-- ── Floating red Lock Murd cube button ──
+-- Hidden until Lock Murd is toggled ON in the menu.
+-- Clicking it toggles the lock off and syncs the pill.
+local CUBE = 80
+
+local murdFloatBtn = Instance.new("TextButton")
+murdFloatBtn.Size             = UDim2.new(0, CUBE, 0, CUBE)
+murdFloatBtn.Position         = UDim2.new(0, 20, 0, 140)
+murdFloatBtn.BackgroundColor3 = Color3.fromRGB(180, 35, 35)
+murdFloatBtn.BorderSizePixel  = 0
+murdFloatBtn.Text             = ""
+murdFloatBtn.AutoButtonColor  = false
+murdFloatBtn.ZIndex           = 25
+murdFloatBtn.Visible          = false
+murdFloatBtn.Parent           = screenGui
+Instance.new("UICorner", murdFloatBtn).CornerRadius = UDim.new(0, 14)
+
+local mfTop = Instance.new("TextLabel")
+mfTop.Size               = UDim2.new(1, -8, 0, 22)
+mfTop.Position           = UDim2.new(0, 4, 0, 14)
+mfTop.BackgroundTransparency = 1
+mfTop.Text               = "Lock"
+mfTop.TextColor3         = Color3.new(1, 1, 1)
+mfTop.TextSize           = 13
+mfTop.Font               = Enum.Font.GothamBold
+mfTop.TextXAlignment     = Enum.TextXAlignment.Center
+mfTop.ZIndex             = 26
+mfTop.Parent             = murdFloatBtn
+
+local mfBot = Instance.new("TextLabel")
+mfBot.Size               = UDim2.new(1, -8, 0, 20)
+mfBot.Position           = UDim2.new(0, 4, 0, 36)
+mfBot.BackgroundTransparency = 1
+mfBot.Text               = "Murd"
+mfBot.TextColor3         = Color3.fromRGB(255, 180, 180)
+mfBot.TextSize           = 11
+mfBot.Font               = Enum.Font.Gotham
+mfBot.TextXAlignment     = Enum.TextXAlignment.Center
+mfBot.ZIndex             = 26
+mfBot.Parent             = murdFloatBtn
+
+local mfStatus = Instance.new("TextLabel")
+mfStatus.Size               = UDim2.new(0, CUBE, 0, 16)
+mfStatus.Position           = UDim2.new(0, 20, 0, 140 + CUBE + 4)
+mfStatus.BackgroundTransparency = 1
+mfStatus.Text               = "Idle"
+mfStatus.TextColor3         = Color3.fromRGB(200, 200, 200)
+mfStatus.TextSize           = 10
+mfStatus.Font               = Enum.Font.Gotham
+mfStatus.TextXAlignment     = Enum.TextXAlignment.Center
+mfStatus.ZIndex             = 25
+mfStatus.Visible            = false
+mfStatus.Parent             = screenGui
+
+-- drag the float button around (PC + mobile)
+makeDraggable(murdFloatBtn, murdFloatBtn)
+-- keep status label synced to button position
+murdFloatBtn:GetPropertyChangedSignal("Position"):Connect(function()
+	local p = murdFloatBtn.Position
+	mfStatus.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, p.Y.Offset + CUBE + 4)
+end)
+
+local function showMurdFloat(targetName)
+	mfStatus.Text    = targetName and ("🔒 " .. targetName) or "Idle"
+	murdFloatBtn.Visible = true
+	mfStatus.Visible     = true
+end
+
+local function hideMurdFloat()
+	murdFloatBtn.Visible = false
+	mfStatus.Visible     = false
+end
+
 local setMurd; setMurd = makeToggleRow("🔒","Lock Murd","Camera locks to murderer",
 	function(on, hint)
 		if on then
 			local t = findWithTool(MURD_TOOL)
 			if t then
 				lockedTarget = t; lockMode = "Murd"; startCamLock()
-				hint.Text = "Locked: "..t.Name
-				makeBadge("murd","🔒 "..t.Name, Color3.fromRGB(160,30,30))
+				hint.Text = "Locked: " .. t.Name
+				makeBadge("murd","🔒 " .. t.Name, Color3.fromRGB(160,30,30))
+				showMurdFloat(t.Name)
 			else
 				hint.Text = "Not found"
 				task.defer(function() setMurd(false) end)
@@ -917,9 +997,15 @@ local setMurd; setMurd = makeToggleRow("🔒","Lock Murd","Camera locks to murde
 		else
 			lockedTarget = nil; lockMode = nil; stopCamLock()
 			hint.Text = "Off"; removeBadge("murd")
+			hideMurdFloat()
 		end
 	end
 )
+
+-- clicking the float button turns the lock OFF and syncs pill
+murdFloatBtn.MouseButton1Click:Connect(function()
+	setMurd(false)
+end)
 
 local setSpeed = makeToggleRow("🚀","Fake Speed","Jump for mid-air boost",
 	function(on, hint)
@@ -983,11 +1069,16 @@ RunService.Heartbeat:Connect(function(dt)
 		if not hasTool(lockedTarget, MURD_TOOL) or not getChar(lockedTarget) then
 			local nt = findWithTool(MURD_TOOL)
 			if nt then
-				lockedTarget = nt; setBadgeLabel("murd","🔒 "..nt.Name)
+				lockedTarget = nt
+				setBadgeLabel("murd","🔒 "..nt.Name)
+				showMurdFloat(nt.Name)
 			else
 				lockedTarget = nil; lockMode = nil; stopCamLock()
-				removeBadge("murd"); setMurd(false)
+				removeBadge("murd"); hideMurdFloat(); setMurd(false)
 			end
+		else
+			-- keep status label on float button current
+			mfStatus.Text = "🔒 " .. lockedTarget.Name
 		end
 	end
 
@@ -1059,7 +1150,7 @@ Players.PlayerRemoving:Connect(function(p)
 	removeESP(p)
 	if lockedTarget == p then
 		lockedTarget = nil; lockMode = nil; stopCamLock()
-		removeBadge("murd"); setMurd(false)
+		removeBadge("murd"); hideMurdFloat(); setMurd(false)
 	end
 	if currentSheriff == p then
 		currentSheriff = nil; clearSheriffConn(); gunLastPos = nil
