@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---  Rain Hub v8.0
+--  Rain Hub v9.0
 -- ══════════════════════════════════════
 --  v1.0 — Shoot Murd, Lock, Fake Speed,
 --          Gun TP, Player ESP
@@ -10,26 +10,20 @@
 --  v4.0 — No-wait touch retarget
 --  v5.0 — Slide menu, pill toggles,
 --          badge indicators, PC+Mobile drag
---  v6.0 — Toggle button moved to top-center,
---          menu opens centered on screen,
---          full drag on menu + toggle btn,
---          coin ESP uses SelectionBox for
---          TRUE through-wall rainbow glow,
---          cached coin table kills heartbeat
---          lag (no more GetDescendants loop)
---  v7.0 — Floating red Lock Murd cube btn
---          appears only when Lock Murd ON,
---          stays visible when menu closed,
---          clicking it turns lock OFF and
---          syncs pill in menu both ways,
+--  v6.0 — Toggle button top-center,
+--          menu centered, SelectionBox ESP,
+--          cached coin table, no lag
+--  v7.0 — Floating red Lock Murd cube btn,
+--          appears/hides with menu toggle,
 --          draggable, status label tracks it
---  v8.0 — Menu pill ONLY shows/hides the
---          red float button, does NOT touch
---          the actual lock. Red float button
---          is now the sole lock toggle,
---          stays on screen when menu closed,
---          auto-retargets new murd if old
---          one loses knife
+--  v8.0 — Menu pill only shows/hides float
+--          btn, float btn does actual lock,
+--          auto-retargets new murd
+--  v9.0 — 📌 pin icon on toggle menu btn,
+--          📌 pin btn on red float btn
+--          replaces close btn, both lock
+--          element in place when pinned,
+--          turn green 🔒 when locked
 -- ══════════════════════════════════════
 local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
@@ -272,7 +266,60 @@ toggleAccent.ZIndex           = 31
 toggleAccent.Parent           = toggleBtn
 Instance.new("UICorner", toggleAccent).CornerRadius = UDim.new(1, 0)
 
-makeDraggable(toggleBtn, toggleBtn)
+-- pin icon on the right side of the toggle button
+local togglePinBtn = Instance.new("TextButton")
+togglePinBtn.Size             = UDim2.new(0, 20, 0, 20)
+togglePinBtn.Position         = UDim2.new(1, 2, 0.5, -10)  -- just outside right edge
+togglePinBtn.BackgroundColor3 = Color3.fromRGB(20, 40, 90)
+togglePinBtn.BorderSizePixel  = 0
+togglePinBtn.Text             = "📌"
+togglePinBtn.TextSize         = 11
+togglePinBtn.Font             = Enum.Font.GothamBold
+togglePinBtn.AutoButtonColor  = false
+togglePinBtn.ZIndex           = 32
+togglePinBtn.Parent           = toggleBtn
+Instance.new("UICorner", togglePinBtn).CornerRadius = UDim.new(1, 0)
+
+local togglePinned = false
+
+-- draggable but only when not pinned
+local toggleDragging, toggleDragStart, toggleDragPos = false, nil, nil
+toggleBtn.InputBegan:Connect(function(inp)
+	if togglePinned then return end
+	if inp.UserInputType == Enum.UserInputType.MouseButton1
+	or inp.UserInputType == Enum.UserInputType.Touch then
+		toggleDragging  = true
+		toggleDragStart = inp.Position
+		toggleDragPos   = toggleBtn.Position
+		inp.Changed:Connect(function()
+			if inp.UserInputState == Enum.UserInputState.End then
+				toggleDragging = false
+			end
+		end)
+	end
+end)
+UserInputService.InputChanged:Connect(function(inp)
+	if not toggleDragging or togglePinned then return end
+	if inp.UserInputType == Enum.UserInputType.MouseMovement
+	or inp.UserInputType == Enum.UserInputType.Touch then
+		local d = inp.Position - toggleDragStart
+		toggleBtn.Position = UDim2.new(
+			toggleDragPos.X.Scale, toggleDragPos.X.Offset + d.X,
+			toggleDragPos.Y.Scale, toggleDragPos.Y.Offset + d.Y
+		)
+	end
+end)
+
+togglePinBtn.MouseButton1Click:Connect(function()
+	togglePinned = not togglePinned
+	if togglePinned then
+		togglePinBtn.BackgroundColor3 = Color3.fromRGB(60, 200, 100)
+		togglePinBtn.Text             = "🔒"
+	else
+		togglePinBtn.BackgroundColor3 = Color3.fromRGB(20, 40, 90)
+		togglePinBtn.Text             = "📌"
+	end
+end)
 
 -- ══════════════════════════════════════
 --   MENU PANEL  (centered, draggable)
@@ -969,12 +1016,59 @@ mfStatus.ZIndex             = 25
 mfStatus.Visible            = false
 mfStatus.Parent             = screenGui
 
--- drag the float button around (PC + mobile)
-makeDraggable(murdFloatBtn, murdFloatBtn)
--- keep status label synced to button position
-murdFloatBtn:GetPropertyChangedSignal("Position"):Connect(function()
-	local p = murdFloatBtn.Position
-	mfStatus.Position = UDim2.new(p.X.Scale, p.X.Offset, p.Y.Scale, p.Y.Offset + CUBE + 4)
+-- pin button on float btn (replaces close btn — locking it stops dragging)
+local mfPinBtn = Instance.new("TextButton")
+mfPinBtn.Size             = UDim2.new(0, 22, 0, 22)
+mfPinBtn.Position         = UDim2.new(1, -10, 0, -12)
+mfPinBtn.BackgroundColor3 = Color3.fromRGB(20, 40, 90)
+mfPinBtn.BorderSizePixel  = 0
+mfPinBtn.Text             = "📌"
+mfPinBtn.TextSize         = 11
+mfPinBtn.Font             = Enum.Font.GothamBold
+mfPinBtn.AutoButtonColor  = false
+mfPinBtn.ZIndex           = 28
+mfPinBtn.Parent           = murdFloatBtn
+Instance.new("UICorner", mfPinBtn).CornerRadius = UDim.new(1, 0)
+
+local mfPinned = false
+
+-- conditional drag for float button
+local mfDragging, mfDragStart, mfDragPos = false, nil, nil
+murdFloatBtn.InputBegan:Connect(function(inp)
+	if mfPinned then return end
+	if inp.UserInputType == Enum.UserInputType.MouseButton1
+	or inp.UserInputType == Enum.UserInputType.Touch then
+		mfDragging  = true
+		mfDragStart = inp.Position
+		mfDragPos   = murdFloatBtn.Position
+		inp.Changed:Connect(function()
+			if inp.UserInputState == Enum.UserInputState.End then
+				mfDragging = false
+			end
+		end)
+	end
+end)
+UserInputService.InputChanged:Connect(function(inp)
+	if not mfDragging or mfPinned then return end
+	if inp.UserInputType == Enum.UserInputType.MouseMovement
+	or inp.UserInputType == Enum.UserInputType.Touch then
+		local d = inp.Position - mfDragStart
+		local newX = mfDragPos.X.Offset + d.X
+		local newY = mfDragPos.Y.Offset + d.Y
+		murdFloatBtn.Position = UDim2.new(mfDragPos.X.Scale, newX, mfDragPos.Y.Scale, newY)
+		mfStatus.Position     = UDim2.new(mfDragPos.X.Scale, newX, mfDragPos.Y.Scale, newY + CUBE + 4)
+	end
+end)
+
+mfPinBtn.MouseButton1Click:Connect(function()
+	mfPinned = not mfPinned
+	if mfPinned then
+		mfPinBtn.BackgroundColor3 = Color3.fromRGB(60, 200, 100)
+		mfPinBtn.Text             = "🔒"
+	else
+		mfPinBtn.BackgroundColor3 = Color3.fromRGB(20, 40, 90)
+		mfPinBtn.Text             = "📌"
+	end
 end)
 
 local murdLockOn  = false  -- actual lock state, controlled by float btn only
