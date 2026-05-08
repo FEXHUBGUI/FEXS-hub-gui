@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---  Rain Hub v10.0
+--  Rain Hub v11.0
 -- ══════════════════════════════════════
 --  v1.0  — Shoot Murd, Lock, Fake Speed,
 --           Gun TP, Player ESP
@@ -30,6 +30,12 @@
 --           • All settings save per-user
 --             via writefile/readfile
 --           • Reset to Default button
+--  v11.0 — 🐛 Bug fix: settings no longer
+--           break on load (fixed broken
+--           boolean regex pattern in
+--           loadSettings — missing concat
+--           operator caused full script
+--           parse failure, blank UI)
 -- ══════════════════════════════════════
 local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
@@ -116,7 +122,8 @@ local function loadSettings()
 					cfg[k] = {r=tonumber(r), g=tonumber(g), b=tonumber(b)}
 				end
 			elseif type(v) == "boolean" then
-				local val = raw:match('"'..k.'":%s*(true|false)')
+				-- FIXED v11.0: was missing .. before closing quote (k.'" instead of k..'"')
+				local val = raw:match('"'..k..'":%s*(true|false)')
 				if val then cfg[k] = (val=="true") end
 			elseif type(v) == "number" then
 				local val = raw:match('"'..k..'":%s*([%d%.]+)')
@@ -214,7 +221,7 @@ local function mkLbl(parent,text,size,pos,tsize,font,color,ta,zi)
 end
 
 local bIcon=mkLbl(bPanel,"🌧️",UDim2.new(0,36,0,36),UDim2.new(0,12,0.5,-18),22,Enum.Font.GothamBold,Color3.new(1,1,1))
-local bMain=mkLbl(bPanel,"Welcome to Rain Hub v10.0!",UDim2.new(1,-56,0,24),UDim2.new(0,50,0,8),16,Enum.Font.GothamBold,Color3.fromRGB(160,210,255),Enum.TextXAlignment.Left)
+local bMain=mkLbl(bPanel,"Welcome to Rain Hub v11.0!",UDim2.new(1,-56,0,24),UDim2.new(0,50,0,8),16,Enum.Font.GothamBold,Color3.fromRGB(160,210,255),Enum.TextXAlignment.Left)
 local bSub=mkLbl(bPanel,"⚡ WE UPDATE ALMOST EVERYDAY!",UDim2.new(1,-56,0,16),UDim2.new(0,50,0,32),11,Enum.Font.Gotham,Color3.fromRGB(80,160,255),Enum.TextXAlignment.Left)
 
 local shimAngle=0
@@ -249,7 +256,6 @@ screenGui.Parent=LocalPlayer.PlayerGui
 --   UNIVERSAL DRAG (PC + Mobile)
 -- ══════════════════════════════════════
 local function makeDraggable(handle, mover, lockedRef)
-	-- lockedRef: function() return bool end — if true, drag disabled
 	mover = mover or handle
 	local dragging,dragStart,startPos=false,nil,nil
 	handle.InputBegan:Connect(function(inp)
@@ -289,15 +295,13 @@ local THEMES = {
 	{name="Rose",     hubAccent={r=255,g=100,b=160},hubBg={r=30,g=8,b=18},   hubHeader={r=55,g=14,b=32}},
 }
 
--- references to all themed UI elements so we can recolor them live
-local themedElements = {}  -- filled after GUI is built
+local themedElements = {}
 
 local function applyTheme(theme)
 	cfg.hubAccent = theme.hubAccent
 	cfg.hubBg     = theme.hubBg
 	cfg.hubHeader = theme.hubHeader
 	saveSettings()
-	-- actual recoloring happens in applyHubColors() below
 end
 
 -- ══════════════════════════════════════
@@ -320,7 +324,6 @@ toggleAccent.BackgroundColor3=cfgC3("hubAccent");toggleAccent.BorderSizePixel=0
 toggleAccent.ZIndex=31;toggleAccent.Parent=toggleBtn
 Instance.new("UICorner",toggleAccent).CornerRadius=UDim.new(1,0)
 
--- pin button on toggle btn
 local togglePinned=false
 local togglePinBtn=Instance.new("TextButton")
 togglePinBtn.Size=UDim2.new(0,20,0,20);togglePinBtn.Position=UDim2.new(1,2,0.5,-10)
@@ -371,12 +374,11 @@ menuTitle.ZIndex=17;menuTitle.Parent=menuHeader
 
 local menuVer=Instance.new("TextLabel")
 menuVer.Size=UDim2.new(0,40,0,14);menuVer.Position=UDim2.new(0,14,1,-16)
-menuVer.BackgroundTransparency=1;menuVer.Text="v10.0"
+menuVer.BackgroundTransparency=1;menuVer.Text="v11.0"
 menuVer.TextColor3=cfgC3("hubAccent");menuVer.TextSize=9
 menuVer.Font=Enum.Font.Gotham;menuVer.TextXAlignment=Enum.TextXAlignment.Left
 menuVer.ZIndex=17;menuVer.Parent=menuHeader
 
--- settings button (⚙️) top-right corner of header
 local settingsBtn=Instance.new("TextButton")
 settingsBtn.Size=UDim2.new(0,28,0,28);settingsBtn.Position=UDim2.new(1,-68,0.5,-14)
 settingsBtn.BackgroundColor3=Color3.fromRGB(40,40,80);settingsBtn.BorderSizePixel=0
@@ -492,7 +494,6 @@ setList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
 	setScroll.CanvasSize=UDim2.new(0,0,0,setList.AbsoluteContentSize.Y+20)
 end)
 
--- open/close settings
 local settingsOpen=false
 settingsBtn.MouseButton1Click:Connect(function()
 	settingsOpen=not settingsOpen
@@ -524,7 +525,6 @@ local function makeSetSection(title)
 	l.TextXAlignment=Enum.TextXAlignment.Left;l.ZIndex=53;l.Parent=f
 end
 
--- slider: returns a function to read current value
 local function makeSlider(label, minV, maxV, initV, fmt, onChange)
 	setRowOrder+=1
 	local ROW_H=52
@@ -604,7 +604,6 @@ local function makeSlider(label, minV, maxV, initV, fmt, onChange)
 	end)
 end
 
--- toggle row inside settings
 local function makeSetToggle(label, initVal, onChange)
 	setRowOrder+=1
 	local row=Instance.new("Frame")
@@ -643,31 +642,9 @@ local function makeSetToggle(label, initVal, onChange)
 	end)
 end
 
--- color swatch button
-local function makeColorSwatch(label, cfgKey, parent, layoutOrder)
-	local row=Instance.new("Frame")
-	row.Size=UDim2.new(1,0,0,36);row.BackgroundColor3=Color3.fromRGB(13,26,62)
-	row.BorderSizePixel=0;row.LayoutOrder=layoutOrder;row.ZIndex=52;row.Parent=parent
-	Instance.new("UICorner",row).CornerRadius=UDim.new(0,8)
-
-	local lbl=Instance.new("TextLabel")
-	lbl.Size=UDim2.new(1,-60,1,0);lbl.Position=UDim2.new(0,10,0,0)
-	lbl.BackgroundTransparency=1;lbl.Text=label
-	lbl.TextColor3=Color3.fromRGB(180,200,240);lbl.TextSize=10;lbl.Font=Enum.Font.Gotham
-	lbl.TextXAlignment=Enum.TextXAlignment.Left;lbl.ZIndex=53;lbl.Parent=row
-
-	local swatch=Instance.new("Frame")
-	swatch.Size=UDim2.new(0,28,0,20);swatch.Position=UDim2.new(1,-36,0.5,-10)
-	swatch.BackgroundColor3=cfgC3(cfgKey);swatch.BorderSizePixel=0
-	swatch.ZIndex=53;swatch.Parent=row
-	Instance.new("UICorner",swatch).CornerRadius=UDim.new(0,4)
-	return swatch
-end
-
 -- ── SETTINGS SECTIONS ─────────────────
 makeSetSection("── COLOR THEMES ──────────────")
 
--- 10 preset theme buttons in a grid
 setRowOrder+=1
 local themeGrid=Instance.new("Frame")
 themeGrid.Size=UDim2.new(1,0,0,90);themeGrid.BackgroundTransparency=1
@@ -687,7 +664,6 @@ for _, theme in ipairs(THEMES) do
 	Instance.new("UICorner",tb).CornerRadius=UDim.new(0,6)
 	tb.MouseButton1Click:Connect(function()
 		applyTheme(theme);applyHubColors()
-		-- flash border
 		tw(tb,{BackgroundColor3=Color3.fromRGB(255,255,255)},fastTw)
 		task.delay(0.3,function()
 			tw(tb,{BackgroundColor3=Color3.fromRGB(theme.hubAccent.r,theme.hubAccent.g,theme.hubAccent.b)},fastTw)
@@ -695,7 +671,6 @@ for _, theme in ipairs(THEMES) do
 	end)
 end
 
--- Custom color button
 setRowOrder+=1
 local customColorBtn=Instance.new("TextButton")
 customColorBtn.Size=UDim2.new(1,0,0,30);customColorBtn.BackgroundColor3=Color3.fromRGB(40,40,80)
@@ -705,7 +680,6 @@ customColorBtn.Font=Enum.Font.GothamBold;customColorBtn.AutoButtonColor=false
 customColorBtn.LayoutOrder=setRowOrder;customColorBtn.ZIndex=52;customColorBtn.Parent=setScroll
 Instance.new("UICorner",customColorBtn).CornerRadius=UDim.new(0,8)
 
--- simple R G B sliders for custom accent
 makeSetSection("  Custom R:")
 makeSlider("Red",0,255,cfg.hubAccent.r,"%d",function(v)
 	cfg.hubAccent.r=math.floor(v);applyHubColors();saveSettings()
@@ -736,8 +710,7 @@ makeSetToggle("No Animations",cfg.noAnimations,function(on)
 		local c=p.Character;if not c then continue end
 		local a=c:FindFirstChildOfClass("Animator")
 		if a then
-			if on then pcall(function() a.Parent=nil end)
-			end
+			if on then pcall(function() a.Parent=nil end) end
 		end
 	end
 end)
@@ -960,7 +933,7 @@ local function disableNoclip()
 end
 
 -- ══════════════════════════════════════
---   COIN ESP  (SelectionBox through walls)
+--   COIN ESP
 -- ══════════════════════════════════════
 local function removeCoinESP(part)
 	local d=coinEspData[part];if not d then return end
@@ -1196,7 +1169,6 @@ mfStatus.TextSize=10;mfStatus.Font=Enum.Font.Gotham
 mfStatus.TextXAlignment=Enum.TextXAlignment.Center;mfStatus.ZIndex=25
 mfStatus.Visible=false;mfStatus.Parent=screenGui
 
--- pin button on float btn
 local mfPinned=false
 local mfPinBtn=Instance.new("TextButton");mfPinBtn.Size=UDim2.new(0,22,0,22)
 mfPinBtn.Position=UDim2.new(1,-10,0,-12);mfPinBtn.BackgroundColor3=Color3.fromRGB(20,40,90)
@@ -1205,7 +1177,6 @@ mfPinBtn.Font=Enum.Font.GothamBold;mfPinBtn.AutoButtonColor=false
 mfPinBtn.ZIndex=28;mfPinBtn.Parent=murdFloatBtn
 Instance.new("UICorner",mfPinBtn).CornerRadius=UDim.new(1,0)
 
--- conditional drag for float btn
 local mfDragging,mfDragStart,mfDragPos=false,nil,nil
 murdFloatBtn.InputBegan:Connect(function(inp)
 	if mfPinned then return end
@@ -1310,7 +1281,6 @@ local espThrottle=0
 local fpsAccum=0
 
 RunService.Heartbeat:Connect(function(dt)
-	-- FPS cap
 	fpsAccum+=dt
 	local frameTime=1/cfg.fpsCap
 	if fpsAccum<frameTime then return end
@@ -1404,4 +1374,4 @@ end)
 -- apply saved theme on load
 applyHubColors()
 
-print("[Rain Hub v10.0] Loaded.")
+print("[Rain Hub v11.0] Loaded.")
