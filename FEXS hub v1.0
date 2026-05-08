@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════
---  Rain Hub v11.0
+--  Rain Hub v12.0
 -- ══════════════════════════════════════
 --  v1.0  — Shoot Murd, Lock, Fake Speed,
 --           Gun TP, Player ESP
@@ -174,6 +174,10 @@ local currentSheriff  = nil
 local sheriffDiedConn = nil
 local sheriffLastChar = nil
 local noclipConn      = nil
+
+-- ESP enable flags (all ON by default)
+local playerEspEnabled = true
+local coinEspEnabled   = true
 
 -- ══════════════════════════════════════
 --   TWEEN SHORTHAND
@@ -843,8 +847,9 @@ end
 local rowOrder=0
 local COL_ON=Color3.fromRGB(40,200,100);local COL_OFF=Color3.fromRGB(55,60,82)
 
-local function makeToggleRow(icon,labelText,hintText,onToggle)
+local function makeToggleRow(icon,labelText,hintText,onToggle,defaultOn)
 	rowOrder+=1
+	defaultOn = (defaultOn == nil) and false or defaultOn
 	local row=Instance.new("Frame")
 	row.Size=UDim2.new(1,0,0,56);row.BackgroundColor3=Color3.fromRGB(13,26,62)
 	row.BorderSizePixel=0;row.LayoutOrder=rowOrder;row.ZIndex=17;row.Parent=menuScroll
@@ -867,16 +872,18 @@ local function makeToggleRow(icon,labelText,hintText,onToggle)
 	hLbl.TextXAlignment=Enum.TextXAlignment.Left;hLbl.ZIndex=18;hLbl.Name="HintLabel";hLbl.Parent=row
 
 	local pillBg=Instance.new("Frame");pillBg.Size=UDim2.new(0,44,0,24)
-	pillBg.Position=UDim2.new(1,-52,0.5,-12);pillBg.BackgroundColor3=COL_OFF
+	pillBg.Position=UDim2.new(1,-52,0.5,-12)
+	pillBg.BackgroundColor3=defaultOn and COL_ON or COL_OFF
 	pillBg.BorderSizePixel=0;pillBg.ZIndex=18;pillBg.Parent=row
 	Instance.new("UICorner",pillBg).CornerRadius=UDim.new(1,0)
 
 	local pillKnob=Instance.new("Frame");pillKnob.Size=UDim2.new(0,18,0,18)
-	pillKnob.Position=UDim2.new(0,3,0.5,-9);pillKnob.BackgroundColor3=Color3.new(1,1,1)
+	pillKnob.Position=defaultOn and UDim2.new(0,23,0.5,-9) or UDim2.new(0,3,0.5,-9)
+	pillKnob.BackgroundColor3=Color3.new(1,1,1)
 	pillKnob.BorderSizePixel=0;pillKnob.ZIndex=19;pillKnob.Parent=pillBg
 	Instance.new("UICorner",pillKnob).CornerRadius=UDim.new(1,0)
 
-	local isOn=false
+	local isOn=defaultOn
 	local rowBtn=Instance.new("TextButton");rowBtn.Size=UDim2.new(1,0,1,0)
 	rowBtn.BackgroundTransparency=1;rowBtn.Text="";rowBtn.ZIndex=20;rowBtn.Parent=row
 
@@ -986,6 +993,10 @@ workspace.DescendantAdded:Connect(addCoinToCache)
 workspace.DescendantRemoving:Connect(removeCoinFromCache)
 
 local function updateCoinESP(rainbowColor)
+	if not coinEspEnabled then
+		for part in pairs(coinEspData) do removeCoinESP(part) end
+		return
+	end
 	for part in pairs(coinCache) do
 		if part and part.Parent then applyCoinESP(part,rainbowColor)
 		else coinCache[part]=nil;removeCoinESP(part) end
@@ -1088,6 +1099,10 @@ local function applyESP(player,fill,outline)
 end
 
 local function updatePlayerESP()
+	if not playerEspEnabled then
+		for p in pairs(espHighlights) do removeESP(p) end
+		return
+	end
 	for p in pairs(espHighlights) do if not p or not p.Parent then removeESP(p) end end
 	for _,p in ipairs(Players:GetPlayers()) do
 		if p==LocalPlayer then continue end
@@ -1220,6 +1235,31 @@ local function hideMurdFloat()
 	end
 	murdFloatBtn.Visible=false;mfStatus.Visible=false
 end
+
+-- ESP toggles (default ON) — initialise pills in ON state
+local setPlayerEsp=makeToggleRow("👁️","Player ESP","Highlights + nametags on players",
+	function(on,hint)
+		playerEspEnabled=on
+		if on then hint.Text="Murd/Sheriff/Innoc"
+			makeBadge("pesp","👁️ Player ESP",Color3.fromRGB(30,80,180))
+		else hint.Text="Off"
+			for p in pairs(espHighlights) do removeESP(p) end
+			removeBadge("pesp")
+		end
+	end)
+setPlayerEsp(true)  -- start ON
+
+local setCoinEsp=makeToggleRow("🪙","Coin ESP","Rainbow SelectionBox on coins",
+	function(on,hint)
+		coinEspEnabled=on
+		if on then hint.Text="Rainbow coins"
+			makeBadge("cesp","🪙 Coin ESP",Color3.fromRGB(180,125,15))
+		else hint.Text="Off"
+			for part in pairs(coinEspData) do removeCoinESP(part) end
+			removeBadge("cesp")
+		end
+	end)
+setCoinEsp(true)  -- start ON
 
 local setFarm=makeToggleRow("🌾","Auto Farm","Tween to coins + noclip",
 	function(on,hint)
