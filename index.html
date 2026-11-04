@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Private Vitor Tools</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --win-bg: #c0c0c0;
+    --win-dark: #808080;
+    --win-light: #dfdfdf;
+    --win-title: #000080;
+    --term-bg: #0c0c0c;
+    --term-fg: #00ff41;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background: #008080;
+    font-family: 'MS Sans Serif', 'Segoe UI', Tahoma, sans-serif;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .window {
+    position: absolute;
+    inset: 8px;
+    background: var(--win-bg);
+    border: 2px solid;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 3px 3px 0 #000;
+  }
+
+  .title-bar {
+    background: linear-gradient(90deg, #000080, #1084d0);
+    color: white;
+    padding: 4px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 13px;
+    font-weight: bold;
+    height: 26px;
+    flex-shrink: 0;
+  }
+
+  .title-bar .buttons { display: flex; gap: 3px; }
+  .title-btn {
+    width: 18px; height: 16px;
+    background: var(--win-bg);
+    border: 1px solid;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+    font-size: 11px;
+    line-height: 14px;
+    text-align: center;
+    color: #000;
+    cursor: pointer;
+  }
+
+  .menu-bar {
+    background: var(--win-bg);
+    border-bottom: 1px solid var(--win-dark);
+    padding: 3px 6px;
+    font-size: 12px;
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .menu-item { padding: 2px 5px; cursor: pointer; }
+  .menu-item:hover { background: var(--win-title); color: #fff; }
+
+  .main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+  }
+
+  .toolbox {
+    width: 200px;
+    min-width: 180px;
+    background: var(--win-bg);
+    border-right: 2px solid var(--win-dark);
+    padding: 6px;
+    overflow-y: auto;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .toolbox h3 {
+    background: var(--win-title);
+    color: #fff;
+    padding: 4px 6px;
+    margin: 6px 0 4px;
+    font-size: 11px;
+  }
+  .toolbox h3:first-child { margin-top: 0; }
+
+  .tool-btn {
+    display: block;
+    width: 100%;
+    background: var(--win-bg);
+    border: 2px solid;
+    border-color: var(--win-light) var(--win-dark) var(--win-dark) var(--win-light);
+    padding: 7px 8px;
+    margin-bottom: 3px;
+    text-align: left;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: inherit;
+    -webkit-user-select: none;
+  }
+  .tool-btn:active {
+    border-color: var(--win-dark) var(--win-light) var(--win-light) var(--win-dark);
+    background: #d4d0c8;
+  }
+
+  .terminal-area {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: #000;
+    border: 2px inset #808080;
+    min-width: 0;
+  }
+  .term-header {
+    background: #1a1a1a;
+    color: #aaa;
+    padding: 4px 8px;
+    font-size: 11px;
+    border-bottom: 1px solid #333;
+    display: flex;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  #terminal {
+    flex: 1;
+    background: var(--term-bg);
+    color: var(--term-fg);
+    font-family: 'Share Tech Mono', 'Courier New', monospace;
+    font-size: 12.5px;
+    padding: 8px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    line-height: 1.35;
+    -webkit-overflow-scrolling: touch;
+  }
+  .term-input-line {
+    background: #111;
+    padding: 6px 8px;
+    display: flex;
+    border-top: 1px solid #333;
+    flex-shrink: 0;
+  }
+  .prompt { color: #00cc00; margin-right: 6px; white-space: nowrap; }
+  #cmdInput {
+    flex: 1;
+    background: transparent;
+    border: none;
+    color: var(--term-fg);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12.5px;
+    outline: none;
+    min-width: 0;
+  }
+
+  .vitor-panel {
+    width: 260px;
+    min-width: 220px;
+    background: #1e1e2e;
+    border-left: 2px solid var(--win-dark);
+    display: flex;
+    flex-direction: column;
+    color: #cdd6f4;
+    flex-shrink: 0;
+  }
+  .vitor-header {
+    background: linear-gradient(90deg, #11111b, #313244);
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid #45475a;
+    flex-shrink: 0;
+  }
+  .vitor-avatar {
+    width: 40px; height: 40px;
+    background: #89b4fa;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: #111;
+    border: 2px solid #74c7ec;
+  }
+  .vitor-info h4 { font-size: 13px; color: #89b4fa; }
+  .vitor-info span { font-size: 10px; color: #a6adc8; }
+
+  #vitorChat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+    -webkit-overflow-scrolling: touch;
+  }
+  .vitor-msg {
+    background: #313244;
+    padding: 6px 8px;
+    margin-bottom: 6px;
+    border-radius: 4px;
+    border-left: 3px solid #89b4fa;
+  }
+  .vitor-msg.user {
+    background: #45475a;
+    border-left-color: #a6e3a1;
+  }
+  .vitor-input-area {
+    padding: 6px;
+    border-top: 1px solid #45475a;
+    display: flex;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+  #vitorInput {
+    flex: 1;
+    background: #11111b;
+    border: 1px solid #45475a;
+    color: #cdd6f4;
+    padding: 6px 8px;
+    font-size: 12px;
+    outline: none;
+    min-width: 0;
+  }
+  #vitorSend {
+    background: #89b4fa;
+    border: none;
+    color: #11111b;
+    padding: 0 12px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  .status-bar {
+    background: var(--win-bg);
+    border-top: 1px solid var(--win-light);
+    padding: 2px 6px;
+    font-size: 11px;
+    display: flex;
+    gap: 4px;
+    height: 22px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .status-item {
+    border: 1px inset #808080;
+    padding: 0 6px;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 900px) {
+    .window { inset: 0; border: none; box-shadow: none; }
+    .main { flex-direction: column; }
+    .toolbox {
+      width: 100%;
+      min-width: 0;
+      max-height: 160px;
+      border-right: none;
+      border-bottom: 2px solid var(--win-dark);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      padding: 6px;
+    }
+    .toolbox h3 {
+      width: 100%;
+      margin: 2px 0;
+      font-size: 10px;
+      padding: 3px 5px;
+    }
+    .tool-btn {
+      width: auto;
+      flex: 1 1 45%;
+      min-width: 110px;
+      padding: 8px 6px;
+      font-size: 11px;
+    }
+    .vitor-panel {
+      width: 100%;
+      min-width: 0;
+      max-height: 170px;
+      border-left: none;
+      border-top: 2px solid var(--win-dark);
+    }
+    .title-bar { font-size: 12px; height: 24px; }
+    #terminal { font-size: 11.5px; }
+  }
+
+  @media (max-width: 500px) {
+    .tool-btn { flex: 1 1 100%; }
+    .status-bar { font-size: 10px; }
+    .menu-bar { font-size: 11px; gap: 6px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="window" id="mainWindow">
+  <div class="title-bar">
+    <span>Private Vitor Tools v3.2</span>
+    <div class="buttons">
+      <div class="title-btn">_</div>
+      <div class="title-btn">□</div>
+      <div class="title-btn">×</div>
+    </div>
+  </div>
+
+  <div class="menu-bar">
+    <div class="menu-item" onclick="playClick()">File</div>
+    <div class="menu-item" onclick="playClick()">Edit</div>
+    <div class="menu-item" onclick="playClick()">Tools</div>
+    <div class="menu-item" onclick="playClick()">View</div>
+    <div class="menu-item" onclick="playClick()">Help</div>
+  </div>
+
+  <div class="main">
+    <div class="toolbox" id="toolbox">
+      <h3>RECON</h3>
+      <button class="tool-btn" onclick="runTool('nmap')">Nmap Scanner</button>
+      <button class="tool-btn" onclick="runTool('whois')">WHOIS</button>
+      <button class="tool-btn" onclick="runTool('dns')">DNS Enum</button>
+      <button class="tool-btn" onclick="runTool('subdomain')">Subdomains</button>
+
+      <h3>EXPLOIT</h3>
+      <button class="tool-btn" onclick="runTool('msf')">Metasploit</button>
+      <button class="tool-btn" onclick="runTool('sqlmap')">SQLMap</button>
+      <button class="tool-btn" onclick="runTool('hydra')">Hydra</button>
+      <button class="tool-btn" onclick="runTool('hashcat')">Hashcat</button>
+
+      <h3>STRESS</h3>
+      <button class="tool-btn" onclick="runTool('ddos')">Layer7 Flood</button>
+      <button class="tool-btn" onclick="runTool('slowloris')">Slowloris</button>
+      <button class="tool-btn" onclick="runTool('udp')">UDP Amplify</button>
+
+      <h3>STEALERS</h3>
+      <button class="tool-btn" onclick="runTool('discord')">Discord Token</button>
+      <button class="tool-btn" onclick="runTool('roblox')">Roblox Cookie</button>
+      <button class="tool-btn" onclick="runTool('crypto')">Crypto Wallet</button>
+      <button class="tool-btn" onclick="runTool('browser')">Browser Stealer</button>
+      <button class="tool-btn" onclick="runTool('steam')">Steam Session</button>
+
+      <h3>POST</h3>
+      <button class="tool-btn" onclick="runTool('mimikatz')">Mimikatz</button>
+      <button class="tool-btn" onclick="runTool('empire')">Empire</button>
+      <button class="tool-btn" onclick="runTool('c2')">C2 Beacon</button>
+
+      <h3>SYS</h3>
+      <button class="tool-btn" onclick="runTool('clear')">Clear</button>
+      <button class="tool-btn" onclick="runTool('status')">Status</button>
+      <button class="tool-btn" onclick="runTool('github')">GitHub Sync</button>
+    </div>
+
+    <div class="terminal-area">
+      <div class="term-header">
+        <span>root@vitor-box:~#</span>
+        <span id="clock">00:00:00</span>
+      </div>
+      <div id="terminal"></div>
+      <div class="term-input-line">
+        <span class="prompt">root@vitor-box:~#</span>
+        <input type="text" id="cmdInput" placeholder="command..." autocomplete="off" spellcheck="false" autocapitalize="off">
+      </div>
+    </div>
+
+    <div class="vitor-panel">
+      <div class="vitor-header">
+        <div class="vitor-avatar">V</div>
+        <div class="vitor-info">
+          <h4>VITOR</h4>
+          <span>AI ASSAILANT • ONLINE</span>
+        </div>
+      </div>
+      <div id="vitorChat"></div>
+      <div class="vitor-input-area">
+        <input type="text" id="vitorInput" placeholder="message..." autocomplete="off">
+        <button id="vitorSend">→</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <div class="status-item">CONNECTED</div>
+    <div class="status-item" id="statusAction">Ready</div>
+    <div class="status-item">root</div>
+    <div class="status-item" id="statusTime">--:--:--</div>
+  </div>
+</div>
+
+<script>
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+function playClick() {
+  try {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value = 780 + Math.random() * 180;
+    o.type = 'square';
+    g.gain.setValueAtTime(0.07, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+    o.start(); o.stop(audioCtx.currentTime + 0.05);
+  } catch(e) {}
+}
+
+function playBeep(freq=440, dur=0.09) {
+  try {
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.frequency.value = freq; o.type = 'sine';
+    g.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+    o.start(); o.stop(audioCtx.currentTime + dur);
+  } catch(e) {}
+}
+
+const term = document.getElementById('terminal');
+const cmdInput = document.getElementById('cmdInput');
+let typing = false;
+
+function addTerm(text, color) {
+  const line = document.createElement('div');
+  if (color) line.style.color = color;
+  line.textContent = text;
+  term.appendChild(line);
+  term.scrollTop = term.scrollHeight;
+}
+
+function typeOut(lines, speed=15, cb) {
+  if (typing) return;
+  typing = true;
+  let i = 0;
+  function next() {
+    if (i >= lines.length) { typing = false; if (cb) cb(); return; }
+    const line = lines[i];
+    if (typeof line === 'string') {
+      addTerm(line); playClick();
+    } else if (line.delay) {
+      setTimeout(() => { i++; next(); }, line.delay); return;
+    } else if (line.text) {
+      addTerm(line.text, line.color); playClick();
+    }
+    i++;
+    setTimeout(next, speed + Math.random()*8);
+  }
+  next();
+}
+
+const tools = {
+  nmap: [
+    { text: 'Starting Nmap 7.94 ( https://nmap.org ) at ' + new Date().toUTCString(), color: '#aaa' },
+    { delay: 350 },
+    'Nmap scan report for target.example.com (198.51.100.42)',
+    'Host is up (0.023s latency).',
+    'Not shown: 991 closed tcp ports (reset)',
+    'PORT     STATE SERVICE       VERSION',
+    '22/tcp   open  ssh           OpenSSH 8.9p1 Ubuntu 3ubuntu0.4',
+    '80/tcp   open  http          nginx 1.24.0',
+    '443/tcp  open  https         nginx 1.24.0',
+    '3306/tcp open  mysql         MySQL 8.0.32-0ubuntu0.22.04.2',
+    '8080/tcp open  http-proxy',
+    { delay: 280 },
+    'MAC Address: 00:1A:2B:3C:4D:5E (Intel Corporate)',
+    'Nmap done: 1 IP address (1 host up) scanned in 4.82 seconds'
+  ],
+  whois: [
+    'Whois lookup: target.example.com',
+    { delay: 280 },
+    'Domain Name: EXAMPLE.COM',
+    'Registry Domain ID: 2336799_DOMAIN_COM-VRSN',
+    'Registrar WHOIS Server: whois.example-registrar.com',
+    'Updated Date: 2025-07-12T09:14:22Z',
+    'Creation Date: 1995-08-14T04:00:00Z',
+    'Registry Expiry Date: 2027-08-13T04:00:00Z',
+    'Registrar: Example Registrar, Inc.',
+    'Name Server: NS1.EXAMPLE.COM',
+    'Name Server: NS2.EXAMPLE.COM'
+  ],
+  dns: [
+    '; <<>> DiG 9.18.18 <<>> target.example.com ANY +noall +answer',
+    { delay: 220 },
+    'target.example.com.    300     IN      A       198.51.100.42',
+    'target.example.com.    300     IN      AAAA    2001:db8::42',
+    'target.example.com.    3600    IN      MX      10 mail.example.com.',
+    'target.example.com.    3600    IN      NS      ns1.example.com.',
+    'target.example.com.    3600    IN      TXT     "v=spf1 include:_spf.example.com ~all"'
+  ],
+  subdomain: [
+    'Subdomain enumeration started — wordlist size: 5000',
+    { delay: 380 },
+    'www.target.example.com          198.51.100.42',
+    'mail.target.example.com         198.51.100.43',
+    'api.target.example.com          198.51.100.44',
+    'dev.target.example.com          198.51.100.45',
+    'staging.target.example.com      198.51.100.46',
+    'admin.target.example.com        198.51.100.47',
+    { delay: 250 },
+    'Enumeration complete. 6 hosts discovered.'
+  ],
+  msf: [
+    { text: '       =[ metasploit v6.3.42-dev                          ]', color: '#ff5555' },
+    { text: '+ -- --=[ 2345 exploits - 1234 auxiliary - 412 post       ]', color: '#ff5555' },
+    { delay: 380 },
+    'msf6 > use exploit/multi/handler',
+    'msf6 exploit(multi/handler) > set PAYLOAD windows/x64/meterpreter/reverse_tcp',
+    'msf6 exploit(multi/handler) > set LHOST 10.0.0.5',
+    'msf6 exploit(multi/handler) > set LPORT 4444',
+    'msf6 exploit(multi/handler) > exploit -j',
+    { delay: 480 },
+    '[*] Started reverse TCP handler on 10.0.0.5:4444',
+    '[*] Sending stage (200774 bytes) to 198.51.100.99',
+    '[*] Meterpreter session 1 opened (10.0.0.5:4444 -> 198.51.100.99:49152)',
+    { delay: 280 },
+    'meterpreter > getuid',
+    'Server username: NT AUTHORITY\\SYSTEM'
+  ],
+  sqlmap: [
+    '        ___',
+    '       __H__',
+    ' ___ ___[.]_____ ___ ___  {1.7.11#stable}',
+    '|_ -| . ["]     | .\'| . |',
+    '|___|_  [,]_|_|_|__,|  _|',
+    '      |_|V...       |_|   https://sqlmap.org',
+    { delay: 350 },
+    '[*] testing connection to the target URL',
+    '[*] heuristic test shows that GET parameter \'id\' might be injectable',
+    { delay: 450 },
+    'GET parameter \'id\' is vulnerable.',
+    'sqlmap identified the following injection point(s):',
+    'Parameter: id (GET)',
+    '    Type: boolean-based blind',
+    '    Title: AND boolean-based blind - WHERE or HAVING clause',
+    '[*] the back-end DBMS is MySQL'
+  ],
+  hydra: [
+    'Hydra v9.5 starting at ' + new Date().toISOString().slice(0,19),
+    { delay: 280 },
+    '[DATA] max 16 tasks per 1 server, overall 16 tasks',
+    '[DATA] attacking ssh://198.51.100.42:22/',
+    { delay: 550 },
+    '[22][ssh] host: 198.51.100.42   login: admin   password: Spring2024!',
+    '1 of 1 target successfully completed, 1 valid password found'
+  ],
+  hashcat: [
+    'hashcat (v6.2.6) starting in crack mode...',
+    { delay: 280 },
+    'OpenCL API (OpenCL 3.0 CUDA 12.2) - Platform #1 [NVIDIA Corporation]',
+    '* Device #1: NVIDIA GeForce RTX 4090, 24564/24576 MB, 128MCU',
+    { delay: 380 },
+    'Hash.Mode........: 1000 (NTLM)',
+    'Hash.Target......: aad3b435b51404eeaad3b435b51404ee:31d6cfe0d16ae931b73c59d7e0c089c0',
+    { delay: 650 },
+    'Status...........: Cracked',
+    'Password.Found...: Password1'
+  ],
+
+  // STRESS
+  ddos: [
+    { text: '[*] Layer-7 HTTP Flood module loaded', color: '#ff5555' },
+    'Target        : https://target.example.com',
+    'Method        : GET / POST mixed',
+    'Threads       : 256',
+    'Proxies       : 1200 live',
+    'Duration      : 120s',
+    { delay: 400 },
+    '[+] Flood started...',
+    { delay: 300 },
+    'Requests/sec  : 18,420',
+    'Bandwidth     : 142 Mbps',
+    'Active conns  : 8,912',
+    'Status codes  : 503 (78%)  429 (12%)  timeout (10%)',
+    { delay: 500 },
+    'Requests/sec  : 24,105',
+    'Bandwidth     : 198 Mbps',
+    'Target latency: 4,200 ms → timeout',
+    { delay: 400 },
+    '[+] Flood complete. Target unresponsive for 94s.'
+  ],
+  slowloris: [
+    '[*] Slowloris / Slow HTTP DoS module',
+    'Target : target.example.com:80',
+    'Sockets: 500',
+    { delay: 350 },
+    '[+] Opening incomplete connections...',
+    'Connected sockets : 487 / 500',
+    'Headers sent     : partial',
+    'Keep-alive       : forced',
+    { delay: 450 },
+    'Server thread pool exhausted',
+    'New legitimate connections: refused',
+    'Uptime impact   : service degraded',
+    '[+] Attack running. Press Ctrl+C to stop (simulated).'
+  ],
+  udp: [
+    '[*] UDP Amplification module',
+    'Protocol  : DNS / NTP / Memcached mix',
+    'Amplification factor : ~70x',
+    'Spoofed source : 198.51.100.42',
+    { delay: 400 },
+    '[+] Sending amplified datagrams...',
+    'Packets/sec : 1.2M',
+    'Outbound    : 890 Mbps',
+    'Target      : saturated',
+    { delay: 500 },
+    'Reflection sources responding: 2,140',
+    'Attack volume at target: ~62 Gbps (reported)',
+    '[+] Amplification cycle complete.'
+  ],
+
+  // STEALERS
+  discord: [
+    { text: '[*] Discord Token Extractor v2.4', color: '#ff5555' },
+    'Scanning local paths...',
+    { delay: 300 },
+    'Path: %APPDATA%\\discord\\Local Storage\\leveldb',
+    'Path: %APPDATA%\\discordcanary\\Local Storage\\leveldb',
+    'Path: %APPDATA%\\discordptb\\Local Storage\\leveldb',
+    { delay: 400 },
+    '[+] Token found',
+    'Token : mfa.ABcdEfGhIjKlMnOpQrStUvWxYz1234567890abcdefghijklmnopqrstuvwxyz',
+    'User  : VictimUser#4821',
+    'ID    : 123456789012345678',
+    'Email : victim@email.com',
+    'Nitro : Yes (boost)',
+    'Guilds: 47',
+    { delay: 300 },
+    '[+] Token validated against Discord API',
+    'Payment methods: 2 (Visa •••• 4242, PayPal)',
+    'Billing address captured',
+    '[+] Data written to loot/discord_123456789012345678.json'
+  ],
+  roblox: [
+    { text: '[*] Roblox Cookie & Session Stealer', color: '#ff5555' },
+    'Scanning browser profiles...',
+    { delay: 320 },
+    'Chrome profile 1 → .ROBLOSECURITY found',
+    'Edge profile    → .ROBLOSECURITY found',
+    { delay: 400 },
+    '[+] Cookie extracted',
+    'Cookie length : 742 chars',
+    'User ID       : 9482736154',
+    'Username      : CoolPlayer_992',
+    'Display Name  : CoolPlayer',
+    'Robux         : 12,450',
+    'Premium       : Yes',
+    'RAP           : 87,200',
+    'Inventory     : Limiteds detected (3)',
+    { delay: 350 },
+    '[+] Session validated',
+    'Account age   : 1,842 days',
+    'Friends       : 312',
+    'Groups        : 28',
+    '[+] Full cookie + inventory dump saved to loot/roblox_9482736154.txt'
+  ],
+  crypto: [
+    { text: '[*] Crypto Wallet Stealer / Clipper', color: '#ff5555' },
+    'Scanning for wallet extensions & files...',
+    { delay: 300 },
+    'MetaMask       : FOUND (chrome-extension)',
+    'Phantom        : FOUND',
+    'Exodus         : FOUND (desktop)',
+    'Atomic         : not present',
+    'Electrum       : FOUND',
+    { delay: 400 },
+    '[+] MetaMask vault decrypted (weak password)',
+    'Seed phrase    : witch collapse practice feed shame open despair creek road again ice least',
+    'Accounts       : 4',
+    '  0x71C7...9A2f  →  1.842 ETH  + 12,400 USDC',
+    '  0x3F2a...B81c  →  0.004 ETH',
+    { delay: 350 },
+    '[+] Exodus wallet.dat extracted',
+    'BTC balance    : 0.1274 BTC',
+    'LTC balance    : 18.2 LTC',
+    { delay: 300 },
+    '[+] Clipboard clipper injected',
+    'Monitoring BTC / ETH / SOL / USDT addresses',
+    '[+] All seeds + private keys written to loot/crypto_dump.json'
+  ],
+  browser: [
+    { text: '[*] Browser Credential & Cookie Stealer', color: '#ff5555' },
+    'Targets: Chrome, Edge, Firefox, Brave, Opera',
+    { delay: 320 },
+    'Decrypting Login Data...',
+    { delay: 400 },
+    '[+] Chrome passwords : 87 entries',
+    '  google.com          → user@gmail.com : P@ssw0rd2024!',
+    '  github.com          → devuser        : gh_token_xxxxx',
+    '  amazon.com          → shopper99      : AmazonPass!',
+    '  paypal.com          → payuser        : PayP@l2023',
+    '  binance.com         → cryptotrader   : BnC!secure99',
+    { delay: 350 },
+    '[+] Cookies extracted : 1,240',
+    'Session cookies for: discord.com, roblox.com, steamcommunity.com, twitter.com',
+    '[+] Credit cards    : 2 (Visa, Mastercard)',
+    '[+] Autofill data   : addresses, phones',
+    '[+] Full browser loot archived → loot/browser_20261104.zip'
+  ],
+  steam: [
+    { text: '[*] Steam Session & Token Stealer', color: '#ff5555' },
+    'Locating Steam installation...',
+    { delay: 280 },
+    'Path: C:\\Program Files (x86)\\Steam\\',
+    'ssfn files found : 2',
+    'loginusers.vdf   : parsed',
+    { delay: 400 },
+    '[+] Session token extracted',
+    'SteamID64     : 76561198123456789',
+    'Account name  : SteamUser_7781',
+    'Persona name  : xX_ProGamer_Xx',
+    'Balance       : $47.82 USD',
+    'Inventory     : 1,240 items (CS2, TF2, Rust)',
+    'Market value  : ~$1,850',
+    { delay: 300 },
+    '[+] ssfn + token validated',
+    'Guard status  : Mobile Authenticator linked',
+    '[+] Session hijack package ready → loot/steam_76561198123456789/'
+  ],
+
+  mimikatz: [
+    { text: '  .#####.   mimikatz 2.2.0 (x64) #19041', color: '#ff5555' },
+    { text: ' .## ^ ##.  "A La Vie, A L\'Amour"', color: '#ff5555' },
+    { delay: 380 },
+    'mimikatz # privilege::debug',
+    'Privilege \'20\' OK',
+    'mimikatz # sekurlsa::logonpasswords',
+    { delay: 480 },
+    'Authentication Id : 0 ; 123456',
+    'User Name         : Administrator',
+    'Domain            : WORKSTATION',
+    '        * Username : Administrator',
+    '        * Domain   : WORKSTATION',
+    '        * NTLM     : 31d6cfe0d16ae931b73c59d7e0c089c0',
+    '        * Password : (null)'
+  ],
+  empire: [
+    '[*] Loading modules...',
+    { delay: 320 },
+    '(Empire) > listeners',
+    '  Name     Host              Port',
+    '  http     10.0.0.5          80',
+    { delay: 280 },
+    '(Empire) > agents',
+    'Name     Language   Internal IP     Username',
+    'ABC123   powershell 198.51.100.99   WORKSTATION\\user'
+  ],
+  c2: [
+    '[*] Initializing C2 listener...',
+    { delay: 350 },
+    '[+] HTTPS beacon listener bound to 0.0.0.0:443',
+    { delay: 580 },
+    '[*] Beacon check-in from 198.51.100.99',
+    '    User     : WORKSTATION\\user',
+    '    Process  : explorer.exe (pid 4820)',
+    '    OS       : Windows 10 x64',
+    { delay: 300 },
+    '[*] Tasked beacon with: shell whoami',
+    '[*] Result: WORKSTATION\\user'
+  ],
+  status: [
+    '=== SYSTEM STATUS ===',
+    'Operator        : root',
+    'Host            : vitor-box',
+    'Uptime          : 4h 12m',
+    'Active modules  : 18',
+    'Sessions        : 1',
+    'Listeners       : 2',
+    'Loot files      : 7',
+    'CPU             : 14%',
+    'Memory          : 2.1 GB / 16 GB'
+  ],
+  github: [
+    'Syncing tool definitions...',
+    { delay: 300 },
+    '[+] nmap          https://github.com/nmap/nmap',
+    '[+] sqlmap        https://github.com/sqlmapproject/sqlmap',
+    '[+] thc-hydra     https://github.com/vanhauser-thc/thc-hydra',
+    '[+] hashcat       https://github.com/hashcat/hashcat',
+    '[+] mimikatz      https://github.com/gentilkiwi/mimikatz',
+    '[+] Empire        https://github.com/EmpireProject/Empire',
+    { delay: 220 },
+    'Local cache updated. Modules ready.'
+  ],
+  clear: []
+};
+
+function runTool(name) {
+  playClick();
+  playBeep(620, 0.07);
+  document.getElementById('statusAction').textContent = name.toUpperCase();
+
+  if (name === 'clear') {
+    term.innerHTML = '';
+    addTerm('Terminal cleared.');
+    document.getElementById('statusAction').textContent = 'Ready';
+    return;
+  }
+
+  const output = tools[name] || ['Module not found.'];
+  addTerm('');
+  addTerm('> ' + name, '#00ccff');
+  typeOut(output, 14, () => {
+    document.getElementById('statusAction').textContent = 'Ready';
+    playBeep(880, 0.1);
+  });
+}
+
+cmdInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const cmd = cmdInput.value.trim().toLowerCase();
+    cmdInput.value = '';
+    playClick();
+    if (!cmd) return;
+    addTerm('root@vitor-box:~# ' + cmd);
+    if (cmd === 'help') {
+      typeOut([
+        'Modules:',
+        '  recon   : nmap whois dns subdomain',
+        '  exploit : msf sqlmap hydra hashcat',
+        '  stress  : ddos slowloris udp',
+        '  steal   : discord roblox crypto browser steam',
+        '  post    : mimikatz empire c2',
+        '  sys     : status clear github'
+      ]);
+    } else if (tools[cmd]) {
+      runTool(cmd);
+    } else {
+      addTerm(cmd + ': command not found', '#ff5555');
+    }
+  }
+});
+
+const vitorChat = document.getElementById('vitorChat');
+const vitorReplies = [
+  "Target profile loaded. Awaiting tasking.",
+  "Listener is live. Ready for callback.",
+  "Session looks stable. Recommend migrating.",
+  "Credentials harvested. Moving laterally.",
+  "I can spin another handler if needed.",
+  "Network map updated. High-value hosts in scope.",
+  "Keep sleep above 4 seconds on this segment.",
+  "Ready when you are. Point me at the next objective.",
+  "Payload staged. Waiting for execution.",
+  "All quiet on the wire. Standing by.",
+  "Loot folder updated. Nice haul.",
+  "Token validated. Account is still live."
+];
+
+function vitorSay(text) {
+  const d = document.createElement('div');
+  d.className = 'vitor-msg';
+  d.textContent = text;
+  vitorChat.appendChild(d);
+  vitorChat.scrollTop = vitorChat.scrollHeight;
+  playBeep(500, 0.05);
+}
+
+function userSay(text) {
+  const d = document.createElement('div');
+  d.className = 'vitor-msg user';
+  d.textContent = text;
+  vitorChat.appendChild(d);
+  vitorChat.scrollTop = vitorChat.scrollHeight;
+}
+
+document.getElementById('vitorSend').onclick = () => {
+  const t = document.getElementById('vitorInput').value.trim();
+  if (!t) return;
+  playClick();
+  userSay(t);
+  document.getElementById('vitorInput').value = '';
+  setTimeout(() => vitorSay(vitorReplies[Math.floor(Math.random()*vitorReplies.length)]), 500 + Math.random()*700);
+};
+document.getElementById('vitorInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('vitorSend').click();
+});
+
+setInterval(() => {
+  const t = new Date().toTimeString().slice(0,8);
+  document.getElementById('clock').textContent = t;
+  document.getElementById('statusTime').textContent = t;
+}, 1000);
+
+function boot() {
+  try { audioCtx.resume(); } catch(e) {}
+  addTerm('Private Vitor Tools v3.2');
+  addTerm('========================');
+  addTerm('Operator session started.');
+  addTerm('Type "help" or select a module.');
+  addTerm('');
+  vitorSay("Vitor online. Systems nominal.");
+  vitorSay("Awaiting tasking.");
+}
+boot();
+
+document.addEventListener('touchstart', () => { try { audioCtx.resume(); } catch(e) {} }, {passive:true});
+</script>
+</body>
+</html>
